@@ -1,0 +1,385 @@
+#!/usr/bin/env python3
+"""Google Calendar & Tasks CLI for Claude Code integration.
+
+Uses a GCP service account with domain-wide delegation to access
+jon@cosmickmedia.com's calendar and tasks without interactive OAuth.
+
+Usage:
+    gcal auth                                       # Test service account auth
+    gcal tasks list [--due today] [--tasklist NAME]  # List tasks
+    gcal tasks add TITLE --due DATE [--notes TEXT] [--tasklist NAME]
+    gcal tasks complete TASK_ID [--tasklist NAME]    # Complete a task
+    gcal tasks delete TASK_ID [--tasklist NAME]      # Delete a task
+    gcal tasks update TASK_ID [--title TEXT] [--notes TEXT] [--append-notes TEXT] [--tasklist NAME]
+    gcal events list [--days N]                      # List upcoming events
+    gcal events add TITLE --date DATE [--time TIME] [--duration MINS]
+    gcal tasklists list                              # List task lists
+    gcal tasklists create NAME                       # Create a task list
+"""
+
+import argparse
+import json
+import os
+import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+SCOPES = [
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/tasks",
+]
+CONFIG_DIR = Path.home() / ".config" / "google-calendar"
+SERVICE_ACCOUNT_FILE = CONFIG_DIR / "service-account.json"
+IMPERSONATE_USER = "jon@cosmickmedia.com"
+
+
+def get_credentials():
+    """Load service account credentials with domain-wide delegation."""
+    from google.oauth2 import service_account
+
+    if not SERVICE_ACCOUNT_FILE.exists():
+        print(f"Error: Service account key not found at {SERVICE_ACCOUNT_FILE}", file=sys.stderr)
+        sys.exit(1)
+
+    creds = service_account.Credentials.from_service_account_file(
+        str(SERVICE_ACCOUNT_FILE),
+        scopes=SCOPES,
+        subject=IMPERSONATE_USER,
+    )
+    return creds
+
+
+def do_auth(_args):
+    """Test service account authentication."""
+    creds = get_credentials()
+    from google.auth.transport.requests import Request
+    creds.refresh(Request())
+    print(f"Service account: {creds.service_account_email}")
+    print(f"Impersonating: {IMPERSONATE_USER}")
+    print(f"Token valid: {creds.valid}")
+    print("Authentication successful.")
+
+
+def build_tasks_service():
+    """Build Google Tasks API service."""
+    from googleapiclient.discovery import build
+    return build("tasks", "v1", credentials=get_credentials())
+
+
+def build_calendar_service():
+    """Build Google Calendar API service."""
+    from googleapiclient.discovery import build
+    return build("calendar", "v3", credentials=get_credentials())
+
+
+def get_tasklist_id(service, name=None):
+    """Get task list ID by name. Creates 'Email' list if needed."""
+    target = name or "Email"
+    results = service.tasklists().list().execute()
+    for tl in results.get("items", []):
+        if tl["title"].lower() == target.lower():
+            return tl["id"]
+    # Auto-create Email list if not found and it was the default
+    if target == "Email":
+        tl = service.tasklists().insert(body={"title": "Email"}).execute()
+        print(f"Created task list: Email", file=sys.stderr)
+        return tl["id"]
+    print(f"Error: Task list '{target}' not found.", file=sys.stderr)
+    sys.exit(1)
+
+
+def parse_date(date_str):
+    """Parse a date string into RFC 3339 format."""
+    if date_str.lower() == "today":
+        return datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00.000Z")
+    if date_str.lower() == "tomorrow":
+        d = datetime.now(timezone.utc) + timedelta(days=1)
+        return d.strftime("%Y-%m-%dT00:00:00.000Z")
+    # Try YYYY-MM-DD
+    try:
+        d = datetime.strptime(date_str, "%Y-%m-%d")
+        return d.strftime("%Y-%m-%dT00:00:00.000Z")
+    except ValueError:
+        pass
+    # Try natural offset like "+3d"
+    if date_str.startswith("+") and date_str.endswith("d"):
+        days = int(date_str[1:-1])
+        d = datetime.now(timezone.utc) + timedelta(days=days)
+        return d.strftime("%Y-%m-%dT00:00:00.000Z")
+    print(f"Error: Cannot parse date '{date_str}'. Use YYYY-MM-DD, today, tomorrow, or +Nd.", file=sys.stderr)
+    sys.exit(1)
+
+
+# ─── Tasks commands ──────────────────────────────────
+
+def tasks_list(args):
+    """List tasks from a task list."""
+    service = build_tasks_service()
+    tl_id = get_tasklist_id(service, args.tasklist)
+
+    params = {"tasklist": tl_id, "showCompleted": False, "showHidden": False}
+    if args.due == "today":
+        end = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59)
+        params["dueMax"] = end.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+    results = service.tasks().list(**params).execute()
+    tasks = results.get("items", [])
+
+    if not tasks:
+        print("No tasks found.")
+        return
+
+    output = []
+    for t in tasks:
+        due = t.get("due", "")
+        if due:
+            due = due[:10]  # Just the date part
+        status = "completed" if t.get("status") == "completed" else "pending"
+        entry = {
+            "id": t["id"],
+            "title": t["title"],
+            "due": due,
+            "status": status,
+            "notes": t.get("notes", ""),
+        }
+        output.append(entry)
+
+    print(json.dumps(output, indent=2))
+
+
+def tasks_add(args):
+    """Add a new task."""
+    service = build_tasks_service()
+    tl_id = get_tasklist_id(service, args.tasklist)
+
+    body = {"title": args.title}
+    if args.due:
+        body["due"] = parse_date(args.due)
+    if args.notes:
+        body["notes"] = args.notes
+
+    task = service.tasks().insert(tasklist=tl_id, body=body).execute()
+    print(json.dumps({"id": task["id"], "title": task["title"], "status": "created"}, indent=2))
+
+
+def tasks_complete(args):
+    """Mark a task as completed."""
+    service = build_tasks_service()
+    tl_id = get_tasklist_id(service, args.tasklist)
+
+    task = service.tasks().get(tasklist=tl_id, task=args.task_id).execute()
+    task["status"] = "completed"
+    result = service.tasks().update(tasklist=tl_id, task=args.task_id, body=task).execute()
+    print(json.dumps({"id": result["id"], "title": result["title"], "status": "completed"}, indent=2))
+
+
+def tasks_update(args):
+    """Update an existing task's title and/or notes."""
+    service = build_tasks_service()
+    tl_id = get_tasklist_id(service, args.tasklist)
+
+    task = service.tasks().get(tasklist=tl_id, task=args.task_id).execute()
+
+    if args.title:
+        task["title"] = args.title
+    if args.notes is not None:
+        task["notes"] = args.notes
+    elif args.append_notes:
+        existing = task.get("notes", "") or ""
+        separator = "\n---\n" if existing else ""
+        task["notes"] = existing + separator + args.append_notes
+
+    result = service.tasks().update(tasklist=tl_id, task=args.task_id, body=task).execute()
+    print(json.dumps({"id": result["id"], "title": result["title"], "status": "updated"}, indent=2))
+
+
+def tasks_delete(args):
+    """Delete a task."""
+    service = build_tasks_service()
+    tl_id = get_tasklist_id(service, args.tasklist)
+    service.tasks().delete(tasklist=tl_id, task=args.task_id).execute()
+    print(json.dumps({"id": args.task_id, "status": "deleted"}, indent=2))
+
+
+# ─── Events commands ─────────────────────────────────
+
+def events_list(args):
+    """List upcoming calendar events."""
+    service = build_calendar_service()
+    now = datetime.now(timezone.utc).isoformat()
+    end = (datetime.now(timezone.utc) + timedelta(days=args.days)).isoformat()
+
+    results = service.events().list(
+        calendarId="primary",
+        timeMin=now,
+        timeMax=end,
+        singleEvents=True,
+        orderBy="startTime",
+    ).execute()
+
+    events = results.get("items", [])
+    if not events:
+        print("No upcoming events.")
+        return
+
+    output = []
+    for e in events:
+        start = e["start"].get("dateTime", e["start"].get("date"))
+        output.append({
+            "id": e["id"],
+            "summary": e.get("summary", "(no title)"),
+            "start": start,
+            "location": e.get("location", ""),
+        })
+
+    print(json.dumps(output, indent=2))
+
+
+def events_add(args):
+    """Add a calendar event."""
+    service = build_calendar_service()
+
+    if args.time:
+        # Timed event
+        start_str = f"{args.date}T{args.time}:00"
+        start_dt = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%S")
+        end_dt = start_dt + timedelta(minutes=args.duration)
+        body = {
+            "summary": args.title,
+            "start": {"dateTime": start_dt.isoformat(), "timeZone": "America/New_York"},
+            "end": {"dateTime": end_dt.isoformat(), "timeZone": "America/New_York"},
+        }
+    else:
+        # All-day event
+        end_date = (datetime.strptime(args.date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+        body = {
+            "summary": args.title,
+            "start": {"date": args.date},
+            "end": {"date": end_date},
+        }
+
+    event = service.events().insert(calendarId="primary", body=body).execute()
+    print(json.dumps({"id": event["id"], "summary": event["summary"], "status": "created"}, indent=2))
+
+
+# ─── Task Lists commands ─────────────────────────────
+
+def tasklists_list(_args):
+    """List all task lists."""
+    service = build_tasks_service()
+    results = service.tasklists().list().execute()
+    output = [{"id": tl["id"], "title": tl["title"]} for tl in results.get("items", [])]
+    print(json.dumps(output, indent=2))
+
+
+def tasklists_create(args):
+    """Create a new task list."""
+    service = build_tasks_service()
+    tl = service.tasklists().insert(body={"title": args.name}).execute()
+    print(json.dumps({"id": tl["id"], "title": tl["title"], "status": "created"}, indent=2))
+
+
+# ─── CLI argument parser ─────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(description="Google Calendar & Tasks CLI")
+    sub = parser.add_subparsers(dest="command")
+
+    # auth
+    sub.add_parser("auth", help="Run OAuth authentication flow")
+
+    # tasks
+    tasks_parser = sub.add_parser("tasks", help="Manage tasks")
+    tasks_sub = tasks_parser.add_subparsers(dest="tasks_command")
+
+    # tasks list
+    tl = tasks_sub.add_parser("list", help="List tasks")
+    tl.add_argument("--due", help="Filter: 'today'")
+    tl.add_argument("--tasklist", help="Task list name (default: Email)")
+
+    # tasks add
+    ta = tasks_sub.add_parser("add", help="Add a task")
+    ta.add_argument("title", help="Task title")
+    ta.add_argument("--due", help="Due date: YYYY-MM-DD, today, tomorrow, +Nd")
+    ta.add_argument("--notes", help="Task notes/description")
+    ta.add_argument("--tasklist", help="Task list name (default: Email)")
+
+    # tasks complete
+    tc = tasks_sub.add_parser("complete", help="Complete a task")
+    tc.add_argument("task_id", help="Task ID")
+    tc.add_argument("--tasklist", help="Task list name (default: Email)")
+
+    # tasks delete
+    td = tasks_sub.add_parser("delete", help="Delete a task")
+    td.add_argument("task_id", help="Task ID")
+    td.add_argument("--tasklist", help="Task list name (default: Email)")
+
+    # tasks update
+    tu = tasks_sub.add_parser("update", help="Update a task")
+    tu.add_argument("task_id", help="Task ID")
+    tu.add_argument("--title", help="New task title")
+    tu.add_argument("--notes", help="Replace task notes entirely", default=None)
+    tu.add_argument("--append-notes", help="Append to existing notes (separated by ---)")
+    tu.add_argument("--tasklist", help="Task list name (default: Email)")
+
+    # events
+    events_parser = sub.add_parser("events", help="Manage calendar events")
+    events_sub = events_parser.add_subparsers(dest="events_command")
+
+    # events list
+    el = events_sub.add_parser("list", help="List upcoming events")
+    el.add_argument("--days", type=int, default=7, help="Days ahead to show (default: 7)")
+
+    # events add
+    ea = events_sub.add_parser("add", help="Add an event")
+    ea.add_argument("title", help="Event title")
+    ea.add_argument("--date", required=True, help="Date: YYYY-MM-DD")
+    ea.add_argument("--time", help="Time: HH:MM (omit for all-day)")
+    ea.add_argument("--duration", type=int, default=60, help="Duration in minutes (default: 60)")
+
+    # tasklists
+    tls_parser = sub.add_parser("tasklists", help="Manage task lists")
+    tls_sub = tls_parser.add_subparsers(dest="tls_command")
+
+    tls_sub.add_parser("list", help="List task lists")
+
+    tlc = tls_sub.add_parser("create", help="Create a task list")
+    tlc.add_argument("name", help="Task list name")
+
+    args = parser.parse_args()
+
+    if args.command == "auth":
+        do_auth(args)
+    elif args.command == "tasks":
+        if args.tasks_command == "list":
+            tasks_list(args)
+        elif args.tasks_command == "add":
+            tasks_add(args)
+        elif args.tasks_command == "complete":
+            tasks_complete(args)
+        elif args.tasks_command == "delete":
+            tasks_delete(args)
+        elif args.tasks_command == "update":
+            tasks_update(args)
+        else:
+            tasks_parser.print_help()
+    elif args.command == "events":
+        if args.events_command == "list":
+            events_list(args)
+        elif args.events_command == "add":
+            events_add(args)
+        else:
+            events_parser.print_help()
+    elif args.command == "tasklists":
+        if args.tls_command == "list":
+            tasklists_list(args)
+        elif args.tls_command == "create":
+            tasklists_create(args)
+        else:
+            tls_parser.print_help()
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,354 @@
+#!/usr/bin/env python3
+"""TrueNAS WebSocket JSON-RPC 2.0 CLI client."""
+
+import argparse
+import asyncio
+import json
+import os
+import signal
+import ssl
+import sys
+from pathlib import Path
+
+from websockets.asyncio.client import connect
+
+ENV_FILE = Path("~/.config/truenas/api.env").expanduser()
+DEFAULT_TIMEOUT = 30
+
+
+def load_config():
+    """Load host and API key from api.env."""
+    if not ENV_FILE.exists():
+        print(f"error: {ENV_FILE} not found", file=sys.stderr)
+        sys.exit(1)
+    config = {}
+    for line in ENV_FILE.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, _, val = line.partition("=")
+        config[key.strip()] = val.strip()
+    host = config.get("TRUENAS_HOST", "")
+    api_key = config.get("TRUENAS_API_KEY", "")
+    if not host or not api_key:
+        print("error: TRUENAS_HOST and TRUENAS_API_KEY must be set in api.env", file=sys.stderr)
+        sys.exit(1)
+    # Transform https://host:port -> wss://host:port/api/current
+    ws_url = host.replace("https://", "wss://").replace("http://", "ws://")
+    ws_url = ws_url.rstrip("/") + "/api/current"
+    return ws_url, api_key
+
+
+class TrueNASClient:
+    """Async WebSocket JSON-RPC 2.0 client for TrueNAS."""
+
+    def __init__(self, url, api_key, timeout=DEFAULT_TIMEOUT):
+        self.url = url
+        self.api_key = api_key
+        self.timeout = timeout
+        self._ws = None
+        self._id = 0
+        self._pending = {}          # id -> Future
+        self._subscriptions = {}    # sub_id -> callback
+        self._receiver_task = None
+
+    async def connect(self):
+        """Open WebSocket and authenticate."""
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        self._ws = await connect(
+            self.url,
+            ssl=ctx,
+            open_timeout=self.timeout,
+            ping_interval=20,
+            ping_timeout=20,
+            max_size=2**24,  # 16 MiB
+        )
+        self._receiver_task = asyncio.create_task(self._receiver())
+        # Authenticate
+        result = await self.call("auth.login_with_api_key", [self.api_key])
+        if result is not True:
+            raise RuntimeError(f"Authentication failed: {result}")
+
+    async def close(self):
+        """Shut down cleanly."""
+        if self._receiver_task:
+            self._receiver_task.cancel()
+            try:
+                await self._receiver_task
+            except asyncio.CancelledError:
+                pass
+        if self._ws:
+            await self._ws.close()
+
+    def _next_id(self):
+        self._id += 1
+        return self._id
+
+    async def _receiver(self):
+        """Background task: route incoming messages to futures or subscriptions."""
+        try:
+            async for raw in self._ws:
+                msg = json.loads(raw)
+
+                # Response to a request we made
+                if "id" in msg and msg["id"] in self._pending:
+                    fut = self._pending.pop(msg["id"])
+                    if not fut.done():
+                        fut.set_result(msg)
+                    continue
+
+                # Server-initiated event (subscription notification)
+                method = msg.get("method")
+                if method == "collection_update":
+                    params = msg.get("params", {})
+                    for cb in self._subscriptions.values():
+                        await cb(params)
+                    continue
+
+                # Unrouted — could be a sub response with an id we track
+                if "id" in msg:
+                    # Check pending again (race)
+                    fut = self._pending.pop(msg.get("id"), None)
+                    if fut and not fut.done():
+                        fut.set_result(msg)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # Connection closed or broken — wake all pending futures
+            for fut in self._pending.values():
+                if not fut.done():
+                    fut.set_exception(ConnectionError("WebSocket closed"))
+            self._pending.clear()
+
+    async def call(self, method, params=None):
+        """Send a JSON-RPC call and return the result (or raise on error)."""
+        msg_id = self._next_id()
+        request = {"jsonrpc": "2.0", "id": msg_id, "method": method}
+        if params is not None:
+            request["params"] = params
+
+        fut = asyncio.get_event_loop().create_future()
+        self._pending[msg_id] = fut
+
+        await self._ws.send(json.dumps(request))
+
+        try:
+            resp = await asyncio.wait_for(fut, timeout=self.timeout)
+        except asyncio.TimeoutError:
+            self._pending.pop(msg_id, None)
+            raise TimeoutError(f"No response for {method} (id={msg_id}) within {self.timeout}s")
+
+        if "error" in resp:
+            err = resp["error"]
+            raise RuntimeError(f"RPC error {err.get('code', '?')}: {err.get('message', err)}")
+
+        return resp.get("result")
+
+    async def call_job(self, method, params=None, progress_cb=None):
+        """Call a method that returns a job ID, subscribe to updates, wait for completion."""
+        # Subscribe to job updates before making the call
+        sub_id = await self.call("core.subscribe", ["core.get_jobs"])
+
+        job_id = await self.call(method, params)
+
+        if not isinstance(job_id, int):
+            # Not a job — unsubscribe and return directly
+            await self.call("core.unsubscribe", [sub_id])
+            return job_id
+
+        # Wait for the job to reach a terminal state
+        result_future = asyncio.get_event_loop().create_future()
+
+        async def on_event(event):
+            fields = event.get("fields", {})
+            if fields.get("id") != job_id:
+                return
+            state = fields.get("state", "")
+            if progress_cb and fields.get("progress"):
+                progress_cb(fields["progress"])
+            if state in ("SUCCESS", "FAILED", "ABORTED"):
+                if not result_future.done():
+                    result_future.set_result(fields)
+
+        self._subscriptions[sub_id] = on_event
+
+        try:
+            fields = await asyncio.wait_for(result_future, timeout=self.timeout)
+        except asyncio.TimeoutError:
+            raise TimeoutError(f"Job {job_id} did not complete within {self.timeout}s")
+        finally:
+            self._subscriptions.pop(sub_id, None)
+            try:
+                await self.call("core.unsubscribe", [sub_id])
+            except Exception:
+                pass
+
+        if fields.get("state") == "FAILED":
+            err = fields.get("error", "Unknown error")
+            exc = fields.get("exception", "")
+            raise RuntimeError(f"Job {job_id} failed: {err}\n{exc}".strip())
+
+        if fields.get("state") == "ABORTED":
+            raise RuntimeError(f"Job {job_id} was aborted")
+
+        return fields.get("result")
+
+    async def subscribe(self, collection, callback):
+        """Subscribe to a collection and call callback(event) for each update. Returns sub_id."""
+        sub_id = await self.call("core.subscribe", [collection])
+        self._subscriptions[sub_id] = callback
+        return sub_id
+
+
+# ── Command handlers ─────────────────────────────────────────────────────────
+
+
+async def cmd_ping(client, _args):
+    """Test connectivity and auth."""
+    info = await client.call("system.info")
+    hostname = info.get("hostname", "?")
+    version = info.get("version", "?")
+    uptime = info.get("uptime_seconds", 0)
+    days = uptime // 86400
+    hours = (uptime % 86400) // 3600
+    print(f"OK — {hostname} running {version} (up {days}d {hours}h)")
+
+
+async def cmd_call(client, args):
+    """Execute a single API call."""
+    params = None
+    if args.params:
+        try:
+            params = json.loads(args.params)
+        except json.JSONDecodeError as e:
+            print(f"error: invalid JSON params: {e}", file=sys.stderr)
+            sys.exit(1)
+        # Wrap non-list params in a list (JSON-RPC params must be array or object)
+        if not isinstance(params, (list, dict)):
+            params = [params]
+
+    result = await client.call(args.method, params)
+
+    if args.raw:
+        print(json.dumps(result))
+    else:
+        print(json.dumps(result, indent=2))
+
+
+async def cmd_job(client, args):
+    """Execute an API call and track the async job to completion."""
+    params = None
+    if args.params:
+        try:
+            params = json.loads(args.params)
+        except json.JSONDecodeError as e:
+            print(f"error: invalid JSON params: {e}", file=sys.stderr)
+            sys.exit(1)
+        if not isinstance(params, (list, dict)):
+            params = [params]
+
+    def on_progress(progress):
+        if args.progress:
+            pct = progress.get("percent", 0)
+            desc = progress.get("description", "")
+            print(f"\r  [{pct:5.1f}%] {desc}", end="", flush=True, file=sys.stderr)
+
+    result = await client.call_job(args.method, params, progress_cb=on_progress)
+
+    if args.progress:
+        print(file=sys.stderr)  # newline after progress
+
+    if args.raw:
+        print(json.dumps(result))
+    else:
+        print(json.dumps(result, indent=2))
+
+
+async def cmd_subscribe(client, args):
+    """Subscribe to a collection and stream events as JSONL."""
+    stop = asyncio.Event()
+
+    async def on_event(event):
+        if args.raw:
+            print(json.dumps(event), flush=True)
+        else:
+            print(json.dumps(event, indent=2), flush=True)
+
+    loop = asyncio.get_event_loop()
+    loop.add_signal_handler(signal.SIGINT, stop.set)
+    loop.add_signal_handler(signal.SIGTERM, stop.set)
+
+    sub_id = await client.subscribe(args.collection, on_event)
+    print(f"Subscribed to {args.collection} (Ctrl-C to stop)", file=sys.stderr)
+
+    await stop.wait()
+
+    try:
+        await client.call("core.unsubscribe", [sub_id])
+    except Exception:
+        pass
+
+
+# ── CLI ───────────────────────────────────────────────────────────────────────
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        prog="truenas-ws",
+        description="TrueNAS WebSocket JSON-RPC 2.0 client",
+    )
+    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Request timeout in seconds")
+    parser.add_argument("--raw", action="store_true", help="Compact JSON output (no indentation)")
+
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("ping", help="Test connectivity and authentication")
+
+    p_call = sub.add_parser("call", help="Execute a single API method")
+    p_call.add_argument("method", help="API method (e.g. system.info)")
+    p_call.add_argument("params", nargs="?", help="JSON params (e.g. '[\"caddy\"]')")
+
+    p_job = sub.add_parser("job", help="Execute a method and track the async job")
+    p_job.add_argument("method", help="API method (e.g. app.stop)")
+    p_job.add_argument("params", nargs="?", help="JSON params (e.g. '[\"caddy\"]')")
+    p_job.add_argument("--progress", action="store_true", help="Show progress updates on stderr")
+
+    p_sub = sub.add_parser("subscribe", help="Stream collection events as JSONL")
+    p_sub.add_argument("collection", help="Event collection (e.g. alert.list)")
+
+    return parser
+
+
+async def main():
+    parser = build_parser()
+    args = parser.parse_args()
+
+    url, api_key = load_config()
+    client = TrueNASClient(url, api_key, timeout=args.timeout)
+
+    try:
+        await client.connect()
+    except Exception as e:
+        print(f"error: connection failed: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        if args.command == "ping":
+            await cmd_ping(client, args)
+        elif args.command == "call":
+            await cmd_call(client, args)
+        elif args.command == "job":
+            await cmd_job(client, args)
+        elif args.command == "subscribe":
+            await cmd_subscribe(client, args)
+    except (RuntimeError, TimeoutError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        await client.close()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+COMPOSE_DIR="$HOME/dotfiles/playwright"
+COMPOSE="docker compose -f $COMPOSE_DIR/docker-compose.yml"
+
+usage() {
+  cat <<'EOF'
+Usage: browse <command> [args]
+
+Commands:
+  go URL [flags]       Navigate to URL, return content
+  audit URL [flags]    Run full QA audit (Lighthouse + a11y + SEO + WP + GTM)
+  test [args]          Run Playwright test specs
+  clear DOMAIN         Clear cookies/storage for a domain
+  build                Rebuild Docker image
+
+Flags for 'go':
+  --device NAME        Device emulation (e.g., "iPhone 15")
+  --screenshot         Take a screenshot
+  --click SELECTOR     Click an element
+  --type SEL=TEXT      Fill a form field
+  --wait STRATEGY      Wait strategy: networkidle, load, domcontentloaded
+  --stdin              Read JSON input from stdin
+  --timeout MS         Navigation timeout (default 30000)
+
+Flags for 'audit':
+  --device NAME        Device emulation (e.g., "iPhone 15")
+  --timeout MS         Audit timeout (default 60000)
+
+Examples:
+  browse go "https://playwright.dev/docs"
+  browse go "https://example.com" --device "iPhone 15" --screenshot
+  browse go "https://example.com/login" --type "#user=admin" --type "#pass=test" --click "#login"
+  browse audit "https://cosmickmedia.com"
+  browse clear cosmickmedia.com
+  browse test --grep "loads"
+  echo '{"url":"https://example.com","screenshot":true}' | browse go --stdin
+EOF
+  exit 1
+}
+
+[[ $# -lt 1 ]] && usage
+
+cmd="$1"
+shift
+
+case "$cmd" in
+  go)
+    if [[ $# -eq 0 ]]; then
+      echo '{"success":false,"error":"No URL provided. Usage: browse go URL [flags]"}' >&2
+      exit 1
+    fi
+
+    # Check for --stdin flag
+    for arg in "$@"; do
+      if [[ "$arg" == "--stdin" ]]; then
+        # Read JSON from stdin and pass as arguments
+        stdin_data=$(cat)
+        echo "$stdin_data" | $COMPOSE run --rm -T browse --stdin
+        exit $?
+      fi
+    done
+
+    $COMPOSE run --rm browse "$@"
+    ;;
+
+  audit)
+    if [[ $# -eq 0 ]]; then
+      echo '{"success":false,"error":"No URL provided. Usage: browse audit URL [--device NAME]"}' >&2
+      exit 1
+    fi
+    $COMPOSE run --rm audit "$@"
+    ;;
+
+  test)
+    $COMPOSE run --rm test "$@"
+    ;;
+
+  clear)
+    if [[ $# -eq 0 ]]; then
+      echo '{"success":false,"error":"No domain provided. Usage: browse clear DOMAIN"}' >&2
+      exit 1
+    fi
+    $COMPOSE run --rm clear-cache "$@"
+    ;;
+
+  build)
+    $COMPOSE build "$@"
+    ;;
+
+  *)
+    echo "Unknown command: $cmd" >&2
+    usage
+    ;;
+esac
