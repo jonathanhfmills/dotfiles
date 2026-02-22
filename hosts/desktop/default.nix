@@ -88,4 +88,9 @@
       PermitRootLogin = "no";
     };
   };
+  systemd.services.sshd = {
+    after = [ "tailscaled.service" ];
+    wants = [ "tailscaled.service" ];
+    serviceConfig.RestartSec = 5;
+  };
 }
