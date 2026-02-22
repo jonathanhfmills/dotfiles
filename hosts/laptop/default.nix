@@ -6,7 +6,7 @@
   ];
 
   # Hostname.
-  networking.hostName = "desktop";
+  networking.hostName = "laptop";
 
   # Use latest kernel.
   boot.kernelPackages = pkgs.linuxPackages_latest;
@@ -55,34 +55,12 @@
     termius
   ];
 
-  # Steam with gamescope session.
-  programs.steam.enable = true;
-  programs.steam.gamescopeSession.enable = true;
-  programs.steam.extraPackages = [
-    (pkgs.writeShellScriptBin "steamos-session-select" ''
-      steam -shutdown 2>/dev/null
-      sleep 2
-      kill $(pgrep -f steam-gamescope) 2>/dev/null
-      kill $(pgrep gamescope) 2>/dev/null
-    '')
-  ];
-  programs.gamescope.enable = true;
-
-
   # OpenSSH (Tailscale only).
   services.openssh = {
     enable = true;
-    listenAddresses = [
-      { addr = "100.74.117.36"; port = 22; }
-    ];
     settings = {
       PasswordAuthentication = false;
       PermitRootLogin = "no";
     };
-  };
-  systemd.services.sshd = {
-    after = [ "tailscaled.service" ];
-    wants = [ "tailscaled.service" ];
-    serviceConfig.RestartSec = 5;
   };
 }
