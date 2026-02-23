@@ -1,10 +1,6 @@
 { pkgs, ... }:
 
 {
-  imports = [
-    ./hardware.nix
-  ];
-
   # Hostname.
   networking.hostName = "desktop";
 

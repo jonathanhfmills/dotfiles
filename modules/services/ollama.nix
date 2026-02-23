@@ -10,7 +10,8 @@
       OLLAMA_FLASH_ATTENTION = "1";
       OLLAMA_KV_CACHE_TYPE = "q4_0";
       OLLAMA_MAX_LOADED_MODELS = "1";
-      OLLAMA_KEEP_ALIVE = "10m";
+      OLLAMA_KEEP_ALIVE = "22m";
+      OLLAMA_NUM_PARALLEL = "2";
     };
   };
 

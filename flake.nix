@@ -11,10 +11,33 @@
   };
 
   outputs = { self, nixpkgs, home-manager, ... }: {
+    # Desktop (ext4 root — legacy config, kept for dual-boot fallback).
     nixosConfigurations.desktop = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
         ./hosts/desktop
+        ./hosts/desktop/hardware.nix
+        ./modules/base.nix
+        ./modules/networking.nix
+        ./modules/development.nix
+        ./modules/programs/1password.nix
+        ./modules/services/ollama.nix
+        ./modules/programs/ironclaw.nix
+        home-manager.nixosModules.home-manager
+        {
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.users.jon = import ./modules/users/jon.nix;
+        }
+      ];
+    };
+
+    # Desktop (ZFS root — new primary config).
+    nixosConfigurations.desktop-zfs = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ./hosts/desktop
+        ./hosts/desktop/hardware-zfs.nix
         ./modules/base.nix
         ./modules/networking.nix
         ./modules/development.nix
