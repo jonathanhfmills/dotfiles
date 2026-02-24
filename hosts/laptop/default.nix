@@ -53,6 +53,7 @@
     discord
     google-chrome
     termius
+    moonlight-qt
   ];
 
   # OpenSSH (Tailscale only).

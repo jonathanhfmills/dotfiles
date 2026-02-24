@@ -62,12 +62,75 @@
     capSysNice = true;
   };
 
+  # Sway headless compositor — virtual display for Sunshine streaming.
+  # Sway creates a GPU-backed virtual output; Sunshine captures via wlr protocol.
+  programs.sway.enable = true;
+  systemd.user.services.sway-headless = {
+    description = "Sway headless compositor for Sunshine";
+    wantedBy = [ "default.target" ];
+    serviceConfig = {
+      Type = "simple";
+      ExecStart = "${pkgs.writeShellScript "sway-sunshine-start" ''
+        # Clean stale wayland sockets from previous sessions.
+        rm -f "$XDG_RUNTIME_DIR"/wayland-*
+        # Launch sway with headless virtual display.
+        /run/current-system/sw/bin/sway -c ${pkgs.writeText "sway-headless.conf" ''
+          output HEADLESS-1 resolution 1920x1080@60Hz
+          for_window [app_id="gamescope"] fullscreen enable
+        ''} &
+        SWAY_PID=$!
+        # Wait for sway to create its wayland socket.
+        for i in $(seq 1 50); do
+          for sock in "$XDG_RUNTIME_DIR"/wayland-*; do
+            if [ -S "$sock" ]; then
+              export WAYLAND_DISPLAY=$(basename "$sock")
+              break 2
+            fi
+          done
+          sleep 0.1
+        done
+        # Make WAYLAND_DISPLAY and GPU env available to other user services, then start Sunshine.
+        export LIBVA_DRIVER_NAME=radeonsi
+        /run/current-system/sw/bin/systemctl --user import-environment WAYLAND_DISPLAY LIBVA_DRIVER_NAME
+        /run/current-system/sw/bin/systemctl --user start sunshine
+        wait $SWAY_PID
+      ''}";
+      Restart = "on-failure";
+      RestartSec = 3;
+    };
+    environment = {
+      WLR_BACKENDS = "headless";
+      WLR_RENDERER = "gles2";
+      WLR_LIBINPUT_NO_DEVICES = "1";
+      XDG_SESSION_TYPE = "wayland";
+      XDG_CURRENT_DESKTOP = "sway";
+    };
+  };
+
   # Sunshine — always-on remote desktop with AV1 hardware encoding.
+  # Runs inside sway-headless; captures virtual display via wlr protocol.
   services.sunshine = {
     enable = true;
-    autoStart = true;
+    autoStart = false;  # Started by sway-headless compositor.
     capSysAdmin = true;
     openFirewall = true;
+    settings = {
+      capture = "wlr";
+      adapter_name = "/dev/dri/renderD129";
+    };
+    applications = {
+      apps = [
+        {
+          name = "Steam";
+          cmd = "/run/current-system/sw/bin/steam -gamepadui -steamos3 -steampal -steamdeck";
+          image-path = "steam.png";
+        }
+        {
+          name = "Desktop";
+          image-path = "desktop.png";
+        }
+      ];
+    };
   };
 
   # Gamescope + Steam as a systemd service on VT2 (needs seat/DRM access).
@@ -130,8 +193,9 @@
           echo "Local display stopped (headless)"
           ;;
         status)
-          echo "gamescope: $(systemctl is-active gamescope-steam 2>/dev/null)"
+          echo "sway:      $(systemctl --user is-active sway-headless 2>/dev/null || echo stopped)"
           echo "sunshine:  $(systemctl --user is-active sunshine 2>/dev/null || echo stopped)"
+          echo "gamescope: $(systemctl is-active gamescope-steam 2>/dev/null)"
           ;;
         *)
           echo "Usage: session {steam|stop|status}"

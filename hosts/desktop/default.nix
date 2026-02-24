@@ -16,8 +16,15 @@
   boot.supportedFilesystems = [ "zfs" ];
   networking.hostId = "726f84c0";
 
-  # AMD GPU hardware acceleration.
-  hardware.graphics.enable = true;
+  # GPU hardware acceleration.
+  hardware.graphics = {
+    enable = true;
+    extraPackages = with pkgs; [
+      intel-media-driver    # Intel Quick Sync VA-API (iHD, Coffee Lake+)
+      intel-vaapi-driver    # i965 fallback
+      libvdpau-va-gl        # VDPAU via VA-API
+    ];
+  };
 
   # COSMIC Desktop Environment.
   services.desktopManager.cosmic.enable = true;
@@ -61,6 +68,7 @@
     discord
     google-chrome
     termius
+    moonlight-qt
   ];
 
   # Steam with gamescope session.
