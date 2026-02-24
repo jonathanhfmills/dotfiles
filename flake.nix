@@ -13,9 +13,14 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    agenix = {
+      url = "github:ryantm/agenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, home-manager, disko, ... }: {
+  outputs = { self, nixpkgs, home-manager, disko, agenix, ... }: {
     # Desktop (ext4 root — legacy config, kept for dual-boot fallback).
     nixosConfigurations.desktop = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
@@ -26,6 +31,7 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
+        agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
         {
@@ -47,6 +53,7 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
+        agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
         {
@@ -67,6 +74,7 @@
         ./modules/programs/1password.nix
         ./modules/services/ollama.nix
         ./modules/programs/ironclaw.nix
+        agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
         {
@@ -85,6 +93,7 @@
         ./modules/networking.nix
         ./modules/development.nix
         ./modules/services/ollama-nvidia.nix
+        agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
         {
@@ -101,6 +110,7 @@
         ./hosts/portable
         ./modules/base.nix
         ./modules/networking.nix
+        agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
         {
@@ -120,6 +130,7 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
+        agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
         {

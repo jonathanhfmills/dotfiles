@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 
 {
   imports = [
@@ -39,13 +39,16 @@
     pulse.enable = true;
   };
 
+  # Secrets.
+  age.secrets.password-jon.file = ../../secrets/password-jon.age;
+
   # User accounts.
   users.users.jon = {
     isNormalUser = true;
     description = "Jonathan Mills";
     extraGroups = [ "networkmanager" "wheel" "input" "video" "seat" ];
     linger = true;  # Start user services (Sunshine) at boot without login.
-    hashedPasswordFile = "/etc/nixos/password-jon";
+    hashedPasswordFile = config.age.secrets.password-jon.path;
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMI/v0grXNp+qVV8TUky2BiHjHFpid6XCAA3Pg5G958Z jon@nixos-fleet"
     ];
