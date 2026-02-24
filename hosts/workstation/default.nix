@@ -14,19 +14,16 @@
 
   # ZFS support (mirror pool across 2x NVMe drives).
   boot.supportedFilesystems = [ "zfs" ];
+  boot.kernelParams = [ "zfs.zfs_arc_max=4294967296" ];  # 4 GB
   networking.hostId = "2f50e4ce";
 
   # AMD GPU hardware acceleration.
   hardware.graphics.enable = true;
 
-  # COSMIC Desktop Environment.
-  services.desktopManager.cosmic.enable = true;
-  services.displayManager.cosmic-greeter.enable = true;
-  services.displayManager.autoLogin.enable = true;
-  services.displayManager.autoLogin.user = "jon";
-  services.system76-scheduler.enable = true;
+  # Headless by default — no display manager or desktop environment.
+  # Gamescope + Steam can be launched on HDMI via SSH.
 
-  # PipeWire audio.
+  # PipeWire audio (needed for Sunshine streaming + local output).
   services.pulseaudio.enable = false;
   security.rtkit.enable = true;
   services.pipewire = {
@@ -36,48 +33,64 @@
     pulse.enable = true;
   };
 
-  # CUPS printing.
-  services.printing.enable = true;
-
   # User accounts.
   users.users.jon = {
     isNormalUser = true;
     description = "Jonathan Mills";
-    extraGroups = [ "networkmanager" "wheel" ];
+    extraGroups = [ "networkmanager" "wheel" "input" "video" ];
+    linger = true;  # Start user services (Sunshine) at boot without login.
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMI/v0grXNp+qVV8TUky2BiHjHFpid6XCAA3Pg5G958Z jon@nixos-fleet"
     ];
   };
 
-  # Fonts.
-  fonts.packages = with pkgs; [
-    inter
-    source-code-pro
-  ];
-
-  # GUI apps.
-  environment.systemPackages = with pkgs; [
-    vscode
-    discord
-    google-chrome
-    termius
-  ];
-
   # Steam with gamescope session.
   programs.steam.enable = true;
   programs.steam.gamescopeSession.enable = true;
-  programs.steam.extraPackages = [
-    (pkgs.writeShellScriptBin "steamos-session-select" ''
-      steam -shutdown 2>/dev/null
-      sleep 2
-      kill $(pgrep -f steam-gamescope) 2>/dev/null
-      kill $(pgrep gamescope) 2>/dev/null
+  programs.gamescope = {
+    enable = true;
+    capSysNice = true;
+  };
+
+  # Sunshine — always-on remote desktop with AV1 hardware encoding.
+  services.sunshine = {
+    enable = true;
+    autoStart = true;
+    capSysAdmin = true;
+    openFirewall = true;
+  };
+
+  # Session switcher — manage local HDMI output over SSH.
+  environment.systemPackages = [
+    (pkgs.writeShellScriptBin "session" ''
+      case "''${1:-status}" in
+        steam)
+          session stop 2>/dev/null
+          echo "Starting Steam Big Picture on HDMI..."
+          gamescope -e --backend drm -- steam -gamepadui &
+          disown
+          ;;
+        stop)
+          ${pkgs.procps}/bin/pkill -f gamescope 2>/dev/null
+          ${pkgs.procps}/bin/pkill -f steam 2>/dev/null
+          echo "Local display stopped (headless)"
+          ;;
+        status)
+          echo "gamescope: $(${pkgs.procps}/bin/pgrep gamescope >/dev/null 2>&1 && echo running || echo stopped)"
+          echo "sunshine:  $(systemctl --user is-active sunshine 2>/dev/null || echo stopped)"
+          ;;
+        *)
+          echo "Usage: session {steam|stop|status}"
+          echo ""
+          echo "  steam   — Steam Big Picture on HDMI"
+          echo "  stop    — Kill local display (headless)"
+          echo "  status  — Show what's running"
+          ;;
+      esac
     '')
   ];
-  programs.gamescope.enable = true;
 
-
-  # OpenSSH (Tailscale only).
+  # OpenSSH (Tailscale only) — always available regardless of session mode.
   services.openssh = {
     enable = true;
     listenAddresses = [

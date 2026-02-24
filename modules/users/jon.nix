@@ -18,9 +18,23 @@
   programs.ssh = {
     enable = true;
     enableDefaultConfig = false;
-    matchBlocks."*" = {
-      extraOptions = {
-        IdentityAgent = "~/.1password/agent.sock";
+    matchBlocks = {
+      "*" = {
+        extraOptions = {
+          IdentityAgent = "~/.1password/agent.sock";
+        };
+      };
+      "desktop" = {
+        hostname = "100.74.117.36";
+        user = "jon";
+      };
+      "workstation" = {
+        hostname = "100.95.201.10";
+        user = "jon";
+      };
+      "portable" = {
+        hostname = "portable";
+        user = "jon";
       };
     };
   };
