@@ -17,6 +17,9 @@
   boot.kernelParams = [ "zfs.zfs_arc_max=4294967296" ];  # 4 GB
   networking.hostId = "2f50e4ce";
 
+  # Prevent SATA boot drive (870 EVO) from sleeping/dropping off.
+  powerManagement.scsiLinkPolicy = "max_performance";
+
   # AMD GPU hardware acceleration.
   hardware.graphics.enable = true;
 

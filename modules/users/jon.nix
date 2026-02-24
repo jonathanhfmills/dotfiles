@@ -104,12 +104,6 @@
         apiBase = "http://100.95.201.10:11434";
       }
       {
-        title = "qwen3:8b (workstation)";
-        provider = "ollama";
-        model = "qwen3:8b";
-        apiBase = "http://100.95.201.10:11434";
-      }
-      {
         title = "gemma3:12b (nas)";
         provider = "ollama";
         model = "gemma3:12b";

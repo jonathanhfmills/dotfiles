@@ -5,7 +5,7 @@
     enable = true;
     package = pkgs.ollama-vulkan;
     host = "0.0.0.0";
-    loadModels = [ "qwen3:14b" "qwen3:8b" ];
+    loadModels = [ "qwen3:14b" ];
     environmentVariables = {
       OLLAMA_FLASH_ATTENTION = "1";
       OLLAMA_KV_CACHE_TYPE = "q4_0";

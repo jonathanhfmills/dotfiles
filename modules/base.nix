@@ -8,6 +8,16 @@
   # Enable flakes and the nix command.
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+  # Garbage collection — weekly, keep last 5 generations.
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 5d";
+  };
+
+  # ZFS automatic monthly scrub (no-op on non-ZFS hosts).
+  services.zfs.autoScrub.enable = true;
+
   # Timezone.
   time.timeZone = "America/New_York";
 
