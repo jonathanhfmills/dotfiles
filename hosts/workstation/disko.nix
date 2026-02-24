@@ -87,6 +87,15 @@
             options.mountpoint = "legacy";
             options."com.sun:auto-snapshot" = "true";
           };
+          postgres = {
+            type = "zfs_fs";
+            mountpoint = "/var/lib/postgresql";
+            options.mountpoint = "legacy";
+            options.recordsize = "16K";
+            options.logbias = "throughput";
+            options.atime = "off";
+            options."com.sun:auto-snapshot" = "true";
+          };
         };
       };
     };

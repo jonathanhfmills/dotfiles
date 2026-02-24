@@ -76,6 +76,7 @@
 
       # AI.
       anthropic.claude-code
+      continue.continue
 
       # Docker.
       ms-azuretools.vscode-docker
@@ -89,6 +90,39 @@
       "nix.enableLanguageServer" = true;
       "nix.serverPath" = "${pkgs.nil}/bin/nil";
       "remote.SSH.configFile" = "~/.ssh/config";
+    };
+  };
+
+  home.file.".continue/config.json".text = builtins.toJSON {
+    models = [
+      {
+        title = "qwen3:14b (workstation)";
+        provider = "ollama";
+        model = "qwen3:14b";
+        apiBase = "http://100.95.201.10:11434";
+      }
+      {
+        title = "qwen3:8b (workstation)";
+        provider = "ollama";
+        model = "qwen3:8b";
+        apiBase = "http://100.95.201.10:11434";
+      }
+      {
+        title = "gemma3:12b (nas)";
+        provider = "ollama";
+        model = "gemma3:12b";
+        apiBase = "http://100.103.206.89:11434";
+      }
+    ];
+    tabAutocompleteModel = {
+      title = "qwen3:14b";
+      provider = "ollama";
+      model = "qwen3:14b";
+      apiBase = "http://100.95.201.10:11434";
+    };
+    tabAutocompleteOptions = {
+      useCopyBuffer = false;
+      maxPromptTokens = 1024;
     };
   };
 
