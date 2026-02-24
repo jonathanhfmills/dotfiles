@@ -23,6 +23,9 @@
   # Headless by default — no display manager or desktop environment.
   # Gamescope + Steam can be launched on HDMI via SSH.
 
+  # Seat management (required for gamescope DRM access from SSH).
+  services.seatd.enable = true;
+
   # PipeWire audio (needed for Sunshine streaming + local output).
   services.pulseaudio.enable = false;
   security.rtkit.enable = true;
@@ -37,7 +40,7 @@
   users.users.jon = {
     isNormalUser = true;
     description = "Jonathan Mills";
-    extraGroups = [ "networkmanager" "wheel" "input" "video" ];
+    extraGroups = [ "networkmanager" "wheel" "input" "video" "seat" ];
     linger = true;  # Start user services (Sunshine) at boot without login.
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMI/v0grXNp+qVV8TUky2BiHjHFpid6XCAA3Pg5G958Z jon@nixos-fleet"
@@ -60,23 +63,42 @@
     openFirewall = true;
   };
 
+  # Gamescope + Steam as a systemd service on VT2 (needs seat/DRM access).
+  systemd.services.gamescope-steam = {
+    description = "Steam Big Picture via Gamescope";
+    conflicts = [ "getty@tty2.service" ];
+    after = [ "systemd-logind.service" ];
+    serviceConfig = {
+      User = "jon";
+      Group = "users";
+      PAMName = "login";
+      TTYPath = "/dev/tty2";
+      StandardInput = "tty-force";
+      StandardOutput = "journal";
+      StandardError = "journal";
+      Restart = "no";
+      ExecStart = "${pkgs.gamescope}/bin/gamescope -e --backend drm -- steam -gamepadui";
+    };
+    environment = {
+      XDG_RUNTIME_DIR = "/run/user/1000";
+    };
+    wantedBy = [];  # Started on demand via `session` command.
+  };
+
   # Session switcher — manage local HDMI output over SSH.
   environment.systemPackages = [
     (pkgs.writeShellScriptBin "session" ''
       case "''${1:-status}" in
         steam)
-          session stop 2>/dev/null
-          echo "Starting Steam Big Picture on HDMI..."
-          gamescope -e --backend drm -- steam -gamepadui &
-          disown
+          sudo systemctl start gamescope-steam
+          echo "Steam Big Picture started on HDMI"
           ;;
         stop)
-          ${pkgs.procps}/bin/pkill -f gamescope 2>/dev/null
-          ${pkgs.procps}/bin/pkill -f steam 2>/dev/null
+          sudo systemctl stop gamescope-steam 2>/dev/null
           echo "Local display stopped (headless)"
           ;;
         status)
-          echo "gamescope: $(${pkgs.procps}/bin/pgrep gamescope >/dev/null 2>&1 && echo running || echo stopped)"
+          echo "gamescope: $(systemctl is-active gamescope-steam 2>/dev/null)"
           echo "sunshine:  $(systemctl --user is-active sunshine 2>/dev/null || echo stopped)"
           ;;
         *)
