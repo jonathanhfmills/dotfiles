@@ -50,6 +50,13 @@
   # Steam with gamescope session.
   programs.steam.enable = true;
   programs.steam.gamescopeSession.enable = true;
+  programs.steam.extraPackages = [
+    # "Exit to Desktop" calls steamos-session-select inside bwrap.
+    # Signal the wrapper via a flag file (bwrap shares /run).
+    (pkgs.writeShellScriptBin "steamos-session-select" ''
+      touch /run/user/1000/exit-gamescope
+    '')
+  ];
   programs.gamescope = {
     enable = true;
     capSysNice = true;
@@ -77,7 +84,32 @@
       StandardOutput = "journal";
       StandardError = "journal";
       Restart = "no";
-      ExecStart = "${pkgs.gamescope}/bin/gamescope -e --backend drm -- steam -gamepadui";
+      ExecStart = "${pkgs.writeShellScript "gamescope-steam-wrapper" ''
+        rm -f /run/user/1000/exit-gamescope
+        rm -f /tmp/steamos-reboot-sentinel /tmp/steamos-shutdown-sentinel
+        ${pkgs.gamescope}/bin/gamescope -e --backend drm -- steam -gamepadui -steamos3 -steampal -steamdeck &
+        GAMESCOPE_PID=$!
+        # Poll for the exit flag (set by steamos-session-select inside bwrap)
+        # or reboot/shutdown sentinels written directly by Steam.
+        while true; do
+          [ -f /run/user/1000/exit-gamescope ] && break
+          [ -f /tmp/steamos-reboot-sentinel ] && break
+          [ -f /tmp/steamos-shutdown-sentinel ] && break
+          kill -0 $GAMESCOPE_PID 2>/dev/null || break
+          sleep 1
+        done
+        kill $GAMESCOPE_PID 2>/dev/null
+        wait $GAMESCOPE_PID 2>/dev/null
+        # Handle sentinel actions.
+        if [ -f /tmp/steamos-reboot-sentinel ]; then
+          rm -f /tmp/steamos-reboot-sentinel
+          systemctl reboot
+        elif [ -f /tmp/steamos-shutdown-sentinel ]; then
+          rm -f /tmp/steamos-shutdown-sentinel
+          systemctl poweroff
+        fi
+        rm -f /run/user/1000/exit-gamescope
+      ''}";
     };
     environment = {
       XDG_RUNTIME_DIR = "/run/user/1000";
