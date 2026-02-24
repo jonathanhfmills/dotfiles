@@ -67,6 +67,7 @@ in
     deps = [ "users" ];
     text = ''
       if ${pkgs.systemd}/bin/systemctl is-active --quiet postgresql; then
+        ${pkgs.sudo}/bin/sudo -u postgres ${pkgs.postgresql}/bin/psql -d ironclaw -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
         for file in IDENTITY.md SOUL.md USER.md; do
           if [ -f /home/jon/dotfiles/wanda/$file ]; then
             ${pkgs.sudo}/bin/sudo -u jon \

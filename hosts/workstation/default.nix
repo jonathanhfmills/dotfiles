@@ -7,14 +7,14 @@
   ];
 
   # Hostname.
-  networking.hostName = "desktop";
+  networking.hostName = "workstation";
 
   # LTS kernel — required for ZFS compatibility.
   boot.kernelPackages = pkgs.linuxPackages;
 
-  # ZFS support (tools + kernel module, no ZFS filesystems required).
+  # ZFS support (mirror pool across 2x NVMe drives).
   boot.supportedFilesystems = [ "zfs" ];
-  networking.hostId = "726f84c0";
+  networking.hostId = "2f50e4ce";
 
   # AMD GPU hardware acceleration.
   hardware.graphics.enable = true;
@@ -81,7 +81,7 @@
   services.openssh = {
     enable = true;
     listenAddresses = [
-      { addr = "100.74.117.36"; port = 22; }
+      { addr = "100.95.201.10"; port = 22; }
     ];
     settings = {
       PasswordAuthentication = false;
