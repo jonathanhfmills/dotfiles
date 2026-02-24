@@ -36,7 +36,12 @@
         hostname = "portable";
         user = "jon";
       };
+      "nas" = {
+        hostname = "100.103.206.89";
+        user = "jon";
+      };
     };
+    includes = [ "~/.ssh/config.d/*" ];
   };
 
   programs.bash = {
@@ -45,6 +50,45 @@
     historyControl = [ "ignoredups" "erasedups" ];
     sessionVariables = {
       SSH_AUTH_SOCK = "$HOME/.1password/agent.sock";
+    };
+  };
+
+  programs.vscode = {
+    enable = true;
+    package = pkgs.vscode;
+    extensions = with pkgs.vscode-extensions; [
+      # Remote development.
+      ms-vscode-remote.remote-ssh
+      ms-vscode-remote.remote-containers
+      ms-vscode.remote-explorer
+
+      # Nix.
+      jnoortheen.nix-ide
+
+      # Git.
+      eamodio.gitlens
+
+      # Editor.
+      esbenp.prettier-vscode
+      editorconfig.editorconfig
+      usernamehw.errorlens
+      streetsidesoftware.code-spell-checker
+
+      # AI.
+      anthropic.claude-code
+
+      # Docker.
+      ms-azuretools.vscode-docker
+    ];
+    userSettings = {
+      "editor.formatOnSave" = true;
+      "editor.minimap.enabled" = false;
+      "editor.tabSize" = 2;
+      "files.trimTrailingWhitespace" = true;
+      "files.insertFinalNewline" = true;
+      "nix.enableLanguageServer" = true;
+      "nix.serverPath" = "${pkgs.nil}/bin/nil";
+      "remote.SSH.configFile" = "~/.ssh/config";
     };
   };
 

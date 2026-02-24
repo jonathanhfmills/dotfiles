@@ -25,7 +25,6 @@
         ./modules/networking.nix
         ./modules/development.nix
         ./modules/programs/1password.nix
-        ./modules/services/ollama.nix
         ./modules/programs/ironclaw.nix
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -47,7 +46,6 @@
         ./modules/networking.nix
         ./modules/development.nix
         ./modules/programs/1password.nix
-        ./modules/services/ollama.nix
         ./modules/programs/ironclaw.nix
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -69,6 +67,24 @@
         ./modules/programs/1password.nix
         ./modules/services/ollama.nix
         ./modules/programs/ironclaw.nix
+        disko.nixosModules.disko
+        home-manager.nixosModules.home-manager
+        {
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.users.jon = import ./modules/users/jon.nix;
+        }
+      ];
+    };
+
+    nixosConfigurations.nas = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ./hosts/nas
+        ./modules/base.nix
+        ./modules/networking.nix
+        ./modules/development.nix
+        ./modules/services/ollama-nvidia.nix
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
         {
