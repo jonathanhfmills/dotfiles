@@ -56,40 +56,42 @@
   programs.vscode = {
     enable = true;
     package = pkgs.vscode;
-    extensions = with pkgs.vscode-extensions; [
-      # Remote development.
-      ms-vscode-remote.remote-ssh
-      ms-vscode-remote.remote-containers
-      ms-vscode.remote-explorer
+    profiles.default = {
+      extensions = with pkgs.vscode-extensions; [
+        # Remote development.
+        ms-vscode-remote.remote-ssh
+        ms-vscode-remote.remote-containers
+        ms-vscode.remote-explorer
 
-      # Nix.
-      jnoortheen.nix-ide
+        # Nix.
+        jnoortheen.nix-ide
 
-      # Git.
-      eamodio.gitlens
+        # Git.
+        eamodio.gitlens
 
-      # Editor.
-      esbenp.prettier-vscode
-      editorconfig.editorconfig
-      usernamehw.errorlens
-      streetsidesoftware.code-spell-checker
+        # Editor.
+        esbenp.prettier-vscode
+        editorconfig.editorconfig
+        usernamehw.errorlens
+        streetsidesoftware.code-spell-checker
 
-      # AI.
-      anthropic.claude-code
-      continue.continue
+        # AI.
+        anthropic.claude-code
+        continue.continue
 
-      # Docker.
-      ms-azuretools.vscode-docker
-    ];
-    userSettings = {
-      "editor.formatOnSave" = true;
-      "editor.minimap.enabled" = false;
-      "editor.tabSize" = 2;
-      "files.trimTrailingWhitespace" = true;
-      "files.insertFinalNewline" = true;
-      "nix.enableLanguageServer" = true;
-      "nix.serverPath" = "${pkgs.nil}/bin/nil";
-      "remote.SSH.configFile" = "~/.ssh/config";
+        # Docker.
+        ms-azuretools.vscode-docker
+      ];
+      userSettings = {
+        "editor.formatOnSave" = true;
+        "editor.minimap.enabled" = false;
+        "editor.tabSize" = 2;
+        "files.trimTrailingWhitespace" = true;
+        "files.insertFinalNewline" = true;
+        "nix.enableLanguageServer" = true;
+        "nix.serverPath" = "${pkgs.nil}/bin/nil";
+        "remote.SSH.configFile" = "~/.ssh/config";
+      };
     };
   };
 
