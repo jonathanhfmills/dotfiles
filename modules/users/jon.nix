@@ -1,6 +1,8 @@
 { pkgs, lib, ... }:
 
 {
+  imports = [ ./cosmic-desktop.nix ];
+
   home.username = "jon";
   home.homeDirectory = "/home/jon";
   home.stateVersion = "25.11";

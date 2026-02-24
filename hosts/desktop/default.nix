@@ -35,6 +35,11 @@
   services.displayManager.autoLogin.enable = true;
   services.displayManager.autoLogin.user = "jon";
   services.system76-scheduler.enable = true;
+  environment.cosmic.excludePackages = with pkgs; [
+    cosmic-edit       # use VS Code
+    cosmic-player     # not needed
+    cosmic-store      # packages managed by nix
+  ];
 
   # PipeWire audio.
   services.pulseaudio.enable = false;
