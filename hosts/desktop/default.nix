@@ -26,6 +26,9 @@
     ];
   };
 
+  # Raw input — no mouse acceleration.
+  services.libinput.mouse.accelProfile = "flat";
+
   # COSMIC Desktop Environment.
   services.desktopManager.cosmic.enable = true;
   services.displayManager.cosmic-greeter.enable = true;
