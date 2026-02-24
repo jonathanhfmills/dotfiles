@@ -16,6 +16,9 @@
   boot.supportedFilesystems = [ "zfs" ];
   networking.hostId = "c1192ca0";
 
+  # Prevent SATA boot drive (870 EVO) from sleeping/dropping off.
+  powerManagement.scsiLinkPolicy = "max_performance";
+
   # Headless server — no display manager, desktop, or gaming stack.
 
   # Seat management.
