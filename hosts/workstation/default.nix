@@ -17,8 +17,6 @@
   boot.kernelParams = [ "zfs.zfs_arc_max=4294967296" ];  # 4 GB
   networking.hostId = "2f50e4ce";
 
-  # Prevent SATA boot drive (870 EVO) from sleeping/dropping off.
-  powerManagement.scsiLinkPolicy = "max_performance";
 
   # AMD GPU hardware acceleration.
   hardware.graphics.enable = true;
@@ -47,7 +45,7 @@
   users.users.jon = {
     isNormalUser = true;
     description = "Jonathan Mills";
-    extraGroups = [ "networkmanager" "wheel" "input" "video" "seat" ];
+    extraGroups = [ "networkmanager" "wheel" "input" "video" "seat" "audio" ];
     linger = true;  # Start user services (Sunshine) at boot without login.
     hashedPasswordFile = config.age.secrets.password-jon.path;
     openssh.authorizedKeys.keys = [
@@ -69,6 +67,12 @@
     enable = true;
     capSysNice = true;
   };
+
+  # Allow Steam Input to create virtual controllers via uinput.
+  # The default uaccess tag only works with logind seats, not system services.
+  services.udev.extraRules = ''
+    KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", GROUP="input"
+  '';
 
   # Sway headless compositor — virtual display for Sunshine streaming.
   # Sway creates a GPU-backed virtual output; Sunshine captures via wlr protocol.

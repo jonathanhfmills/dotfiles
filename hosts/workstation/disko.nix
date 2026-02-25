@@ -1,12 +1,11 @@
 # Declarative disk layout for workstation.
-# Boot: Samsung 870 EVO 128GB (SATA)
-# Pool: 2x Samsung 980 Pro OEM 1TB (NVMe) — ZFS mirror
+# Pool + Boot: 2x Samsung 980 Pro OEM 1TB (NVMe) — ZFS mirror + mirrored ESP
 #
 {
   disko.devices = {
     disk = {
-      boot = {
-        device = "/dev/disk/by-id/ata-Samsung_SSD_870_EVO_128GB_S5Y4R020S029748";
+      nvme0 = {
+        device = "/dev/disk/by-id/nvme-SAMSUNG_MZVL21T0HCLR-00A00_S6H6NA0W700362";
         type = "disk";
         content = {
           type = "gpt";
@@ -21,15 +20,6 @@
                 mountOptions = [ "fmask=0077" "dmask=0077" ];
               };
             };
-          };
-        };
-      };
-      nvme0 = {
-        device = "/dev/disk/by-id/nvme-SAMSUNG_MZVL21T0HCLR-00A00_S6H6NA0W700362";
-        type = "disk";
-        content = {
-          type = "gpt";
-          partitions = {
             zfs = {
               size = "100%";
               content = {
@@ -46,6 +36,16 @@
         content = {
           type = "gpt";
           partitions = {
+            ESP = {
+              size = "1G";
+              type = "EF00";
+              content = {
+                type = "filesystem";
+                format = "vfat";
+                mountpoint = "/boot-fallback";
+                mountOptions = [ "fmask=0077" "dmask=0077" ];
+              };
+            };
             zfs = {
               size = "100%";
               content = {
@@ -86,6 +86,14 @@
             mountpoint = "/home";
             options.mountpoint = "legacy";
             options."com.sun:auto-snapshot" = "true";
+          };
+          games = {
+            type = "zfs_fs";
+            mountpoint = "/home/jon/.local/share/Steam/steamapps";
+            options.mountpoint = "legacy";
+            options.recordsize = "1M";
+            options.compression = "lz4";
+            options.atime = "off";
           };
           postgres = {
             type = "zfs_fs";
