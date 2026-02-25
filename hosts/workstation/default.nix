@@ -69,6 +69,7 @@
   # Steam with gamescope session.
   programs.steam.enable = true;
   programs.steam.gamescopeSession.enable = true;
+  programs.steam.localNetworkGameTransfers.openFirewall = true;
   programs.steam.extraPackages = [
     # "Exit to Desktop" calls steamos-session-select inside bwrap.
     # Signal the wrapper via a flag file (bwrap shares /run).
@@ -79,6 +80,20 @@
   programs.gamescope = {
     enable = true;
     capSysNice = true;
+  };
+
+  # GameMode — dynamic optimizations while gaming.
+  # Per-game: set launch options to `gamemoderun %command%`
+  programs.gamemode = {
+    enable = true;
+    settings = {
+      general.renice = 10;
+      gpu = {
+        apply_gpu_optimisations = "accept-responsibility";
+        gpu_device = 0;
+        amd_performance_level = "high";
+      };
+    };
   };
 
   # Allow Steam Input to create virtual controllers via uinput.
@@ -233,6 +248,7 @@
           ;;
       esac
     '')
+    pkgs.steam-rom-manager
   ];
 
   # Pin ollama to P-cores for inference performance.
