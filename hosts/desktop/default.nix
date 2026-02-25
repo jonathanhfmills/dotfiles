@@ -14,6 +14,7 @@
 
   # ZFS support (tools + kernel module, no ZFS filesystems required).
   boot.supportedFilesystems = [ "zfs" ];
+  boot.kernelParams = [ "zfs.zfs_arc_max=2147483648" ];  # 2 GB
   networking.hostId = "726f84c0";
 
   # GPU hardware acceleration.

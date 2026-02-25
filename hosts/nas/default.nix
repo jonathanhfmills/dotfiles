@@ -14,6 +14,7 @@
 
   # ZFS support (single 990 PRO — 980 PRO can mirror once firmware is fixed).
   boot.supportedFilesystems = [ "zfs" ];
+  boot.kernelParams = [ "zfs.zfs_arc_max=12884901888" ];  # 12 GB
   networking.hostId = "c1192ca0";
 
   # Prevent SATA boot drive (870 EVO) from sleeping/dropping off.
