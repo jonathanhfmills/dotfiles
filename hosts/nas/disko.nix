@@ -1,6 +1,5 @@
 # Declarative disk layout for NAS.
-# Boot: Samsung 870 EVO 128GB (SATA)
-# Root: Samsung 990 PRO 2TB (NVMe) — ZFS single-disk pool
+# Boot + Root: Samsung 990 PRO 2TB (NVMe) — ESP + ZFS single-disk pool
 #
 # NOTE: A Samsung 980 PRO is also installed but has a firmware bug
 # preventing initialization outside BIOS. Excluded until firmware
@@ -8,8 +7,8 @@
 {
   disko.devices = {
     disk = {
-      boot = {
-        device = "/dev/disk/by-id/ata-Samsung_SSD_870_EVO_128GB_S5Y4R020S029736";
+      nvme0 = {
+        device = "/dev/disk/by-id/nvme-Samsung_SSD_990_PRO_2TB_S7KHNJ0WC57731R";
         type = "disk";
         content = {
           type = "gpt";
@@ -24,15 +23,6 @@
                 mountOptions = [ "fmask=0077" "dmask=0077" ];
               };
             };
-          };
-        };
-      };
-      nvme0 = {
-        device = "/dev/disk/by-id/nvme-Samsung_SSD_990_PRO_2TB_S7KHNJ0WC57731R";
-        type = "disk";
-        content = {
-          type = "gpt";
-          partitions = {
             zfs = {
               size = "100%";
               content = {
