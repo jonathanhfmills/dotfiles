@@ -73,6 +73,8 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/services/ollama.nix
+        ./modules/services/caddy.nix
+        ./modules/services/dnscrypt-proxy.nix
         ./modules/programs/ironclaw.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
@@ -93,6 +95,8 @@
         ./modules/networking.nix
         ./modules/development.nix
         ./modules/services/ollama-nvidia.nix
+        ./modules/services/caddy.nix
+        ./modules/services/dnscrypt-proxy.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager

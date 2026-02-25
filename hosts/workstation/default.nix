@@ -41,6 +41,7 @@
 
   # Secrets.
   age.secrets.password-jon.file = ../../secrets/password-jon.age;
+  age.secrets.caddy-cloudflare-token.file = ../../secrets/caddy-cloudflare-token.age;
 
   # User accounts.
   users.users.jon = {
@@ -215,20 +216,12 @@
     '')
   ];
 
-  # OpenSSH (Tailscale only) — always available regardless of session mode.
+  # OpenSSH — available on all interfaces (LAN + Tailscale).
   services.openssh = {
     enable = true;
-    listenAddresses = [
-      { addr = "100.95.201.10"; port = 22; }
-    ];
     settings = {
       PasswordAuthentication = false;
       PermitRootLogin = "no";
     };
-  };
-  systemd.services.sshd = {
-    after = [ "tailscaled.service" ];
-    wants = [ "tailscaled.service" ];
-    serviceConfig.RestartSec = 5;
   };
 }
