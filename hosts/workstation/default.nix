@@ -21,9 +21,7 @@
   # P-cores (0-11) reserved for gamescope-steam and ollama.
   # i5-13600K topology: P-cores 0-5 + HT 6-11, E-cores 12-19.
   # Verify with: lscpu --extended
-  systemd.extraConfig = ''
-    CPUAffinity=12 13 14 15 16 17 18 19
-  '';
+  systemd.settings.Manager.CPUAffinity = "12 13 14 15 16 17 18 19";
 
   # AMD GPU hardware acceleration.
   hardware.graphics.enable = true;
