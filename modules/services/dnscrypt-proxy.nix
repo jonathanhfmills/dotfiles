@@ -47,6 +47,9 @@
         minisign_key = "RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3";
       };
 
+      # No IPv6 on the LAN — skip AAAA lookups.
+      block_ipv6 = true;
+
       # Performance tuning.
       cache = true;
       cache_size = 4096;
