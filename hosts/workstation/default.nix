@@ -14,7 +14,7 @@
 
   # ZFS support (mirror pool across 2x NVMe drives).
   boot.supportedFilesystems = [ "zfs" ];
-  boot.kernelParams = [ "zfs.zfs_arc_max=4294967296" ];  # 4 GB
+  boot.kernelParams = [ "zfs.zfs_arc_max=12884901888" ];  # 12 GB
   networking.hostId = "2f50e4ce";
 
   # CPU affinity: default all processes to E-cores (CPUs 12-19).
