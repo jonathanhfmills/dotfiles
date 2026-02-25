@@ -37,7 +37,7 @@
         user = "jon";
       };
       "nas" = {
-        hostname = "100.103.206.89";
+        hostname = "100.87.216.16";
         user = "jon";
       };
     };
@@ -107,7 +107,7 @@
         title = "gemma3:12b (nas)";
         provider = "ollama";
         model = "gemma3:12b";
-        apiBase = "http://100.103.206.89:11434";
+        apiBase = "http://100.87.216.16:11434";
       }
     ];
     tabAutocompleteModel = {
