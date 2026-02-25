@@ -17,6 +17,13 @@
   boot.kernelParams = [ "zfs.zfs_arc_max=4294967296" ];  # 4 GB
   networking.hostId = "2f50e4ce";
 
+  # CPU affinity: default all processes to E-cores (CPUs 12-19).
+  # P-cores (0-11) reserved for gamescope-steam and ollama.
+  # i5-13600K topology: P-cores 0-5 + HT 6-11, E-cores 12-19.
+  # Verify with: lscpu --extended
+  systemd.extraConfig = ''
+    CPUAffinity=12 13 14 15 16 17 18 19
+  '';
 
   # AMD GPU hardware acceleration.
   hardware.graphics.enable = true;
@@ -35,6 +42,12 @@
     alsa.enable = true;
     alsa.support32Bit = true;
     pulse.enable = true;
+    extraConfig.pipewire."10-clock-rate" = {
+      "context.properties" = {
+        "default.clock.quantum" = 1024;
+        "default.clock.min-quantum" = 512;
+      };
+    };
   };
 
   # Secrets.
@@ -158,11 +171,13 @@
       StandardInput = "tty-force";
       StandardOutput = "journal";
       StandardError = "journal";
+      CPUAffinity = "0-11";
+      AllowedCPUs = "0-11";
       Restart = "no";
       ExecStart = "${pkgs.writeShellScript "gamescope-steam-wrapper" ''
         rm -f /run/user/1000/exit-gamescope
         rm -f /tmp/steamos-reboot-sentinel /tmp/steamos-shutdown-sentinel
-        ${pkgs.gamescope}/bin/gamescope -e --backend drm -- steam -gamepadui -steamos3 -steampal -steamdeck &
+        ${pkgs.gamescope}/bin/gamescope -e --backend drm -W 1920 -H 1080 -r 120 -- steam -gamepadui -steamos3 -steampal -steamdeck &
         GAMESCOPE_PID=$!
         # Poll for the exit flag (set by steamos-session-select inside bwrap)
         # or reboot/shutdown sentinels written directly by Steam.
@@ -219,6 +234,12 @@
       esac
     '')
   ];
+
+  # Pin ollama to P-cores for inference performance.
+  systemd.services.ollama.serviceConfig = {
+    CPUAffinity = "0-11";
+    AllowedCPUs = "0-11";
+  };
 
   # OpenSSH — available on all interfaces (LAN + Tailscale).
   services.openssh = {
