@@ -1,5 +1,12 @@
 { config, pkgs, ... }:
 
+let
+  startGamescopeSteam = pkgs.writeShellScript "start-gamescope-steam" ''
+    if ! /run/current-system/sw/bin/systemctl is-active --quiet gamescope-steam; then
+      /run/current-system/sw/bin/systemctl start gamescope-steam
+    fi
+  '';
+in
 {
   imports = [
     ./hardware.nix
@@ -98,6 +105,7 @@
   # The default uaccess tag only works with logind seats, not system services.
   services.udev.extraRules = ''
     KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", GROUP="input"
+    ACTION=="add", SUBSYSTEM=="input", ENV{ID_INPUT_JOYSTICK}=="1", RUN+="${pkgs.systemd}/bin/systemctl restart gaming-controller.service"
   '';
 
   # Sway headless compositor — virtual display for Sunshine streaming.
@@ -220,6 +228,22 @@
     wantedBy = [];  # Started on demand via `session` command.
   };
 
+  # Controller Guide button → auto-launch gamescope-steam.
+  # Triggerhappy watches /dev/input/event* for BTN_MODE (Xbox Guide button).
+  systemd.services.gaming-controller = {
+    description = "Controller Guide Button Listener";
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      ExecStart = "${pkgs.writeShellScript "gaming-controller-start" ''
+        exec ${pkgs.triggerhappy}/bin/thd --triggers ${pkgs.writeText "gaming-controller.conf" ''
+          BTN_MODE 1 ${startGamescopeSteam}
+        ''} /dev/input/event*
+      ''}";
+      Restart = "on-failure";
+      RestartSec = 5;
+    };
+  };
+
   # Session switcher — manage local HDMI output over SSH.
   environment.systemPackages = [
     (pkgs.writeShellScriptBin "session" ''
@@ -247,6 +271,7 @@
       esac
     '')
     pkgs.steam-rom-manager
+    pkgs.triggerhappy
   ];
 
   # Pin ollama to P-cores for inference performance.

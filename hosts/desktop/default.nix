@@ -17,6 +17,11 @@
   boot.kernelParams = [ "zfs.zfs_arc_max=2147483648" ];  # 2 GB
   networking.hostId = "726f84c0";
 
+  # Front panel audio jack detection (dual-codec ALC1220 on ASUS Z370-I Strix).
+  boot.extraModprobeConfig = ''
+    options snd-hda-intel model=dual-codecs
+  '';
+
   # GPU hardware acceleration.
   hardware.graphics = {
     enable = true;
