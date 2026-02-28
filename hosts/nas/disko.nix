@@ -63,6 +63,13 @@
             options.mountpoint = "legacy";
             options."com.sun:auto-snapshot" = "true";
           };
+          stremio = {
+            type = "zfs_fs";
+            mountpoint = "/var/lib/stremio-server";
+            options.mountpoint = "legacy";
+            options.recordsize = "16K";
+            options."com.sun:auto-snapshot" = "false";
+          };
         };
       };
     };
