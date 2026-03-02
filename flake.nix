@@ -18,12 +18,18 @@
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    claude-code = {
+      url = "github:sadjow/claude-code-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, home-manager, disko, agenix, ... }: {
+  outputs = { self, nixpkgs, home-manager, disko, agenix, claude-code, ... }: {
     # Desktop (ext4 root — legacy config, kept for dual-boot fallback).
     nixosConfigurations.desktop = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
+      specialArgs = { inherit claude-code; };
       modules = [
         ./hosts/desktop
         ./modules/base.nix
@@ -31,6 +37,7 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
+        ./modules/services/syncthing.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -45,6 +52,7 @@
     # Desktop (ZFS root — new primary config).
     nixosConfigurations.desktop-zfs = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
+      specialArgs = { inherit claude-code; };
       modules = [
         ./hosts/desktop
         ./hosts/desktop/hardware-zfs.nix
@@ -53,6 +61,7 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
+        ./modules/services/syncthing.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -66,6 +75,7 @@
 
     nixosConfigurations.workstation = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
+      specialArgs = { inherit claude-code; };
       modules = [
         ./hosts/workstation
         ./modules/base.nix
@@ -89,6 +99,7 @@
 
     nixosConfigurations.nas = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
+      specialArgs = { inherit claude-code; };
       modules = [
         ./hosts/nas
         ./modules/base.nix
@@ -111,6 +122,7 @@
 
     nixosConfigurations.portable = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
+      specialArgs = { inherit claude-code; };
       modules = [
         ./hosts/portable
         ./modules/base.nix
@@ -128,6 +140,7 @@
 
     nixosConfigurations.laptop = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
+      specialArgs = { inherit claude-code; };
       modules = [
         ./hosts/laptop
         ./modules/base.nix
@@ -135,6 +148,7 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
+        ./modules/services/syncthing.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager

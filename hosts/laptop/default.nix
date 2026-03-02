@@ -86,7 +86,7 @@
   services.openssh = {
     enable = true;
     listenAddresses = [
-      { addr = "100.112.187.18"; port = 22; }
+      { addr = "100.104.109.104"; port = 22; }
     ];
     settings = {
       PasswordAuthentication = false;
