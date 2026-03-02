@@ -85,6 +85,7 @@
         ./modules/services/ollama.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
+        ./modules/services/stremio-server.nix
         ./modules/programs/ironclaw.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
@@ -108,7 +109,6 @@
         ./modules/services/ollama-nvidia.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
-        ./modules/services/stremio-server.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager

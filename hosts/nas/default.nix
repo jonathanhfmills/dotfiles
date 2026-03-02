@@ -17,6 +17,13 @@
   boot.kernelParams = [ "zfs.zfs_arc_max=12884901888" ];  # 12 GB
   networking.hostId = "c1192ca0";
 
+  # ZFS maintenance.
+  services.zfs.autoScrub.enable = true;
+  services.zfs.trim.enable = true;
+
+  # CPU frequency governor.
+  powerManagement.cpuFreqGovernor = "powersave";
+
   # Headless server — no display manager, desktop, or gaming stack.
 
   # Seat management.

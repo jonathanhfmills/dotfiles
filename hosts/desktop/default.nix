@@ -17,6 +17,13 @@
   boot.kernelParams = [ "zfs.zfs_arc_max=2147483648" ];  # 2 GB
   networking.hostId = "726f84c0";
 
+  # ZFS maintenance.
+  services.zfs.autoScrub.enable = true;
+  services.zfs.trim.enable = true;
+
+  # CPU frequency governor.
+  powerManagement.cpuFreqGovernor = "powersave";
+
   # GPU hardware acceleration.
   hardware.graphics = {
     enable = true;

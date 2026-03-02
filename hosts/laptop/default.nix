@@ -17,6 +17,10 @@
   boot.supportedFilesystems = [ "zfs" ];
   boot.kernelParams = [ "zfs.zfs_arc_max=1073741824" ];  # 1 GB
 
+  # ZFS maintenance.
+  services.zfs.autoScrub.enable = true;
+  services.zfs.trim.enable = true;
+
   # Intel Iris Xe GPU hardware acceleration.
   hardware.graphics = {
     enable = true;
@@ -81,6 +85,9 @@
     termius
     moonlight-qt
   ];
+
+  # Fingerprint authentication for sudo.
+  security.pam.services.sudo.fprintAuth = true;
 
   # OpenSSH (Tailscale only).
   services.openssh = {

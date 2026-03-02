@@ -24,6 +24,14 @@ in
   boot.kernelParams = [ "zfs.zfs_arc_max=12884901888" ];  # 12 GB
   networking.hostId = "2f50e4ce";
 
+  # ZFS maintenance.
+  services.zfs.autoScrub.enable = true;
+  services.zfs.trim.enable = true;
+
+  # Power management.
+  services.thermald.enable = true;
+  powerManagement.cpuFreqGovernor = "powersave";
+
   # CPU affinity: default all processes to E-cores (CPUs 12-19).
   # P-cores (0-11) reserved for gamescope-steam and ollama.
   # i5-13600K topology: P-cores 0-5 + HT 6-11, E-cores 12-19.

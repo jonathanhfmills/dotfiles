@@ -4,7 +4,7 @@ let
   caddyfile = pkgs.writeText "stremio-caddyfile" ''
     stremio.hellfireae.com {
       import cloudflare-tls
-      bind 100.87.216.16
+      bind 100.95.201.10
       reverse_proxy 127.0.0.1:11470
     }
   '';
@@ -34,8 +34,8 @@ in
     wantedBy = [ "multi-user.target" ];
 
     environment = {
-      FFMPEG_BIN = "${pkgs.ffmpeg}/bin/ffmpeg";
-      FFPROBE_BIN = "${pkgs.ffmpeg}/bin/ffprobe";
+      FFMPEG_BIN = "${pkgs.ffmpeg.override { withVaapi = true; }}/bin/ffmpeg";
+      FFPROBE_BIN = "${pkgs.ffmpeg.override { withVaapi = true; }}/bin/ffprobe";
       APP_PATH = "/var/lib/stremio-server";
       NO_CORS = "1";
       CASTING_DISABLED = "1";
