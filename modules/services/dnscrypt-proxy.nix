@@ -13,6 +13,10 @@
     wantedBy = [ "multi-user.target" ];
   };
 
+  # Prevent Tailscale MagicDNS from overriding resolv.conf.
+  # These hosts use dnscrypt-proxy on 127.0.0.1 as the local resolver.
+  services.tailscale.extraUpFlags = [ "--accept-dns=false" ];
+
   services.dnscrypt-proxy = {
     enable = true;
 
