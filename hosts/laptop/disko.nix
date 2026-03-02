@@ -1,28 +1,63 @@
 # Declarative disk layout for laptop.
-# Drive: WD PC SN730 512GB NVMe
+# Boot + Root: WD PC SN730 512GB (NVMe) — ESP + ZFS single-disk pool
 {
-  disko.devices.disk.main = {
-    device = "/dev/disk/by-id/nvme-WDC_PC_SN730_SDBQNTY-512G-1001_212198454503";
-    type = "disk";
-    content = {
-      type = "gpt";
-      partitions = {
-        ESP = {
-          size = "1G";
-          type = "EF00";
-          content = {
-            type = "filesystem";
-            format = "vfat";
-            mountpoint = "/boot";
-            mountOptions = [ "fmask=0077" "dmask=0077" ];
+  disko.devices = {
+    disk = {
+      nvme0 = {
+        device = "/dev/disk/by-id/nvme-WDC_PC_SN730_SDBQNTY-512G-1001_212198454503";
+        type = "disk";
+        content = {
+          type = "gpt";
+          partitions = {
+            ESP = {
+              size = "1G";
+              type = "EF00";
+              content = {
+                type = "filesystem";
+                format = "vfat";
+                mountpoint = "/boot";
+                mountOptions = [ "fmask=0077" "dmask=0077" ];
+              };
+            };
+            zfs = {
+              size = "100%";
+              content = {
+                type = "zfs";
+                pool = "rpool";
+              };
+            };
           };
         };
-        root = {
-          size = "100%";
-          content = {
-            type = "filesystem";
-            format = "ext4";
+      };
+    };
+    zpool = {
+      rpool = {
+        type = "zpool";
+        rootFsOptions = {
+          compression = "zstd";
+          acltype = "posixacl";
+          xattr = "sa";
+          relatime = "on";
+          normalization = "formD";
+          mountpoint = "none";
+        };
+        datasets = {
+          root = {
+            type = "zfs_fs";
             mountpoint = "/";
+            options.mountpoint = "legacy";
+          };
+          nix = {
+            type = "zfs_fs";
+            mountpoint = "/nix";
+            options.mountpoint = "legacy";
+            options."com.sun:auto-snapshot" = "false";
+          };
+          home = {
+            type = "zfs_fs";
+            mountpoint = "/home";
+            options.mountpoint = "legacy";
+            options."com.sun:auto-snapshot" = "true";
           };
         };
       };

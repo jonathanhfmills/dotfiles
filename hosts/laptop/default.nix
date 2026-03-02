@@ -10,8 +10,12 @@
   networking.hostName = "laptop";
   networking.hostId = "5e8b9eaa";
 
-  # Use latest kernel (no ZFS).
-  boot.kernelPackages = pkgs.linuxPackages_latest;
+  # LTS kernel — required for ZFS compatibility.
+  boot.kernelPackages = pkgs.linuxPackages;
+
+  # ZFS support.
+  boot.supportedFilesystems = [ "zfs" ];
+  boot.kernelParams = [ "zfs.zfs_arc_max=1073741824" ];  # 1 GB
 
   # Intel Iris Xe GPU hardware acceleration.
   hardware.graphics = {

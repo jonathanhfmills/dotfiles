@@ -7,4 +7,5 @@ let
 in {
   "password-jon.age".publicKeys = allHosts;
   "caddy-cloudflare-token.age".publicKeys = [ workstation nas ];
+  "ssh-hosts.age".publicKeys = allHosts;
 }
