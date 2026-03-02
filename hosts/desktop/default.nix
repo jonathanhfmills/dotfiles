@@ -80,6 +80,7 @@
     vscode
     discord
     google-chrome
+    github-desktop
     termius
     moonlight-qt
   ];

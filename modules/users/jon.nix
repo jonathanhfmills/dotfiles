@@ -10,8 +10,9 @@
 
   programs.git = {
     enable = true;
+    lfs.enable = true;
     settings.user.name = "Jonathan Mills";
-    settings.user.email = "";
+    settings.user.email = "jon@cosmickmedia.com";
     settings.gpg.ssh.program = "${pkgs._1password-gui}/share/1password/op-ssh-sign";
   };
 

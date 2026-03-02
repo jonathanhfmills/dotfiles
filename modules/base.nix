@@ -18,6 +18,12 @@
   # ZFS automatic monthly scrub (no-op on non-ZFS hosts).
   services.zfs.autoScrub.enable = true;
 
+  # SSD TRIM — all hosts are on NVMe SSDs.
+  services.fstrim.enable = true;
+
+  # Firmware blobs (WiFi, Bluetooth, CPU microcode, etc.).
+  hardware.enableRedistributableFirmware = true;
+
   # Timezone.
   time.timeZone = "America/New_York";
 
