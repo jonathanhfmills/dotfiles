@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, claude-code, ... }:
 
 {
   # Bootloader.
@@ -65,6 +65,7 @@
     fd
     jq
     tree
+    claude-code.packages.${pkgs.system}.default
   ];
 
   system.stateVersion = "25.11";
