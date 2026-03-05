@@ -85,7 +85,7 @@
   # GUI apps.
   environment.systemPackages = with pkgs; [
     discord
-    (google-chrome.override { commandLineArgs = "--enable-features=VaapiVideoEncodeLinux"; })
+    (google-chrome.override { commandLineArgs = "--enable-features=AcceleratedVideoEncoder --ignore-gpu-blocklist"; })
     github-desktop
     termius
     moonlight-qt
