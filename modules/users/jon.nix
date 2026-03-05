@@ -6,6 +6,9 @@
   home.stateVersion = "25.11";
   programs.home-manager.enable = true;
 
+  # 1Password SSH agent for the entire desktop session (not just bash).
+  home.sessionVariables.SSH_AUTH_SOCK = "/home/jon/.1password/agent.sock";
+
   fonts.fontconfig.enable = true;
 
   programs.git = {
@@ -27,7 +30,6 @@
       };
     };
     includes = [
-      "/run/agenix/ssh-hosts"   # Fleet + client hosts (encrypted)
       "~/.ssh/config.d/*"
     ];
   };
@@ -36,9 +38,6 @@
     enable = true;
     historySize = 10000;
     historyControl = [ "ignoredups" "erasedups" ];
-    sessionVariables = {
-      SSH_AUTH_SOCK = "$HOME/.1password/agent.sock";
-    };
   };
 
   programs.vscode = {
@@ -79,6 +78,8 @@
         "nix.enableLanguageServer" = true;
         "nix.serverPath" = "${pkgs.nil}/bin/nil";
         "remote.SSH.configFile" = "~/.ssh/config";
+        "remote.SSH.enableDynamicForwarding" = false;
+        "remote.SSH.useLocalServer" = false;
       };
     };
   };
@@ -109,74 +110,6 @@
       maxPromptTokens = 1024;
     };
   };
-
-  home.file.".stignore".text = ''
-    // Nix & home-manager managed
-    .nix-profile
-    .nix-defexpr
-    .local/state/nix
-    .local/state/home-manager
-    .bash_profile
-    .bashrc
-    .profile
-    .config/git
-    .config/environment.d/10-home-manager.conf
-    .config/mimeapps.list
-    .config/cosmic
-    .continue/config.json
-    .vscode/extensions
-
-    // Caches (all regeneratable)
-    .cache
-
-    // Large binaries
-    .local/share/Steam
-    .steam
-    .steampath
-    .steampid
-
-    // Trash & downloads
-    .local/share/Trash
-    Downloads
-
-    // Git-managed repos (use git, not syncthing)
-    dotfiles
-
-    // Machine-specific runtime state
-    .gnupg
-    .pki
-    .pulse-cookie
-    .local/share/gvfs-metadata
-    .local/share/nautilus
-
-    // Browser caches (keep profiles/bookmarks, skip caches)
-    .config/google-chrome/**/Cache
-    .config/google-chrome/**/Code Cache
-    .config/google-chrome/**/Service Worker
-    .config/google-chrome/**/GrShaderCache
-    .config/chromium/**/Cache
-    .config/chromium/**/Code Cache
-    .config/chromium.bak
-
-    // App caches
-    .config/discord/Cache
-    .config/discord/Code Cache
-    .config/discord/GPUCache
-    .config/Code/Cache
-    .config/Code/CachedData
-    .config/Code/CachedExtensions
-    .config/Code/logs
-
-    // Database locks (prevent corruption)
-    *.sqlite-shm
-    *.sqlite-wal
-    *.lock
-
-    // Misc temp
-    *.tmp
-    *.swp
-    .ironclaw
-  '';
 
   programs.direnv = {
     enable = true;

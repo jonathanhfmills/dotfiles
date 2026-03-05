@@ -24,14 +24,6 @@
   # Firmware blobs (WiFi, Bluetooth, CPU microcode, etc.).
   hardware.enableRedistributableFirmware = true;
 
-  # SSH host configs (fleet + client sites), encrypted with agenix.
-  age.secrets.ssh-hosts = {
-    file = ../secrets/ssh-hosts.age;
-    owner = "jon";
-    group = "users";
-    mode = "0400";
-  };
-
   # Timezone.
   time.timeZone = "America/New_York";
 

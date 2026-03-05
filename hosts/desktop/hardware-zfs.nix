@@ -39,6 +39,26 @@
     fsType = "zfs";
   };
 
+  fileSystems."/home/jon/Documents" = {
+    device = "rpool/home/jon/Documents";
+    fsType = "zfs";
+  };
+
+  fileSystems."/home/jon/Pictures" = {
+    device = "rpool/home/jon/Pictures";
+    fsType = "zfs";
+  };
+
+  fileSystems."/home/jon/Videos" = {
+    device = "rpool/home/jon/Videos";
+    fsType = "zfs";
+  };
+
+  fileSystems."/home/jon/Music" = {
+    device = "rpool/home/jon/Music";
+    fsType = "zfs";
+  };
+
   # Shared EFI system partition (same as ext4 config).
   fileSystems."/boot" = {
     device = "/dev/disk/by-uuid/3C74-67BA";

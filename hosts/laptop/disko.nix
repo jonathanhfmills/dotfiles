@@ -59,6 +59,34 @@
             options.mountpoint = "legacy";
             options."com.sun:auto-snapshot" = "true";
           };
+          "home/jon/Documents" = {
+            type = "zfs_fs";
+            mountpoint = "/home/jon/Documents";
+            options.mountpoint = "legacy";
+            options.recordsize = "128K";
+            options."com.sun:auto-snapshot" = "true";
+          };
+          "home/jon/Pictures" = {
+            type = "zfs_fs";
+            mountpoint = "/home/jon/Pictures";
+            options.mountpoint = "legacy";
+            options.recordsize = "1M";
+            options."com.sun:auto-snapshot" = "true";
+          };
+          "home/jon/Videos" = {
+            type = "zfs_fs";
+            mountpoint = "/home/jon/Videos";
+            options.mountpoint = "legacy";
+            options.recordsize = "1M";
+            options."com.sun:auto-snapshot" = "true";
+          };
+          "home/jon/Music" = {
+            type = "zfs_fs";
+            mountpoint = "/home/jon/Music";
+            options.mountpoint = "legacy";
+            options.recordsize = "1M";
+            options."com.sun:auto-snapshot" = "true";
+          };
         };
       };
     };

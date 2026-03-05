@@ -78,7 +78,6 @@
 
   # GUI apps.
   environment.systemPackages = with pkgs; [
-    vscode
     discord
     google-chrome
     github-desktop
@@ -103,6 +102,9 @@
   systemd.services.sshd = {
     after = [ "tailscaled.service" ];
     wants = [ "tailscaled.service" ];
-    serviceConfig.RestartSec = 5;
+    serviceConfig = {
+      RestartSec = 5;
+      ExecStartPre = "${pkgs.bash}/bin/bash -c 'for i in $(seq 1 30); do ${pkgs.tailscale}/bin/tailscale status >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1'";
+    };
   };
 }

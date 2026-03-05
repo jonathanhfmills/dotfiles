@@ -38,6 +38,7 @@
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
         ./modules/services/syncthing.nix
+        ./modules/services/dnscrypt-proxy.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -62,6 +63,7 @@
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
         ./modules/services/syncthing.nix
+        ./modules/services/dnscrypt-proxy.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -86,6 +88,7 @@
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
+        ./modules/services/syncthing.nix
         ./modules/programs/ironclaw.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
@@ -109,6 +112,7 @@
         ./modules/services/ollama-nvidia.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
+        ./modules/services/syncthing.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -127,6 +131,7 @@
         ./hosts/portable
         ./modules/base.nix
         ./modules/networking.nix
+        ./modules/services/dnscrypt-proxy.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -149,6 +154,7 @@
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
         ./modules/services/syncthing.nix
+        ./modules/services/dnscrypt-proxy.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
