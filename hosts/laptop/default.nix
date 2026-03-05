@@ -79,7 +79,7 @@
   # GUI apps.
   environment.systemPackages = with pkgs; [
     discord
-    google-chrome
+    (google-chrome.override { commandLineArgs = "--enable-features=VaapiVideoEncodeLinux"; })
     github-desktop
     termius
     moonlight-qt
