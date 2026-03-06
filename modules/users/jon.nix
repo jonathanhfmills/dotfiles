@@ -68,6 +68,14 @@
 
         # Docker.
         ms-azuretools.vscode-docker
+
+        # Activity tracking.
+        (pkgs.vscode-utils.extensionFromVscodeMarketplace {
+          publisher = "activitywatch";
+          name = "aw-watcher-vscode";
+          version = "0.5.0";
+          sha256 = "0nvw8pp6xaqs6w2zz3dr0vlrrpd6wcgh6jc5bp5ld92p0f34idrs";
+        })
       ];
       userSettings = {
         "editor.formatOnSave" = true;

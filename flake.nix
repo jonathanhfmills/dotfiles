@@ -25,12 +25,20 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, disko, agenix, claude-code, ... }: {
+  outputs = { self, nixpkgs, home-manager, disko, agenix, claude-code, ... }:
+  let
+    localOverlay = final: prev: {
+      aw-watcher-window-cosmic = final.callPackage ./pkgs/aw-watcher-window-cosmic {};
+    };
+    overlayModule = { nixpkgs.overlays = [ localOverlay ]; };
+  in {
+
     # Desktop (ext4 root — legacy config, kept for dual-boot fallback).
     nixosConfigurations.desktop = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = { inherit claude-code; };
       modules = [
+        overlayModule
         ./hosts/desktop
         ./modules/base.nix
         ./modules/networking.nix
@@ -57,6 +65,7 @@
       system = "x86_64-linux";
       specialArgs = { inherit claude-code; };
       modules = [
+        overlayModule
         ./hosts/desktop
         ./hosts/desktop/hardware-zfs.nix
         ./modules/base.nix
@@ -83,6 +92,7 @@
       system = "x86_64-linux";
       specialArgs = { inherit claude-code; };
       modules = [
+        overlayModule
         ./hosts/workstation
         ./modules/base.nix
         ./modules/networking.nix
@@ -110,6 +120,7 @@
       system = "x86_64-linux";
       specialArgs = { inherit claude-code; };
       modules = [
+        overlayModule
         ./hosts/nas
         ./modules/base.nix
         ./modules/networking.nix
@@ -154,6 +165,7 @@
       system = "x86_64-linux";
       specialArgs = { inherit claude-code; };
       modules = [
+        overlayModule
         ./hosts/laptop
         ./modules/base.nix
         ./modules/networking.nix
