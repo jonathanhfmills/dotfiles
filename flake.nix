@@ -37,6 +37,7 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
+        ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
         agenix.nixosModules.default
@@ -46,6 +47,7 @@
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.users.jon = { imports = [ ./modules/users/jon.nix ./modules/users/cosmic-desktop.nix ]; };
+          home-manager.users.jon-private = import ./modules/users/jon-private.nix;
         }
       ];
     };
@@ -62,6 +64,7 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
+        ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
         agenix.nixosModules.default
@@ -71,6 +74,7 @@
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.users.jon = { imports = [ ./modules/users/jon.nix ./modules/users/cosmic-desktop.nix ]; };
+          home-manager.users.jon-private = import ./modules/users/jon-private.nix;
         }
       ];
     };
@@ -90,6 +94,7 @@
         ./modules/services/stremio-server.nix
         ./modules/services/syncthing.nix
         ./modules/programs/ironclaw.nix
+        ./modules/programs/activitywatch.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -112,6 +117,7 @@
         ./modules/services/ollama-nvidia.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
+        ./modules/services/kimai.nix
         ./modules/services/syncthing.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
@@ -153,6 +159,7 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
+        ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
         agenix.nixosModules.default
@@ -162,6 +169,7 @@
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.users.jon = import ./modules/users/jon.nix;
+          home-manager.users.jon-private = import ./modules/users/jon-private.nix;
         }
       ];
     };

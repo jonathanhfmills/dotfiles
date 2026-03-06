@@ -70,6 +70,15 @@
             options.recordsize = "16K";
             options."com.sun:auto-snapshot" = "false";
           };
+          mysql = {
+            type = "zfs_fs";
+            mountpoint = "/var/lib/mysql";
+            options.mountpoint = "legacy";
+            options.recordsize = "16K";
+            options.logbias = "throughput";
+            options.atime = "off";
+            options."com.sun:auto-snapshot" = "true";
+          };
         };
       };
     };

@@ -76,6 +76,13 @@
     ];
   };
 
+  users.users.jon-private = {
+    isNormalUser = true;
+    description = "Jon (Private)";
+    extraGroups = [ "networkmanager" "video" "audio" ];
+    hashedPasswordFile = config.age.secrets.password-jon.path;
+  };
+
   # Fonts.
   fonts.packages = with pkgs; [
     inter
