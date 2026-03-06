@@ -62,6 +62,11 @@
     fsType = "zfs";
   };
 
+  fileSystems."/home/jon/.local/share/activitywatch" = {
+    device = "rpool/activitywatch";
+    fsType = "zfs";
+  };
+
   # Shared EFI system partition (same as ext4 config).
   fileSystems."/boot" = {
     device = "/dev/disk/by-uuid/3C74-67BA";

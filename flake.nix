@@ -118,6 +118,7 @@
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/kimai.nix
+        ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         agenix.nixosModules.default
         disko.nixosModules.disko

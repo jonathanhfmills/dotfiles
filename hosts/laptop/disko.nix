@@ -87,6 +87,14 @@
             options.recordsize = "1M";
             options."com.sun:auto-snapshot" = "true";
           };
+          activitywatch = {
+            type = "zfs_fs";
+            mountpoint = "/home/jon/.local/share/activitywatch";
+            options.mountpoint = "legacy";
+            options.recordsize = "4K";
+            options.atime = "off";
+            options."com.sun:auto-snapshot" = "true";
+          };
         };
       };
     };
