@@ -162,6 +162,10 @@ fn days_to_ymd(days: u64) -> (u64, u64, u64) {
     (y, m, d)
 }
 
+// TODO: Add ext-foreign-toplevel-list-v1 support to work on all Wayland compositors
+// (Sway, Hyprland, GNOME, etc.), not just COSMIC. Try ext-foreign-toplevel-list first,
+// fall back to zcosmic_toplevel_info_v1. Then rename to aw-watcher-window-linux.
+
 // --- Wayland dispatch ---
 
 impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for State {

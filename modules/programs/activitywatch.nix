@@ -6,6 +6,7 @@ let
   isNas = hostname == "nas";
   awPackage = pkgs.aw-server-rust;
   awWatcherWindowCosmic = pkgs.aw-watcher-window-cosmic;
+  awWatcherScreenshot = pkgs.aw-watcher-screenshot-linux;
 
   caddyfile = pkgs.writeText "activitywatch-caddyfile" ''
     activity.hellfireae.com {
@@ -25,7 +26,7 @@ in
       };
     };
 
-    # Custom COSMIC window watcher (replaces aw-watcher-window on GUI hosts).
+    # COSMIC window watcher (replaces aw-watcher-window on GUI hosts).
     systemd.user.services.aw-watcher-window-cosmic = lib.mkIf hasDisplay {
       Unit = {
         Description = "ActivityWatch window watcher for COSMIC desktop";
@@ -34,6 +35,21 @@ in
       };
       Service = {
         ExecStart = "${awWatcherWindowCosmic}/bin/aw-watcher-window-cosmic";
+        Restart = "on-failure";
+        RestartSec = 5;
+      };
+      Install.WantedBy = [ "activitywatch.target" ];
+    };
+
+    # Screenshot watcher — captures on window change, Wayland-native.
+    systemd.user.services.aw-watcher-screenshot-linux = lib.mkIf hasDisplay {
+      Unit = {
+        Description = "ActivityWatch screenshot watcher (Linux)";
+        After = [ "activitywatch.service" "aw-watcher-window-cosmic.service" ];
+        BindsTo = [ "activitywatch.target" ];
+      };
+      Service = {
+        ExecStart = "${awWatcherScreenshot}/bin/aw-watcher-screenshot-linux";
         Restart = "on-failure";
         RestartSec = 5;
       };

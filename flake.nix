@@ -29,6 +29,7 @@
   let
     localOverlay = final: prev: {
       aw-watcher-window-cosmic = final.callPackage ./pkgs/aw-watcher-window-cosmic {};
+      aw-watcher-screenshot-linux = final.callPackage ./pkgs/aw-watcher-screenshot-linux {};
     };
     overlayModule = { nixpkgs.overlays = [ localOverlay ]; };
   in {
