@@ -119,6 +119,13 @@
     };
   };
 
+  programs.tmux = {
+    enable = true;
+    plugins = with pkgs.tmuxPlugins; [
+      aw-watcher-tmux
+    ];
+  };
+
   programs.direnv = {
     enable = true;
     nix-direnv.enable = true;
