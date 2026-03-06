@@ -14,8 +14,7 @@ rustPlatform.buildRustPackage {
   nativeBuildInputs = [ pkg-config ];
   buildInputs = [ openssl wayland ];
 
-  useFetchCargoVendor = true;
-  cargoHash = "";
+  cargoHash = "sha256-WWT8tOrHPf5x3bXsVPt32VKut4qK+K8gickBfEc0zmk=";
 
   meta = {
     description = "ActivityWatch window and AFK watcher for Wayland (wlroots + COSMIC)";

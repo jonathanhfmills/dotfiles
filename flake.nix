@@ -28,8 +28,11 @@
   outputs = { self, nixpkgs, home-manager, disko, agenix, claude-code, ... }:
   let
     localOverlay = final: prev: {
-      aw-watcher-window-cosmic = final.callPackage ./pkgs/aw-watcher-window-cosmic {};
+      aw-watcher-window-wayland = final.callPackage ./pkgs/aw-watcher-window-wayland {};
       aw-watcher-screenshot-linux = final.callPackage ./pkgs/aw-watcher-screenshot-linux {};
+      tmuxPlugins = prev.tmuxPlugins // {
+        aw-watcher-tmux = final.callPackage ./pkgs/aw-watcher-tmux {};
+      };
     };
     overlayModule = { nixpkgs.overlays = [ localOverlay ]; };
   in {

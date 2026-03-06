@@ -5,7 +5,7 @@ let
   isHeadless = builtins.elem hostname [ "workstation" "nas" ];
   isNas = hostname == "nas";
   awPackage = pkgs.aw-server-rust;
-  awWatcherWindowCosmic = pkgs.aw-watcher-window-cosmic;
+  awWatcherWindowWayland = pkgs.aw-watcher-window-wayland;
   awWatcherScreenshot = pkgs.aw-watcher-screenshot-linux;
 
   caddyfile = pkgs.writeText "activitywatch-caddyfile" ''
@@ -21,20 +21,25 @@ in
     services.activitywatch = {
       enable = true;
       package = awPackage;
-      watchers = {
+      # On display hosts, aw-watcher-window-wayland handles both window and AFK.
+      # On headless hosts, only aw-watcher-afk is needed (no Wayland display).
+      watchers = lib.mkIf (!hasDisplay) {
         aw-watcher-afk.package = pkgs.aw-watcher-afk;
       };
     };
 
-    # COSMIC window watcher (replaces aw-watcher-window on GUI hosts).
-    systemd.user.services.aw-watcher-window-cosmic = lib.mkIf hasDisplay {
+    # Wayland window + AFK watcher — single binary replaces both
+    # aw-watcher-window-cosmic and aw-watcher-afk on GUI hosts.
+    # Uses wlr-foreign-toplevel-management (Sway/Hyprland) with
+    # zcosmic_toplevel_info_v1 fallback (COSMIC desktop).
+    systemd.user.services.aw-watcher-window-wayland = lib.mkIf hasDisplay {
       Unit = {
-        Description = "ActivityWatch window watcher for COSMIC desktop";
+        Description = "ActivityWatch window and AFK watcher (Wayland)";
         After = [ "activitywatch.service" ];
         BindsTo = [ "activitywatch.target" ];
       };
       Service = {
-        ExecStart = "${awWatcherWindowCosmic}/bin/aw-watcher-window-cosmic";
+        ExecStart = "${awWatcherWindowWayland}/bin/aw-watcher-window-wayland";
         Restart = "on-failure";
         RestartSec = 5;
       };
@@ -45,7 +50,7 @@ in
     systemd.user.services.aw-watcher-screenshot-linux = lib.mkIf hasDisplay {
       Unit = {
         Description = "ActivityWatch screenshot watcher (Linux)";
-        After = [ "activitywatch.service" "aw-watcher-window-cosmic.service" ];
+        After = [ "activitywatch.service" "aw-watcher-window-wayland.service" ];
         BindsTo = [ "activitywatch.target" ];
       };
       Service = {
