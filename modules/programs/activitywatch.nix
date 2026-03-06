@@ -19,9 +19,9 @@ in
     services.activitywatch = {
       enable = true;
       package = awPackage;
-      watchers = (if isNas then {} else {
+      watchers = {
         aw-watcher-afk.package = pkgs.aw-watcher-afk;
-      }) // (if hasDisplay then {
+      } // (if hasDisplay then {
         aw-watcher-window.package = pkgs.aw-watcher-window;
       } else {});
     };
