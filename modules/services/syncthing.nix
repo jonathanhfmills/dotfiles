@@ -31,6 +31,7 @@ in {
       devices = peerDevices;
       folders = {
         ssh-config = mkFolder "ssh-config" "/home/jon/.ssh/config.d" peerNames;
+        activitywatch-sync = mkFolder "activitywatch-sync" "/home/jon/ActivityWatchSync" peerNames;
       } // lib.optionalAttrs isGui {
         documents = mkFolder "documents" "/home/jon/Documents" guiPeers;
         pictures  = mkFolder "pictures"  "/home/jon/Pictures"  guiPeers;

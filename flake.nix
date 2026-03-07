@@ -25,20 +25,38 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, disko, agenix, claude-code, ... }: {
+  outputs = { self, nixpkgs, home-manager, disko, agenix, claude-code, ... }:
+  let
+    localOverlay = final: prev: {
+      aw-watcher-window-wayland = final.callPackage ./pkgs/aw-watcher-window-wayland {};
+      aw-watcher-screenshot-linux = final.callPackage ./pkgs/aw-watcher-screenshot-linux {};
+      aw-watcher-input = final.callPackage ./pkgs/aw-watcher-input {};
+      aw-notify = final.callPackage ./pkgs/aw-notify {};
+      aw-android-adb = final.callPackage ./pkgs/aw-android-adb {};
+      aw-watcher-bash = final.callPackage ./pkgs/aw-watcher-bash {};
+      tmuxPlugins = prev.tmuxPlugins // {
+        aw-watcher-tmux = final.callPackage ./pkgs/aw-watcher-tmux {};
+      };
+    };
+    overlayModule = { nixpkgs.overlays = [ localOverlay ]; };
+  in {
+
     # Desktop (ext4 root — legacy config, kept for dual-boot fallback).
     nixosConfigurations.desktop = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = { inherit claude-code; };
       modules = [
+        overlayModule
         ./hosts/desktop
         ./modules/base.nix
         ./modules/networking.nix
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
+        ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
+        ./modules/services/stremio-server.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -46,6 +64,7 @@
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.users.jon = { imports = [ ./modules/users/jon.nix ./modules/users/cosmic-desktop.nix ]; };
+          home-manager.users.jon-private = import ./modules/users/jon-private.nix;
         }
       ];
     };
@@ -55,6 +74,7 @@
       system = "x86_64-linux";
       specialArgs = { inherit claude-code; };
       modules = [
+        overlayModule
         ./hosts/desktop
         ./hosts/desktop/hardware-zfs.nix
         ./modules/base.nix
@@ -62,8 +82,10 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
+        ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
+        ./modules/services/stremio-server.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -71,6 +93,7 @@
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.users.jon = { imports = [ ./modules/users/jon.nix ./modules/users/cosmic-desktop.nix ]; };
+          home-manager.users.jon-private = import ./modules/users/jon-private.nix;
         }
       ];
     };
@@ -79,6 +102,7 @@
       system = "x86_64-linux";
       specialArgs = { inherit claude-code; };
       modules = [
+        overlayModule
         ./hosts/workstation
         ./modules/base.nix
         ./modules/networking.nix
@@ -90,6 +114,7 @@
         ./modules/services/stremio-server.nix
         ./modules/services/syncthing.nix
         ./modules/programs/ironclaw.nix
+        ./modules/programs/activitywatch.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -105,6 +130,7 @@
       system = "x86_64-linux";
       specialArgs = { inherit claude-code; };
       modules = [
+        overlayModule
         ./hosts/nas
         ./modules/base.nix
         ./modules/networking.nix
@@ -112,6 +138,7 @@
         ./modules/services/ollama-nvidia.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
+        ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
@@ -147,12 +174,14 @@
       system = "x86_64-linux";
       specialArgs = { inherit claude-code; };
       modules = [
+        overlayModule
         ./hosts/laptop
         ./modules/base.nix
         ./modules/networking.nix
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/ironclaw.nix
+        ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
         agenix.nixosModules.default
@@ -162,6 +191,7 @@
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.users.jon = import ./modules/users/jon.nix;
+          home-manager.users.jon-private = import ./modules/users/jon-private.nix;
         }
       ];
     };

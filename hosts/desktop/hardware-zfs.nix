@@ -23,6 +23,9 @@
   # which may be too new for the out-of-tree ZFS module.
   boot.kernelPackages = lib.mkForce pkgs.linuxPackages;
 
+  # Disable disko-generated fileSystems from default.nix (ext4 layout).
+  disko.enableConfig = false;
+
   # ZFS root pool datasets (legacy mountpoints managed by NixOS).
   fileSystems."/" = {
     device = "rpool/root";
@@ -56,6 +59,11 @@
 
   fileSystems."/home/jon/Music" = {
     device = "rpool/home/jon/Music";
+    fsType = "zfs";
+  };
+
+  fileSystems."/home/jon/.local/share/activitywatch" = {
+    device = "rpool/activitywatch";
     fsType = "zfs";
   };
 
