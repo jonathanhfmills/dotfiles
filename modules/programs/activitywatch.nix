@@ -8,6 +8,7 @@ let
   awWatcherWindowWayland = pkgs.aw-watcher-window-wayland;
   awWatcherScreenshot = pkgs.aw-watcher-screenshot-linux;
   awWatcherInput = pkgs.aw-watcher-input;
+  awNotify = pkgs.aw-notify;
 
   caddyfile = pkgs.writeText "activitywatch-caddyfile" ''
     activity.hellfireae.com {
@@ -77,6 +78,26 @@ in
       };
       Install.WantedBy = [ "activitywatch.target" ];
     };
+
+    # Screentime notifications — "You've been on X for 30min", end-of-day summaries.
+    systemd.user.services.aw-notify = lib.mkIf hasDisplay {
+      Unit = {
+        Description = "ActivityWatch screentime notifications";
+        After = [ "activitywatch.service" ];
+        BindsTo = [ "activitywatch.target" ];
+      };
+      Service = {
+        ExecStart = "${awNotify}/bin/aw-notify start";
+        Restart = "on-failure";
+        RestartSec = 10;
+      };
+      Install.WantedBy = [ "activitywatch.target" ];
+    };
+
+    # aw-client CLI — query buckets, events, reports from the terminal.
+    home.packages = lib.mkIf hasDisplay [
+      pkgs.python3Packages.aw-client
+    ];
 
     # aw-sync daemon — exports local buckets to ~/ActivityWatchSync for Syncthing,
     # imports remote buckets from other devices.
