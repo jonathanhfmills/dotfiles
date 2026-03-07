@@ -30,6 +30,7 @@
     localOverlay = final: prev: {
       aw-watcher-window-wayland = final.callPackage ./pkgs/aw-watcher-window-wayland {};
       aw-watcher-screenshot-linux = final.callPackage ./pkgs/aw-watcher-screenshot-linux {};
+      aw-watcher-input = final.callPackage ./pkgs/aw-watcher-input {};
       tmuxPlugins = prev.tmuxPlugins // {
         aw-watcher-tmux = final.callPackage ./pkgs/aw-watcher-tmux {};
       };

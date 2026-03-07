@@ -7,6 +7,7 @@ let
   awPackage = pkgs.aw-server-rust;
   awWatcherWindowWayland = pkgs.aw-watcher-window-wayland;
   awWatcherScreenshot = pkgs.aw-watcher-screenshot-linux;
+  awWatcherInput = pkgs.aw-watcher-input;
 
   caddyfile = pkgs.writeText "activitywatch-caddyfile" ''
     activity.hellfireae.com {
@@ -55,6 +56,22 @@ in
       };
       Service = {
         ExecStart = "${awWatcherScreenshot}/bin/aw-watcher-screenshot-linux";
+        Restart = "on-failure";
+        RestartSec = 5;
+      };
+      Install.WantedBy = [ "activitywatch.target" ];
+    };
+
+    # Input watcher — tracks keypress and mouse movement counts (not a keylogger).
+    # Needs the `input` group for /dev/input access.
+    systemd.user.services.aw-watcher-input = lib.mkIf hasDisplay {
+      Unit = {
+        Description = "ActivityWatch input watcher (keypresses and mouse movements)";
+        After = [ "activitywatch.service" ];
+        BindsTo = [ "activitywatch.target" ];
+      };
+      Service = {
+        ExecStart = "${awWatcherInput}/bin/aw-watcher-input";
         Restart = "on-failure";
         RestartSec = 5;
       };
