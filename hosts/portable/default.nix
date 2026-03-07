@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 {
   imports = [
@@ -27,6 +27,24 @@
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMI/v0grXNp+qVV8TUky2BiHjHFpid6XCAA3Pg5G958Z jon@nixos-fleet"
     ];
   };
+
+  # Flash longevity — minimize writes to the USB SSD.
+  boot.tmp.useTmpfs = true;                        # /tmp in RAM
+  boot.tmp.tmpfsSize = "50%";                      # cap at half of RAM
+  services.journald.extraConfig = ''
+    SystemMaxUse=50M
+    RuntimeMaxUse=50M
+  '';
+  nix.gc.automatic = lib.mkForce false;             # skip automatic GC on portable
+  services.fstrim.enable = true;                   # periodic TRIM
+
+  # Minimal X + VS Code — lightweight GUI for SSH remote and Claude extension.
+  services.xserver.enable = true;
+  services.xserver.windowManager.i3.enable = true;
+  services.displayManager.autoLogin.enable = true;
+  services.displayManager.autoLogin.user = "jon";
+  services.displayManager.defaultSession = "none+i3";
+  environment.systemPackages = with pkgs; [ tmux vscode ];
 
   # OpenSSH.
   services.openssh = {
