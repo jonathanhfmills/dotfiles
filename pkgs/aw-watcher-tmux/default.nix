@@ -11,6 +11,7 @@
 
 tmuxPlugins.mkTmuxPlugin {
   pluginName = "aw-watcher-tmux";
+  rtpFilePath = "aw-watcher-tmux.tmux";
   version = "unstable-2024-01-14";
 
   src = fetchFromGitHub {

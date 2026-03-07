@@ -33,6 +33,7 @@
       aw-watcher-input = final.callPackage ./pkgs/aw-watcher-input {};
       aw-notify = final.callPackage ./pkgs/aw-notify {};
       aw-android-adb = final.callPackage ./pkgs/aw-android-adb {};
+      aw-watcher-bash = final.callPackage ./pkgs/aw-watcher-bash {};
       tmuxPlugins = prev.tmuxPlugins // {
         aw-watcher-tmux = final.callPackage ./pkgs/aw-watcher-tmux {};
       };
@@ -55,6 +56,7 @@
         ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
+        ./modules/services/stremio-server.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -83,6 +85,7 @@
         ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
+        ./modules/services/stremio-server.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager

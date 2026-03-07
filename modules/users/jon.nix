@@ -9,6 +9,8 @@
   # 1Password SSH agent for the entire desktop session (not just bash).
   home.sessionVariables.SSH_AUTH_SOCK = "/home/jon/.1password/agent.sock";
 
+  home.packages = [ pkgs.aw-watcher-bash ];
+
   fonts.fontconfig.enable = true;
 
   programs.git = {
@@ -38,6 +40,21 @@
     enable = true;
     historySize = 10000;
     historyControl = [ "ignoredups" "erasedups" ];
+    initExtra = ''
+      if command -v tmux &>/dev/null && [ -z "$TMUX" ] && [[ $- == *i* ]] && [ -z "$INSIDE_EMACS" ] && [ -z "$VSCODE_RESOLVING_ENVIRONMENT" ]; then
+        tmux new-session -A -s main && exit
+      fi
+
+      __aw_prompt_command() {
+        local exit_code=$?
+        local last_cmd
+        last_cmd=$(HISTTIMEFORMAT= history 1 | sed 's/^[ ]*[0-9]*[ ]*//')
+        if [ -n "$last_cmd" ]; then
+          aw-watcher-bash "$last_cmd" "$PWD" "$exit_code" &>/dev/null & disown
+        fi
+      }
+      PROMPT_COMMAND="__aw_prompt_command;$PROMPT_COMMAND"
+    '';
   };
 
   programs.vscode = {
@@ -121,8 +138,11 @@
 
   programs.tmux = {
     enable = true;
-    plugins = with pkgs.tmuxPlugins; [
-      aw-watcher-tmux
+    terminal = "tmux-256color";
+    historyLimit = 50000;
+    escapeTime = 10;
+    mouse = true;
+    plugins = [
     ];
   };
 
