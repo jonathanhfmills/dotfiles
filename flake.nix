@@ -32,6 +32,7 @@
       aw-watcher-screenshot-linux = final.callPackage ./pkgs/aw-watcher-screenshot-linux {};
       aw-watcher-input = final.callPackage ./pkgs/aw-watcher-input {};
       aw-notify = final.callPackage ./pkgs/aw-notify {};
+      aw-android-adb = final.callPackage ./pkgs/aw-android-adb {};
       tmuxPlugins = prev.tmuxPlugins // {
         aw-watcher-tmux = final.callPackage ./pkgs/aw-watcher-tmux {};
       };

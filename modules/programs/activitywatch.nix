@@ -9,6 +9,7 @@ let
   awWatcherScreenshot = pkgs.aw-watcher-screenshot-linux;
   awWatcherInput = pkgs.aw-watcher-input;
   awNotify = pkgs.aw-notify;
+  awAndroidAdb = pkgs.aw-android-adb;
 
   caddyfile = pkgs.writeText "activitywatch-caddyfile" ''
     activity.hellfireae.com {
@@ -98,6 +99,26 @@ in
     home.packages = lib.mkIf hasDisplay [
       pkgs.python3Packages.aw-client
     ];
+
+    # Android app usage via ADB — pulls from phone over Tailscale, pushes to aw-server.
+    systemd.user.services.aw-android-adb = lib.mkIf hasDisplay {
+      Unit = {
+        Description = "ActivityWatch Android watcher via ADB";
+        After = [ "activitywatch.service" ];
+      };
+      Service = {
+        Type = "oneshot";
+        ExecStart = "${awAndroidAdb}/bin/aw-android-adb sync --device-name phone";
+      };
+    };
+    systemd.user.timers.aw-android-adb = lib.mkIf hasDisplay {
+      Unit.Description = "Run aw-android-adb every 6 hours";
+      Timer = {
+        OnCalendar = "*-*-* 00/6:00:00";
+        Persistent = true;
+      };
+      Install.WantedBy = [ "timers.target" ];
+    };
 
     # aw-sync daemon — exports local buckets to ~/ActivityWatchSync for Syncthing,
     # imports remote buckets from other devices.
