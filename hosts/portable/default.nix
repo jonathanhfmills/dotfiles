@@ -44,7 +44,7 @@
   services.displayManager.autoLogin.enable = true;
   services.displayManager.autoLogin.user = "jon";
   services.displayManager.defaultSession = "none+i3";
-  environment.systemPackages = with pkgs; [ tmux vscode ];
+  environment.systemPackages = with pkgs; [ tmux ];
 
   # OpenSSH.
   services.openssh = {

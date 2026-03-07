@@ -166,7 +166,7 @@
         {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
-          home-manager.users.jon = import ./modules/users/jon.nix;
+          home-manager.users.jon = { imports = [ ./modules/users/jon.nix ./modules/users/i3-portable.nix ]; };
         }
       ];
     };
