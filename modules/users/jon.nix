@@ -109,6 +109,72 @@
     };
   };
 
+  # Claude Code — ActivityWatch hook for tool usage tracking.
+  home.file.".claude/hooks/aw-heartbeat.sh" = {
+    executable = true;
+    text = ''
+      #!/usr/bin/env bash
+      INPUT=$(cat)
+      TOOL=$(echo "$INPUT" | jq -r '.tool_name')
+      COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // .tool_input.file_path // empty')
+      [ -z "$COMMAND" ] && exit 0
+
+      CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+      HOST=$(hostname)
+      BUCKET_ID="aw-watcher-claude-code_$HOST"
+      AW_URL="http://localhost:5600/api/0"
+      FLAG="/tmp/.aw-watcher-claude-code-init-$HOST"
+
+      if [ ! -f "$FLAG" ]; then
+        curl -s -o /dev/null -X POST "$AW_URL/buckets/$BUCKET_ID" \
+          -H "Content-Type: application/json" \
+          -d "{\"client\": \"aw-watcher-claude-code\", \"type\": \"currentwindow\", \"hostname\": \"$HOST\"}" \
+          && touch "$FLAG"
+      fi
+
+      TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
+      EVENT=$(jq -n \
+        --arg title "$TOOL: $COMMAND" \
+        --arg app "Claude Code" \
+        --arg tool "$TOOL" \
+        --arg command "$COMMAND" \
+        --arg cwd "$CWD" \
+        --arg timestamp "$TIMESTAMP" \
+        '{
+          timestamp: $timestamp,
+          duration: 0,
+          data: {
+            title: $title,
+            app: $app,
+            tool: $tool,
+            command: $command,
+            cwd: $cwd
+          }
+        }')
+
+      curl -s -o /dev/null -X POST "$AW_URL/buckets/$BUCKET_ID/heartbeat?pulsetime=120" \
+        -H "Content-Type: application/json" \
+        -d "$EVENT"
+    '';
+  };
+
+  home.file.".claude/settings.json".text = builtins.toJSON {
+    skipDangerousModePermissionPrompt = true;
+    hooks = {
+      PostToolUse = [
+        {
+          matcher = "Bash|Edit|Write|Read|Grep|Glob";
+          hooks = [
+            {
+              type = "command";
+              command = "~/.claude/hooks/aw-heartbeat.sh";
+            }
+          ];
+        }
+      ];
+    };
+  };
+
   home.file.".continue/config.json".text = builtins.toJSON {
     models = [
       {
