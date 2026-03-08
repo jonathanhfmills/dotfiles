@@ -117,6 +117,7 @@
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
         ./modules/services/syncthing.nix
+        ./modules/services/opensandbox.nix
         ./modules/programs/nullclaw.nix
         ./modules/programs/activitywatch.nix
         agenix.nixosModules.default
