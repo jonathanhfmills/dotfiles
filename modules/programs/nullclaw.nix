@@ -1,0 +1,15 @@
+{ pkgs, config, nullclaw, ... }:
+
+let
+  hostname = config.networking.hostName;
+  isWorkstation = hostname == "workstation";
+in
+{
+  environment.systemPackages = [
+    nullclaw.packages.${pkgs.system}.default
+  ];
+
+  environment.sessionVariables = {
+    OLLAMA_BASE_URL = "http://100.95.201.10:11434";
+  };
+}
