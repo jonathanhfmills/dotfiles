@@ -52,6 +52,11 @@ in
       workflow = builtins.path { path = ../../workflows/wp-task.yaml; name = "wp-task.yaml"; };
     in {
     text = ''
+      # Ensure directories exist (activation runs before tmpfiles)
+      mkdir -p /var/lib/orchestrator/wanda/memory
+      mkdir -p /var/lib/orchestrator/agents/{coder,reviewer,deployer}/{memory,skills}
+      mkdir -p /var/lib/orchestrator/{skills,workflows}
+
       seed_file() {
         local dest="$1"
         local src="$2"
