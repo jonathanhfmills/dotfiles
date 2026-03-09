@@ -165,6 +165,7 @@
       system = "x86_64-linux";
       specialArgs = { inherit claude-code; };
       modules = [
+        overlayModule
         ./hosts/portable
         ./modules/base.nix
         ./modules/networking.nix
