@@ -1,7 +1,7 @@
 { python3Packages, fetchFromGitHub }:
 
 let
-  version = "0.1.0";
+  version = "0.1.1";
   src = fetchFromGitHub {
     owner = "alibaba";
     repo = "OpenSandbox";
