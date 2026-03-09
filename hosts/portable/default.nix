@@ -38,6 +38,41 @@
   nix.gc.automatic = lib.mkForce false;             # skip automatic GC on portable
   services.fstrim.enable = true;                   # periodic TRIM
 
+  # Tailscale: auto-authenticate with auth key so it connects unattended.
+  # Generate a reusable key at https://login.tailscale.com/admin/settings/keys
+  # Then: echo -n 'tskey-auth-...' | sudo tee /var/lib/tailscale/authkey
+  # If the key file exists, tailscale up runs non-interactively on boot.
+  systemd.services.tailscale-autoconnect = {
+    description = "Automatic Tailscale connection";
+    after = [ "network-online.target" "tailscaled.service" ];
+    wants = [ "network-online.target" "tailscaled.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    path = [ pkgs.tailscale pkgs.jq ];
+    script = ''
+      # Wait for tailscaled to be ready
+      sleep 5
+
+      # Already connected?
+      STATUS=$(tailscale status --json 2>/dev/null | jq -r '.BackendState // empty')
+      if [ "$STATUS" = "Running" ]; then
+        echo "Tailscale already connected"
+        exit 0
+      fi
+
+      # Try auth key if available
+      if [ -f /var/lib/tailscale/authkey ]; then
+        tailscale up --auth-key "$(cat /var/lib/tailscale/authkey)" --hostname portable
+      else
+        # No auth key — just bring it up (will need interactive auth first time)
+        tailscale up --hostname portable
+      fi
+    '';
+  };
+
   # Minimal X + VS Code — lightweight GUI for SSH remote and Claude extension.
   services.xserver.enable = true;
   services.xserver.windowManager.i3.enable = true;

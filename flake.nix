@@ -41,6 +41,10 @@
       tmuxPlugins = prev.tmuxPlugins // {
         aw-watcher-tmux = final.callPackage ./pkgs/aw-watcher-tmux {};
       };
+      opensandbox-sdk = final.callPackage ./pkgs/opensandbox-sdk {};
+      opensandbox-code-interpreter = final.callPackage ./pkgs/opensandbox-code-interpreter {
+        opensandbox-sdk = final.opensandbox-sdk;
+      };
     };
     overlayModule = { nixpkgs.overlays = [ localOverlay ]; };
   in {
@@ -118,6 +122,7 @@
         ./modules/services/stremio-server.nix
         ./modules/services/syncthing.nix
         ./modules/services/opensandbox.nix
+        ./modules/services/orchestrator.nix
         ./modules/programs/nullclaw.nix
         ./modules/programs/activitywatch.nix
         agenix.nixosModules.default
@@ -133,7 +138,7 @@
 
     nixosConfigurations.nas = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code nullclaw; };
+      specialArgs = { inherit claude-code; };
       modules = [
         overlayModule
         ./hosts/nas
@@ -158,7 +163,7 @@
 
     nixosConfigurations.portable = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code nullclaw; };
+      specialArgs = { inherit claude-code; };
       modules = [
         overlayModule
         ./hosts/portable
@@ -171,7 +176,7 @@
         {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
-          home-manager.users.jon = { imports = [ ./modules/users/jon.nix ./modules/users/i3-portable.nix ]; };
+          home-manager.users.jon = import ./modules/users/jon.nix;
         }
       ];
     };

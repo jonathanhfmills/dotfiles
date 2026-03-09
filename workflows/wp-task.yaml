@@ -1,0 +1,46 @@
+name: wordpress-task
+description: "Code → Review → Deploy pipeline with learning loop"
+
+steps:
+  - name: code
+    agent: coder
+    description: "Implement the task — write code and tests"
+    sandbox:
+      image: opensandbox/code-interpreter:v1.0.1
+      egress:
+        - github.com
+        - "*.githubusercontent.com"
+    on_failure: escalate
+
+  - name: review
+    agent: reviewer
+    description: "Review the code changes and test on staging"
+    sandbox:
+      image: opensandbox/playwright:latest
+      egress:
+        - staging.example.com
+    on_failure: retry(3)
+    on_retry_exhausted: escalate
+
+  - name: deploy
+    agent: deployer
+    description: "Deploy approved changes"
+    sandbox:
+      image: ubuntu:22.04
+      egress:
+        - github.com
+        - api.github.com
+    on_failure: escalate
+
+  - name: learn
+    description: "Extract what worked and save to agent memory"
+    # OpenClaw's built-in memory flush handles this automatically
+    # Each agent's MEMORY.md is updated with patterns from this run
+    # Daily notes appended to memory/YYYY-MM-DD.md
+
+escalation:
+  agent: claude-code
+  description: "Frontier model fallback — solve problem and capture solution for agent learning"
+  # SubAgent spawn with Claude Code access
+  # Solution saved to the failed agent's MEMORY.md: "When you see X, do Y"
+  # Next time the agent encounters a similar problem, FTS5 finds the exact error string

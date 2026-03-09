@@ -1,8 +1,8 @@
 # Declarative disk layout for portable.
-# Drive: MILAN II 1TB (USB)
+# Drive: SanDisk 3.2Gen1 128GB (USB)
 {
   disko.devices.disk.main = {
-    device = "/dev/disk/by-id/ata-MILAN_II_1TB_181294421618";
+    device = "/dev/disk/by-id/usb-USB_SanDisk_3.2Gen1_03023426120425182502-0:0";
     type = "disk";
     content = {
       type = "gpt";
