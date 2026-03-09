@@ -138,16 +138,20 @@
 
     nixosConfigurations.nas = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code; };
+      specialArgs = { inherit claude-code nullclaw; };
       modules = [
         overlayModule
         ./hosts/nas
         ./modules/base.nix
         ./modules/networking.nix
         ./modules/development.nix
+        ./modules/programs/1password.nix
+        ./modules/programs/nullclaw.nix
         ./modules/services/ollama-nvidia.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
+        ./modules/services/opensandbox.nix
+        ./modules/services/orchestrator.nix
         ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         agenix.nixosModules.default
