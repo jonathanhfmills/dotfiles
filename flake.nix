@@ -23,9 +23,13 @@
       url = "github:sadjow/claude-code-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    nullclaw = {
+      url = "github:nullclaw/nullclaw";
+    };
   };
 
-  outputs = { self, nixpkgs, home-manager, disko, agenix, claude-code, ... }:
+  outputs = { self, nixpkgs, home-manager, disko, agenix, claude-code, nullclaw, ... }:
   let
     localOverlay = final: prev: {
       aw-watcher-window-wayland = final.callPackage ./pkgs/aw-watcher-window-wayland {};
@@ -44,7 +48,7 @@
     # Desktop (ext4 root — legacy config, kept for dual-boot fallback).
     nixosConfigurations.desktop = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code; };
+      specialArgs = { inherit claude-code nullclaw; };
       modules = [
         overlayModule
         ./hosts/desktop
@@ -52,7 +56,7 @@
         ./modules/networking.nix
         ./modules/development.nix
         ./modules/programs/1password.nix
-        ./modules/programs/ironclaw.nix
+        ./modules/programs/nullclaw.nix
         ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
@@ -72,7 +76,7 @@
     # Desktop (ZFS root — new primary config).
     nixosConfigurations.desktop-zfs = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code; };
+      specialArgs = { inherit claude-code nullclaw; };
       modules = [
         overlayModule
         ./hosts/desktop
@@ -81,7 +85,7 @@
         ./modules/networking.nix
         ./modules/development.nix
         ./modules/programs/1password.nix
-        ./modules/programs/ironclaw.nix
+        ./modules/programs/nullclaw.nix
         ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
@@ -100,7 +104,7 @@
 
     nixosConfigurations.workstation = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code; };
+      specialArgs = { inherit claude-code nullclaw; };
       modules = [
         overlayModule
         ./hosts/workstation
@@ -113,7 +117,8 @@
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
         ./modules/services/syncthing.nix
-        ./modules/programs/ironclaw.nix
+        ./modules/services/opensandbox.nix
+        ./modules/programs/nullclaw.nix
         ./modules/programs/activitywatch.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
@@ -128,7 +133,7 @@
 
     nixosConfigurations.nas = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code; };
+      specialArgs = { inherit claude-code nullclaw; };
       modules = [
         overlayModule
         ./hosts/nas
@@ -153,7 +158,7 @@
 
     nixosConfigurations.portable = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code; };
+      specialArgs = { inherit claude-code nullclaw; };
       modules = [
         overlayModule
         ./hosts/portable
@@ -173,7 +178,7 @@
 
     nixosConfigurations.laptop = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code; };
+      specialArgs = { inherit claude-code nullclaw; };
       modules = [
         overlayModule
         ./hosts/laptop
@@ -181,7 +186,7 @@
         ./modules/networking.nix
         ./modules/development.nix
         ./modules/programs/1password.nix
-        ./modules/programs/ironclaw.nix
+        ./modules/programs/nullclaw.nix
         ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
