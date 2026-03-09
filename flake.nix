@@ -116,14 +116,14 @@
         ./modules/networking.nix
         ./modules/development.nix
         ./modules/programs/1password.nix
-        ./modules/services/ollama.nix
+        ./modules/programs/nullclaw.nix
+        ./modules/services/ollama-nvidia.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
         ./modules/services/syncthing.nix
         ./modules/services/opensandbox.nix
         ./modules/services/orchestrator.nix
-        ./modules/programs/nullclaw.nix
         ./modules/programs/activitywatch.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
@@ -147,13 +147,12 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/nullclaw.nix
-        ./modules/services/ollama-nvidia.nix
+        ./modules/services/ollama.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
-        ./modules/services/opensandbox.nix
-        ./modules/services/orchestrator.nix
-        ./modules/programs/activitywatch.nix
+        ./modules/services/stremio-server.nix
         ./modules/services/syncthing.nix
+        ./modules/programs/activitywatch.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager

@@ -1,5 +1,3 @@
-# Placeholder — replace with output of `nixos-generate-config --show-hardware-config`
-# after first boot on actual NAS hardware.
 { config, lib, pkgs, modulesPath, ... }:
 
 {
@@ -15,12 +13,6 @@
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 
-  # NVIDIA RTX 3080 — safe to include before GPU is physically installed;
-  # NixOS skips the driver if no NVIDIA hardware is detected.
-  hardware.nvidia = {
-    modesetting.enable = true;
-    open = false;  # RTX 3080 uses proprietary driver
-  };
-  services.xserver.videoDrivers = [ "nvidia" ];
+  # AMD 9070 XT — Vulkan inference + gaming via AMDGPU (built into kernel).
   hardware.graphics.enable = true;
 }
