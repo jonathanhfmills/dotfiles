@@ -7,6 +7,11 @@ in
 {
   environment.systemPackages = [
     nullclaw.packages.${pkgs.system}.default
+  ] ++ pkgs.lib.optionals isWorkstation [
+    (pkgs.python3.withPackages (ps: [
+      pkgs.opensandbox-sdk
+      pkgs.opensandbox-code-interpreter
+    ]))
   ];
 
   environment.sessionVariables = {

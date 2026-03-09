@@ -1,4 +1,4 @@
-{ python3Packages, fetchFromGitHub }:
+{ python3Packages, fetchFromGitHub, opensandbox-sdk }:
 
 let
   version = "0.1.0";
@@ -9,11 +9,11 @@ let
     hash = "sha256-+09ZsxCg9xHs9zQbdxTVeX8ideHJoLLY9gR29lIlxQk=";
   };
 in
-python3Packages.buildPythonApplication {
-  pname = "opensandbox-server";
+python3Packages.buildPythonPackage {
+  pname = "opensandbox-code-interpreter";
   inherit version;
 
-  sourceRoot = "${src.name}/server";
+  sourceRoot = "${src.name}/sdks/code-interpreter/python";
   inherit src;
 
   pyproject = true;
@@ -23,25 +23,18 @@ python3Packages.buildPythonApplication {
     hatch-vcs
   ];
 
-  dependencies = with python3Packages; [
-    docker
-    fastapi
-    httpx
-    kubernetes
-    pydantic
-    pydantic-settings
-    pyyaml
-    uvicorn
+  dependencies = [
+    python3Packages.pydantic
+    opensandbox-sdk
   ];
 
   # hatch-vcs needs git history; override version directly
   env.SETUPTOOLS_SCM_PRETEND_VERSION = version;
 
-  # No tests in package context
   doCheck = false;
 
   meta = {
-    description = "OpenSandbox server — sandbox control plane for AI applications";
+    description = "OpenSandbox Code Interpreter SDK — multi-language code execution";
     homepage = "https://github.com/alibaba/OpenSandbox";
   };
 }
