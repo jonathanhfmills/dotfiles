@@ -15,6 +15,11 @@ let
   isGui = builtins.elem hostname guiHosts;
   guiPeers = builtins.filter (n: builtins.elem n guiHosts) peerNames;
 
+  # Agent hosts share the orchestrator queue directory.
+  agentHosts = [ "nas" "workstation" ];
+  isAgentHost = builtins.elem hostname agentHosts;
+  agentPeers = builtins.filter (n: builtins.elem n agentHosts) peerNames;
+
   mkFolder = id: path: devices: {
     inherit path id devices;
     type = "sendreceive";
@@ -32,6 +37,8 @@ in {
       folders = {
         ssh-config = mkFolder "ssh-config" "/home/jon/.ssh/config.d" peerNames;
         activitywatch-sync = mkFolder "activitywatch-sync" "/home/jon/ActivityWatchSync" peerNames;
+      } // lib.optionalAttrs isAgentHost {
+        orchestrator-shared = mkFolder "orchestrator-shared" "/var/lib/orchestrator/shared" agentPeers;
       } // lib.optionalAttrs isGui {
         documents = mkFolder "documents" "/home/jon/Documents" guiPeers;
         pictures  = mkFolder "pictures"  "/home/jon/Pictures"  guiPeers;

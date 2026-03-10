@@ -1,0 +1,40 @@
+name: research-task
+description: "Read → Summarize → Store → Learn pipeline for research"
+
+steps:
+  - name: read
+    agent: reader
+    description: "Read and browse sources on the given topic"
+    sandbox:
+      image: ghcr.io/nullclaw/nullclaw:latest
+      egress:
+        - "*.google.com"
+        - "*.wikipedia.org"
+        - "*.github.com"
+        - "*.stackoverflow.com"
+    on_failure: retry(3)
+    on_retry_exhausted: escalate
+
+  - name: summarize
+    agent: reader
+    description: "Cross-reference findings and produce structured summary"
+    sandbox:
+      image: ghcr.io/nullclaw/nullclaw:latest
+      egress: []
+    on_failure: retry(3)
+    on_retry_exhausted: escalate
+
+  - name: store
+    description: "Save research output to shared knowledge base"
+    # Results written to queue/results/ for orchestrator consumption
+    # Summary stored in agent's memory for future reference
+
+  - name: learn
+    description: "Extract patterns and update agent memory"
+    # Reader's MEMORY.md updated with source reliability scores
+    # Trusted sources promoted to top of MEMORY.md
+    # Daily notes appended to memory/YYYY-MM-DD.md
+
+escalation:
+  agent: gemini-2.5-pro
+  description: "Research frontier fallback — Gemini for deep research tasks"

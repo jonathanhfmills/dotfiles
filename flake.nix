@@ -123,7 +123,7 @@
         ./modules/services/stremio-server.nix
         ./modules/services/syncthing.nix
         ./modules/services/opensandbox.nix
-        ./modules/services/orchestrator.nix
+        ./modules/services/agent-runner.nix
         ./modules/programs/activitywatch.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
@@ -152,6 +152,9 @@
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
         ./modules/services/syncthing.nix
+        ./modules/services/opensandbox.nix
+        ./modules/services/orchestrator.nix
+        ./modules/services/agent-runner.nix
         ./modules/programs/activitywatch.nix
         agenix.nixosModules.default
         disko.nixosModules.disko

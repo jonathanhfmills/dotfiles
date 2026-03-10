@@ -2,7 +2,7 @@
 
 let
   hostname = config.networking.hostName;
-  hasOpenSandbox = hostname == "workstation";
+  hasOpenSandbox = hostname == "workstation" || hostname == "nas";
 
   # Each server uses its local ollama; other hosts default to workstation.
   ollamaModel = {
@@ -28,5 +28,9 @@ in
   environment.sessionVariables = {
     OLLAMA_MODEL = ollamaModel;
     OLLAMA_BASE_URL = ollamaUrl;
+    ORCHESTRATOR_NAME = {
+      nas = "wanda";
+      workstation = "cosmo";
+    }.${hostname} or "";
   };
 }

@@ -1,61 +1,61 @@
-{ pkgs, config, ... }:
+{ pkgs, config, lib, ... }:
 
 let
+  hostname = config.networking.hostName;
+  isNas = hostname == "nas";
+
   opensandbox-server = pkgs.callPackage ../../pkgs/opensandbox-server {};
 
-  # OpenClaw orchestrator config — scoped egress to opensandbox API + ollama only
+  # Air-gapped network policy: ONLY filesystem (queue writes) + localhost ollama
+  # NO opensandbox API access — Wanda never spawns sandboxes directly
   networkPolicy = builtins.toJSON {
     defaultAction = "deny";
     egress = [
-      { action = "allow"; target = "host.docker.internal:8080"; }
       { action = "allow"; target = "host.docker.internal:11434"; }
     ];
   };
 in
-{
-  # Orchestrator + agent workspace directories (persist across nixos-rebuild)
+lib.mkIf isNas {
+  # Orchestrator + shared queue directory structure (persists across nixos-rebuild)
   systemd.tmpfiles.rules = [
     "d /var/lib/orchestrator 0755 root root -"
     # Wanda — the orchestrator's own identity and memory
     "d /var/lib/orchestrator/wanda 0755 root root -"
     "d /var/lib/orchestrator/wanda/memory 0755 root root -"
-    # Child agents
-    "d /var/lib/orchestrator/agents 0755 root root -"
-    "d /var/lib/orchestrator/agents/coder 0755 root root -"
-    "d /var/lib/orchestrator/agents/coder/memory 0755 root root -"
-    "d /var/lib/orchestrator/agents/coder/skills 0755 root root -"
-    "d /var/lib/orchestrator/agents/reviewer 0755 root root -"
-    "d /var/lib/orchestrator/agents/reviewer/memory 0755 root root -"
-    "d /var/lib/orchestrator/agents/reviewer/skills 0755 root root -"
-    "d /var/lib/orchestrator/agents/deployer 0755 root root -"
-    "d /var/lib/orchestrator/agents/deployer/memory 0755 root root -"
-    "d /var/lib/orchestrator/agents/deployer/skills 0755 root root -"
-    # Shared
-    "d /var/lib/orchestrator/skills 0755 root root -"
+    # Shared queue structure — Syncthing syncs this between NAS and workstation
+    "d /var/lib/orchestrator/shared 0755 root root -"
+    "d /var/lib/orchestrator/shared/queue 0755 root root -"
+    "d /var/lib/orchestrator/shared/queue/nas 0755 root root -"
+    "d /var/lib/orchestrator/shared/queue/workstation 0755 root root -"
+    "d /var/lib/orchestrator/shared/queue/results 0755 root root -"
+    "d /var/lib/orchestrator/shared/skills 0755 root root -"
+    "d /var/lib/orchestrator/shared/escalation-log 0755 root root -"
+    "d /var/lib/orchestrator/shared/escalation-log/coding 0755 root root -"
+    "d /var/lib/orchestrator/shared/escalation-log/review 0755 root root -"
+    "d /var/lib/orchestrator/shared/escalation-log/writing 0755 root root -"
+    "d /var/lib/orchestrator/shared/escalation-log/research 0755 root root -"
+    # Workflow storage
     "d /var/lib/orchestrator/workflows 0755 root root -"
   ];
 
-  # Seed personality + agent files (only if not already present — preserves growth)
-  system.activationScripts.orchestrator-agents =
+  # Seed Wanda's identity + workflow files (only if not already present — preserves growth)
+  system.activationScripts.orchestrator-seed =
     let
-      # Give each file a unique store name to avoid collisions
       wanda-identity = builtins.path { path = ../../wanda/IDENTITY.md; name = "wanda-IDENTITY.md"; };
       wanda-soul = builtins.path { path = ../../wanda/SOUL.md; name = "wanda-SOUL.md"; };
       wanda-user = builtins.path { path = ../../wanda/USER.md; name = "wanda-USER.md"; };
       wanda-personality = builtins.path { path = ../../wanda/personality.yaml; name = "wanda-personality.yaml"; };
-      coder-soul = builtins.path { path = ../../agents/coder/SOUL.md; name = "coder-SOUL.md"; };
-      coder-agents = builtins.path { path = ../../agents/coder/AGENTS.md; name = "coder-AGENTS.md"; };
-      reviewer-soul = builtins.path { path = ../../agents/reviewer/SOUL.md; name = "reviewer-SOUL.md"; };
-      reviewer-agents = builtins.path { path = ../../agents/reviewer/AGENTS.md; name = "reviewer-AGENTS.md"; };
-      deployer-soul = builtins.path { path = ../../agents/deployer/SOUL.md; name = "deployer-SOUL.md"; };
-      deployer-agents = builtins.path { path = ../../agents/deployer/AGENTS.md; name = "deployer-AGENTS.md"; };
-      workflow = builtins.path { path = ../../workflows/wp-task.yaml; name = "wp-task.yaml"; };
+      wf-dispatch = builtins.path { path = ../../workflows/dispatch.yaml; name = "dispatch.yaml"; };
+      wf-escalation = builtins.path { path = ../../workflows/escalation.yaml; name = "escalation.yaml"; };
+      wf-content = builtins.path { path = ../../workflows/content-task.yaml; name = "content-task.yaml"; };
+      wf-research = builtins.path { path = ../../workflows/research-task.yaml; name = "research-task.yaml"; };
+      wf-wp = builtins.path { path = ../../workflows/wp-task.yaml; name = "wp-task.yaml"; };
     in {
     text = ''
-      # Ensure directories exist (activation runs before tmpfiles)
       mkdir -p /var/lib/orchestrator/wanda/memory
-      mkdir -p /var/lib/orchestrator/agents/{coder,reviewer,deployer}/{memory,skills}
-      mkdir -p /var/lib/orchestrator/{skills,workflows}
+      mkdir -p /var/lib/orchestrator/shared/queue/{nas,workstation,results}
+      mkdir -p /var/lib/orchestrator/shared/{skills,escalation-log/{coding,review,writing,research}}
+      mkdir -p /var/lib/orchestrator/workflows
 
       seed_file() {
         local dest="$1"
@@ -67,7 +67,6 @@ in
       }
 
       # Wanda — the orchestrator herself
-      # These are the seed. She grows from here.
       seed_file /var/lib/orchestrator/wanda/IDENTITY.md ${wanda-identity}
       seed_file /var/lib/orchestrator/wanda/SOUL.md ${wanda-soul}
       seed_file /var/lib/orchestrator/wanda/USER.md ${wanda-user}
@@ -89,26 +88,20 @@ SEED
         echo "Seeded /var/lib/orchestrator/wanda/MEMORY.md"
       fi
 
-      # Coder agent
-      seed_file /var/lib/orchestrator/agents/coder/SOUL.md ${coder-soul}
-      seed_file /var/lib/orchestrator/agents/coder/AGENTS.md ${coder-agents}
-
-      # Reviewer agent
-      seed_file /var/lib/orchestrator/agents/reviewer/SOUL.md ${reviewer-soul}
-      seed_file /var/lib/orchestrator/agents/reviewer/AGENTS.md ${reviewer-agents}
-
-      # Deployer agent
-      seed_file /var/lib/orchestrator/agents/deployer/SOUL.md ${deployer-soul}
-      seed_file /var/lib/orchestrator/agents/deployer/AGENTS.md ${deployer-agents}
-
-      # Seed workflow
-      seed_file /var/lib/orchestrator/workflows/wp-task.yaml ${workflow}
+      # Lobster workflow files
+      seed_file /var/lib/orchestrator/workflows/dispatch.yaml ${wf-dispatch}
+      seed_file /var/lib/orchestrator/workflows/escalation.yaml ${wf-escalation}
+      seed_file /var/lib/orchestrator/workflows/content-task.yaml ${wf-content}
+      seed_file /var/lib/orchestrator/workflows/research-task.yaml ${wf-research}
+      seed_file /var/lib/orchestrator/workflows/wp-task.yaml ${wf-wp}
     '';
   };
 
   # OpenClaw orchestrator — Wanda runs inside an OpenSandbox container
+  # AIR-GAPPED: only filesystem queue writes + localhost:11434 (ollama)
+  # NO opensandbox API access — agent-runner handles sandbox spawning
   systemd.services.orchestrator = {
-    description = "Wanda — OpenClaw Orchestrator (containerized via OpenSandbox)";
+    description = "Wanda — OpenClaw Orchestrator (NAS, air-gapped)";
     after = [ "opensandbox-server.service" "opensandbox-pull-images.service" "network-online.target" ];
     requires = [ "opensandbox-server.service" ];
     wants = [ "network-online.target" "opensandbox-pull-images.service" ];
@@ -129,7 +122,8 @@ SEED
       done
 
       # Create orchestrator sandbox via OpenSandbox API
-      # Wanda's identity + memory mounted alongside agent workspaces
+      # Air-gap: Wanda can ONLY write to the shared queue dir + talk to local ollama
+      # She CANNOT access the opensandbox API from inside the sandbox
       SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/api/v1/sandboxes \
         -H 'Content-Type: application/json' \
         -d '{
@@ -137,8 +131,7 @@ SEED
           "network_policy": ${builtins.toJSON networkPolicy},
           "mounts": [
             {"source": "/var/lib/orchestrator/wanda", "target": "/home/user/.openclaw/identity"},
-            {"source": "/var/lib/orchestrator/agents", "target": "/home/user/.openclaw/agents"},
-            {"source": "/var/lib/orchestrator/skills", "target": "/home/user/.openclaw/skills"},
+            {"source": "/var/lib/orchestrator/shared", "target": "/home/user/.openclaw/shared"},
             {"source": "/var/lib/orchestrator/workflows", "target": "/home/user/.openclaw/workflows"}
           ],
           "ports": [{"host": 8100, "container": 8100}]
@@ -151,8 +144,7 @@ SEED
 
       echo "Wanda is awake (sandbox: $SANDBOX_ID)"
 
-      # Keep service alive — sandbox lifecycle managed by OpenSandbox
-      # Poll sandbox health until it exits
+      # Keep service alive — poll sandbox health
       while true; do
         STATUS=$(curl -sf "http://localhost:8080/api/v1/sandboxes/$SANDBOX_ID" | jq -r '.status' 2>/dev/null)
         if [ "$STATUS" != "running" ] && [ "$STATUS" != "starting" ]; then
