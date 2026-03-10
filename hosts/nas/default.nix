@@ -63,6 +63,7 @@ in
   # Secrets.
   age.secrets.password-jon.file = ../../secrets/password-jon.age;
   age.secrets.caddy-cloudflare-token.file = ../../secrets/caddy-cloudflare-token.age;
+  age.secrets.anthropic-api-key.file = ../../secrets/anthropic-api-key.age;
 
   # User accounts.
   users.users.jon = {

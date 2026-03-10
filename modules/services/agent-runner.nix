@@ -142,6 +142,10 @@ SEED
 
       mkdir -p "$QUEUE_DIR" "$RESULTS_DIR"
 
+      # Syncthing folder marker + ownership (Syncthing runs as jon)
+      touch /var/lib/orchestrator/shared/.stfolder
+      chown -R jon:users /var/lib/orchestrator/shared
+
       # Wait for OpenSandbox API to be ready
       for i in $(seq 1 30); do
         if curl -sf http://localhost:8080/health > /dev/null 2>&1; then

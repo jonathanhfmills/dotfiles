@@ -6,12 +6,13 @@ let
 
   opensandbox-server = pkgs.callPackage ../../pkgs/opensandbox-server {};
 
-  # Air-gapped network policy: ONLY filesystem (queue writes) + localhost ollama
+  # Network policy: filesystem (queue writes) + localhost ollama + Anthropic API
   # NO opensandbox API access — Wanda never spawns sandboxes directly
   networkPolicy = builtins.toJSON {
     defaultAction = "deny";
     egress = [
       { action = "allow"; target = "host.docker.internal:11434"; }
+      { action = "allow"; target = "api.anthropic.com:443"; }
     ];
   };
 in
@@ -55,6 +56,12 @@ lib.mkIf isNas {
       mkdir -p /var/lib/orchestrator/wanda/memory
       mkdir -p /var/lib/orchestrator/shared/queue/{nas,workstation,results}
       mkdir -p /var/lib/orchestrator/shared/{skills,escalation-log/{coding,review,writing,research}}
+
+      # Syncthing folder marker (required for sync to work)
+      touch /var/lib/orchestrator/shared/.stfolder
+
+      # Syncthing runs as jon — ensure it can read/write the shared dir
+      chown -R jon:users /var/lib/orchestrator/shared
       mkdir -p /var/lib/orchestrator/workflows
 
       seed_file() {
@@ -88,6 +95,26 @@ SEED
         echo "Seeded /var/lib/orchestrator/wanda/MEMORY.md"
       fi
 
+      # OpenClaw gateway config
+      mkdir -p /var/lib/orchestrator/wanda-config
+      cat > /var/lib/orchestrator/wanda-config/openclaw.json << 'OCCONFIG'
+{
+  "gateway": {
+    "auth": {
+      "allowTailscale": true
+    },
+    "controlUi": {
+      "dangerouslyAllowHostHeaderOriginFallback": true
+    },
+    "trustedProxies": ["127.0.0.1", "172.17.0.0/16"]
+  }
+}
+OCCONFIG
+
+      # Fix permissions — container runs as node (UID 1000)
+      chown -R 1000:1000 /var/lib/orchestrator/wanda
+      chown -R 1000:1000 /var/lib/orchestrator/wanda-config
+
       # Lobster workflow files
       seed_file /var/lib/orchestrator/workflows/dispatch.yaml ${wf-dispatch}
       seed_file /var/lib/orchestrator/workflows/escalation.yaml ${wf-escalation}
@@ -98,20 +125,25 @@ SEED
   };
 
   # OpenClaw orchestrator — Wanda runs inside an OpenSandbox container
-  # AIR-GAPPED: only filesystem queue writes + localhost:11434 (ollama)
+  # Network: filesystem queue writes + localhost:11434 (ollama) + api.anthropic.com:443
   # NO opensandbox API access — agent-runner handles sandbox spawning
   systemd.services.orchestrator = {
     description = "Wanda — OpenClaw Orchestrator (NAS, air-gapped)";
-    after = [ "opensandbox-server.service" "opensandbox-pull-images.service" "network-online.target" ];
+    after = [ "opensandbox-server.service" "opensandbox-pull-images.service" "network-online.target" "caddy.service" ];
     requires = [ "opensandbox-server.service" ];
-    wants = [ "network-online.target" "opensandbox-pull-images.service" ];
+    wants = [ "network-online.target" "opensandbox-pull-images.service" "caddy.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "simple";
       Restart = "on-failure";
       RestartSec = 10;
+      ExecStopPost = "${pkgs.writeShellScript "orchestrator-cleanup" ''
+        rm -f /var/www/html/wanda/caddyfile
+        /run/current-system/sw/bin/systemctl reload caddy 2>/dev/null || true
+        ${pkgs.tailscale}/bin/tailscale serve --https=8100 off 2>/dev/null || true
+      ''}";
     };
-    path = [ pkgs.curl pkgs.jq ];
+    path = [ pkgs.curl pkgs.jq pkgs.tailscale ];
     script = ''
       # Wait for OpenSandbox API to be ready
       for i in $(seq 1 30); do
@@ -121,21 +153,26 @@ SEED
         sleep 2
       done
 
+      # Load Anthropic API key from agenix secret
+      source ${config.age.secrets.anthropic-api-key.path}
+
       # Create orchestrator sandbox via OpenSandbox API
-      # Air-gap: Wanda can ONLY write to the shared queue dir + talk to local ollama
-      # She CANNOT access the opensandbox API from inside the sandbox
+      # Follows the official OpenSandbox + OpenClaw example pattern
+      # Network: queue dir (filesystem) + localhost ollama + api.anthropic.com
       SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/v1/sandboxes \
         -H 'Content-Type: application/json' \
         -d '{
           "image": {"uri": "ghcr.io/openclaw/openclaw:latest"},
           "timeout": 86400,
           "resourceLimits": {"cpu": "1000m", "memory": "2Gi"},
-          "entrypoint": ["openclaw", "gateway", "run", "--port", "8100", "--allow-unconfigured", "--auth", "none", "--bind", "loopback"],
+          "entrypoint": ["node", "dist/index.js", "gateway", "--bind=lan", "--port", "8100", "--allow-unconfigured", "--verbose"],
+          "env": {"OPENCLAW_GATEWAY_TOKEN": "wanda-fleet-token", "ANTHROPIC_API_KEY": "'"$ANTHROPIC_API_KEY"'"},
           "networkPolicy": ${networkPolicy},
           "volumes": [
-            {"name": "wanda-identity", "host": {"path": "/var/lib/orchestrator/wanda"}, "mountPath": "/home/user/.openclaw/identity"},
-            {"name": "shared-queue", "host": {"path": "/var/lib/orchestrator/shared"}, "mountPath": "/home/user/.openclaw/shared"},
-            {"name": "workflows", "host": {"path": "/var/lib/orchestrator/workflows"}, "mountPath": "/home/user/.openclaw/workflows"}
+            {"name": "wanda-config", "host": {"path": "/var/lib/orchestrator/wanda-config"}, "mountPath": "/home/node/.openclaw"},
+            {"name": "wanda-identity", "host": {"path": "/var/lib/orchestrator/wanda"}, "mountPath": "/home/node/.openclaw/identity"},
+            {"name": "shared-queue", "host": {"path": "/var/lib/orchestrator/shared"}, "mountPath": "/home/node/.openclaw/shared"},
+            {"name": "workflows", "host": {"path": "/var/lib/orchestrator/workflows"}, "mountPath": "/home/node/.openclaw/workflows"}
           ]
         }' | jq -r '.id')
 
@@ -145,6 +182,33 @@ SEED
       fi
 
       echo "Wanda is awake (sandbox: $SANDBOX_ID)"
+
+      # Write sandbox ID for easy access from other hosts
+      echo "$SANDBOX_ID" > /var/lib/orchestrator/wanda-sandbox-id
+
+      # Discover the dynamic proxy port for the gateway
+      ENDPOINT=$(curl -sf "http://localhost:8080/v1/sandboxes/$SANDBOX_ID/endpoints/8100" | jq -r '.endpoint')
+      PROXY_PORT=$(echo "$ENDPOINT" | grep -oP ':\K[0-9]+')
+      echo "$PROXY_PORT" > /var/lib/orchestrator/wanda-proxy-port
+      echo "Wanda gateway: opensandbox proxy port $PROXY_PORT"
+
+      # Write caddyfile for system Caddy (Cloudflare TLS via caddy.nix)
+      # Caddy natively handles WebSocket upgrade — no extra config needed
+      # HTTPS required: OpenClaw Control UI needs secure context for device identity
+      if [ -n "$PROXY_PORT" ]; then
+        mkdir -p /var/www/html/wanda
+        # Base64-encode caddyfile to preserve '#' (Caddyfile comment char)
+        echo "d2FuZGEuaGVsbGZpcmVhZS5jb20gewogIGltcG9ydCBjbG91ZGZsYXJlLXRscwogIGJpbmQgMTAwLjk1LjIwMS4xMAoKICBAbG9naW4gcGF0aCAvbG9naW4KICByZWRpciBAbG9naW4gIi8jdG9rZW49d2FuZGEtZmxlZXQtdG9rZW4iCgogIHJld3JpdGUgKiAvcHJveHkvODEwMHt1cml9CiAgcmV2ZXJzZV9wcm94eSAxMjcuMC4wLjE6UFJPWFlfUE9SVCB7CiAgICBoZWFkZXJfdXAgWC1Gb3J3YXJkZWQtUHJvdG8gaHR0cHMKICB9Cn0K" \
+          | base64 -d \
+          | sed "s/PROXY_PORT/$PROXY_PORT/" \
+          > /var/www/html/wanda/caddyfile
+        /run/current-system/sw/bin/systemctl reload caddy
+        echo "Caddy: https://wanda.hellfireae.com → :$PROXY_PORT/proxy/8100/"
+
+        # Tailscale serve — tailnet-authenticated HTTPS on :8100
+        tailscale serve --bg --https 8100 "http://127.0.0.1:$PROXY_PORT/proxy/8100/"
+        echo "Tailscale: https://wanda.starling-ostrich.ts.net:8100 → :$PROXY_PORT/proxy/8100/"
+      fi
 
       # Keep service alive — poll sandbox health + renew expiration
       while true; do
@@ -163,6 +227,6 @@ SEED
     '';
   };
 
-  # Firewall — expose orchestrator API on Tailscale
-  networking.firewall.allowedTCPPorts = [ 8100 ];
+  # Firewall — opensandbox API on Tailscale (gateway via system Caddy on 443)
+  networking.firewall.allowedTCPPorts = [ 8080 ];
 }
