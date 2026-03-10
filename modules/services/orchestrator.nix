@@ -11,7 +11,7 @@ let
   networkPolicy = builtins.toJSON {
     defaultAction = "deny";
     egress = [
-      { action = "allow"; target = "host.docker.internal:11434"; }
+      { action = "allow"; target = "172.17.0.1:11434"; }
       { action = "allow"; target = "api.anthropic.com:443"; }
     ];
   };
@@ -118,7 +118,7 @@ SEED
   "models": {
     "providers": {
       "ollama": {
-        "baseUrl": "http://host.docker.internal:11434/v1",
+        "baseUrl": "http://172.17.0.1:11434/v1",
         "apiKey": "ollama-local",
         "api": "openai-completions",
         "models": [
