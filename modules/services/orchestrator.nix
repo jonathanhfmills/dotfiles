@@ -95,9 +95,13 @@ SEED
         echo "Seeded /var/lib/orchestrator/wanda/MEMORY.md"
       fi
 
-      # OpenClaw gateway config
+      # OpenClaw gateway config — includes Anthropic API key via env block
       mkdir -p /var/lib/orchestrator/wanda-config
-      cat > /var/lib/orchestrator/wanda-config/openclaw.json << 'OCCONFIG'
+      if [ -f ${config.age.secrets.anthropic-api-key.path} ]; then
+        source ${config.age.secrets.anthropic-api-key.path}
+        export ANTHROPIC_API_KEY
+      fi
+      cat > /var/lib/orchestrator/wanda-config/openclaw.json << OCCONFIG
 {
   "gateway": {
     "auth": {
@@ -107,14 +111,16 @@ SEED
       "dangerouslyAllowHostHeaderOriginFallback": true
     },
     "trustedProxies": ["127.0.0.1", "172.17.0.0/16"]
+  },
+  "env": {
+    "ANTHROPIC_API_KEY": "$ANTHROPIC_API_KEY"
   }
 }
 OCCONFIG
 
-      # OpenClaw agent auth — seed Anthropic API key from agenix secret
+      # OpenClaw agent auth — seed auth-profiles.json as backup
       mkdir -p /var/lib/orchestrator/wanda-config/agents/main/agent
-      if [ -f ${config.age.secrets.anthropic-api-key.path} ]; then
-        source ${config.age.secrets.anthropic-api-key.path}
+      if [ -n "$ANTHROPIC_API_KEY" ]; then
         cat > /var/lib/orchestrator/wanda-config/agents/main/agent/auth-profiles.json << AUTHEOF
 {
   "version": 1,
