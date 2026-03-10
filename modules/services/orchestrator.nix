@@ -79,6 +79,12 @@ lib.mkIf isNas {
       seed_file /var/lib/orchestrator/wanda/USER.md ${wanda-user}
       seed_file /var/lib/orchestrator/wanda/personality.yaml ${wanda-personality}
 
+      # OpenClaw reads identity from workspace/ — copy Wanda's files there
+      mkdir -p /var/lib/orchestrator/wanda-config/workspace
+      cp ${wanda-identity} /var/lib/orchestrator/wanda-config/workspace/IDENTITY.md
+      cp ${wanda-soul} /var/lib/orchestrator/wanda-config/workspace/SOUL.md
+      cp ${wanda-user} /var/lib/orchestrator/wanda-config/workspace/USER.md
+
       # Wanda's memory starts empty — she fills it herself
       if [ ! -f /var/lib/orchestrator/wanda/MEMORY.md ]; then
         cat > /var/lib/orchestrator/wanda/MEMORY.md << 'SEED'
