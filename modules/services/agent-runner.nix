@@ -168,13 +168,16 @@ SEED
         fi
 
         # Spawn Nullclaw sandbox for this agent
-        local SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/api/v1/sandboxes \
+        local SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/v1/sandboxes \
           -H 'Content-Type: application/json' \
           -d "{
-            \"image\": \"ghcr.io/nullclaw/nullclaw:latest\",
-            \"mounts\": [
-              {\"source\": \"$agent_dir\", \"target\": \"/home/user/.nullclaw/identity\"},
-              {\"source\": \"$task_file\", \"target\": \"/home/user/task.json\"}
+            \"image\": {\"uri\": \"ghcr.io/nullclaw/nullclaw:latest\"},
+            \"timeout\": 1800,
+            \"resourceLimits\": {\"cpu\": \"500m\", \"memory\": \"1Gi\"},
+            \"entrypoint\": [\"nullclaw\", \"run\", \"/home/user/task.json\"],
+            \"volumes\": [
+              {\"name\": \"agent-identity\", \"host\": {\"path\": \"$agent_dir\"}, \"mountPath\": \"/home/user/.nullclaw/identity\"},
+              {\"name\": \"task-input\", \"host\": {\"path\": \"$task_file\"}, \"mountPath\": \"/home/user/task.json\", \"readOnly\": true}
             ]
           }" | jq -r '.id' 2>/dev/null)
 
@@ -189,11 +192,11 @@ SEED
         # Wait for sandbox to complete (poll every 10s, timeout 30m)
         local elapsed=0
         while [ $elapsed -lt 1800 ]; do
-          local status=$(curl -sf "http://localhost:8080/api/v1/sandboxes/$SANDBOX_ID" | jq -r '.status' 2>/dev/null)
-          if [ "$status" = "exited" ] || [ "$status" = "stopped" ]; then
+          local status=$(curl -sf "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" | jq -r '.status.state' 2>/dev/null)
+          if [ "$status" = "Terminated" ] || [ "$status" = "Stopped" ]; then
             break
           fi
-          if [ "$status" != "running" ] && [ "$status" != "starting" ]; then
+          if [ "$status" != "Running" ] && [ "$status" != "Pending" ]; then
             echo "Sandbox $SANDBOX_ID unexpected status: $status"
             break
           fi

@@ -4,8 +4,8 @@ let
   allDevices = {
     desktop     = { id = "KA3QJB4-VA34ODW-MI3ROX5-C23WKZU-L7W44UQ-XLEUZ5M-BQ7SHGE-EAYTJQV"; addresses = [ "tcp://100.92.6.103:22000" ]; };
     laptop      = { id = "TAMX5P4-JJAVZHR-6KYCP3G-SX4HNHJ-TVILTKQ-Z3ASFWN-WEU7VHC-OU65JAO"; addresses = [ "tcp://100.104.109.104:22000" ]; };
-    nas         = { id = "PENDING-NAS-DEVICE-ID"; addresses = [ "tcp://100.87.216.16:22000" ]; };
-    workstation = { id = "PENDING-WORKSTATION-DEVICE-ID"; addresses = [ "tcp://100.95.201.10:22000" ]; };
+    nas         = { id = "NW4TRTL-GOJ32LZ-ORMOEUB-YGKO3VU-NHWKGZN-RTPLTGJ-DTV2HFW-LPFYLAI"; addresses = [ "tcp://100.87.216.16:22000" ]; };
+    workstation = { id = "ONQ7Q5A-O7B33MD-7KGKS3J-7RK2VQI-XLINCT6-J3P3JOE-KSN4X3U-B7KMZAV"; addresses = [ "tcp://100.95.201.10:22000" ]; };
   };
   peerDevices = builtins.removeAttrs allDevices [ hostname ];
   peerNames = builtins.attrNames peerDevices;

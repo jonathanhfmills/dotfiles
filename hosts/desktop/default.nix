@@ -112,23 +112,12 @@
   programs.gamescope.enable = true;
 
 
-  # OpenSSH (Tailscale only).
+  # OpenSSH — available on all interfaces (LAN + Tailscale).
   services.openssh = {
     enable = true;
-    listenAddresses = [
-      { addr = "100.92.6.103"; port = 22; }
-    ];
     settings = {
       PasswordAuthentication = false;
       PermitRootLogin = "no";
-    };
-  };
-  systemd.services.sshd = {
-    after = [ "tailscaled.service" ];
-    wants = [ "tailscaled.service" ];
-    serviceConfig = {
-      RestartSec = 5;
-      ExecStartPre = "${pkgs.bash}/bin/bash -c 'for i in $(seq 1 30); do ${pkgs.tailscale}/bin/tailscale status >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1'";
     };
   };
 }

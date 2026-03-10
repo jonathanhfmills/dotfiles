@@ -124,17 +124,19 @@ SEED
       # Create orchestrator sandbox via OpenSandbox API
       # Air-gap: Wanda can ONLY write to the shared queue dir + talk to local ollama
       # She CANNOT access the opensandbox API from inside the sandbox
-      SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/api/v1/sandboxes \
+      SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/v1/sandboxes \
         -H 'Content-Type: application/json' \
         -d '{
-          "image": "ghcr.io/openclaw/openclaw:latest",
-          "network_policy": ${builtins.toJSON networkPolicy},
-          "mounts": [
-            {"source": "/var/lib/orchestrator/wanda", "target": "/home/user/.openclaw/identity"},
-            {"source": "/var/lib/orchestrator/shared", "target": "/home/user/.openclaw/shared"},
-            {"source": "/var/lib/orchestrator/workflows", "target": "/home/user/.openclaw/workflows"}
-          ],
-          "ports": [{"host": 8100, "container": 8100}]
+          "image": {"uri": "ghcr.io/openclaw/openclaw:latest"},
+          "timeout": 86400,
+          "resourceLimits": {"cpu": "1000m", "memory": "2Gi"},
+          "entrypoint": ["openclaw", "gateway", "run", "--port", "8100", "--allow-unconfigured", "--auth", "none", "--bind", "loopback"],
+          "networkPolicy": ${networkPolicy},
+          "volumes": [
+            {"name": "wanda-identity", "host": {"path": "/var/lib/orchestrator/wanda"}, "mountPath": "/home/user/.openclaw/identity"},
+            {"name": "shared-queue", "host": {"path": "/var/lib/orchestrator/shared"}, "mountPath": "/home/user/.openclaw/shared"},
+            {"name": "workflows", "host": {"path": "/var/lib/orchestrator/workflows"}, "mountPath": "/home/user/.openclaw/workflows"}
+          ]
         }' | jq -r '.id')
 
       if [ -z "$SANDBOX_ID" ] || [ "$SANDBOX_ID" = "null" ]; then
@@ -144,13 +146,18 @@ SEED
 
       echo "Wanda is awake (sandbox: $SANDBOX_ID)"
 
-      # Keep service alive — poll sandbox health
+      # Keep service alive — poll sandbox health + renew expiration
       while true; do
-        STATUS=$(curl -sf "http://localhost:8080/api/v1/sandboxes/$SANDBOX_ID" | jq -r '.status' 2>/dev/null)
-        if [ "$STATUS" != "running" ] && [ "$STATUS" != "starting" ]; then
+        STATUS=$(curl -sf "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" | jq -r '.status.state' 2>/dev/null)
+        if [ "$STATUS" != "Running" ] && [ "$STATUS" != "Pending" ]; then
           echo "Wanda stopped (status: $STATUS)"
           exit 1
         fi
+        # Renew expiration to keep sandbox alive (24h rolling)
+        EXPIRES=$(date -u -d '+24 hours' '+%Y-%m-%dT%H:%M:%SZ')
+        curl -sf -X POST "http://localhost:8080/v1/sandboxes/$SANDBOX_ID/renew-expiration" \
+          -H 'Content-Type: application/json' \
+          -d "{\"expiresAt\": \"$EXPIRES\"}" > /dev/null 2>&1
         sleep 30
       done
     '';
