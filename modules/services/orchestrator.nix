@@ -111,6 +111,30 @@ SEED
 }
 OCCONFIG
 
+      # OpenClaw agent auth — seed Anthropic API key from agenix secret
+      mkdir -p /var/lib/orchestrator/wanda-config/agents/main/agent
+      if [ -f ${config.age.secrets.anthropic-api-key.path} ]; then
+        source ${config.age.secrets.anthropic-api-key.path}
+        cat > /var/lib/orchestrator/wanda-config/agents/main/agent/auth-profiles.json << AUTHEOF
+{
+  "version": 1,
+  "profiles": {
+    "anthropic:default": {
+      "type": "token",
+      "provider": "anthropic",
+      "token": "$ANTHROPIC_API_KEY"
+    }
+  },
+  "order": {
+    "anthropic": ["anthropic:default"]
+  },
+  "lastGood": {
+    "anthropic": "anthropic:default"
+  }
+}
+AUTHEOF
+      fi
+
       # Fix permissions — container runs as node (UID 1000)
       chown -R 1000:1000 /var/lib/orchestrator/wanda
       chown -R 1000:1000 /var/lib/orchestrator/wanda-config
