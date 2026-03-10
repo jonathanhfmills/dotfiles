@@ -139,7 +139,7 @@ SEED
   "agents": {
     "defaults": {
       "model": {
-        "primary": "ollama/gemma3:12b"
+        "primary": "ollama/qwen3:8b"
       }
     }
   }
