@@ -125,14 +125,12 @@ SEED
           {
             "id": "gemma3:12b",
             "name": "Gemma 3 12B",
-            "contextWindow": 65536,
-            "maxOutput": 8192
+            "contextWindow": 65536
           },
           {
             "id": "qwen3:8b",
             "name": "Qwen 3 8B",
-            "contextWindow": 32768,
-            "maxOutput": 8192
+            "contextWindow": 32768
           }
         ]
       }
