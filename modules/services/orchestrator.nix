@@ -95,7 +95,7 @@ SEED
         echo "Seeded /var/lib/orchestrator/wanda/MEMORY.md"
       fi
 
-      # OpenClaw gateway config — includes Anthropic API key via env block
+      # OpenClaw gateway config — ollama as default provider, Anthropic as escalation
       mkdir -p /var/lib/orchestrator/wanda-config
       if [ -f ${config.age.secrets.anthropic-api-key.path} ]; then
         source ${config.age.secrets.anthropic-api-key.path}
@@ -114,6 +114,36 @@ SEED
   },
   "env": {
     "ANTHROPIC_API_KEY": "$ANTHROPIC_API_KEY"
+  },
+  "models": {
+    "providers": {
+      "ollama": {
+        "baseUrl": "http://host.docker.internal:11434/v1",
+        "apiKey": "ollama-local",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "gemma3:12b",
+            "name": "Gemma 3 12B",
+            "contextWindow": 65536,
+            "maxOutput": 8192
+          },
+          {
+            "id": "qwen3:8b",
+            "name": "Qwen 3 8B",
+            "contextWindow": 32768,
+            "maxOutput": 8192
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "ollama/gemma3:12b"
+      }
+    }
   }
 }
 OCCONFIG
