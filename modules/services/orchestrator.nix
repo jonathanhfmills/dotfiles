@@ -192,6 +192,9 @@ SEED
     "agentToAgent": {
       "enabled": true,
       "allow": ["writer", "reader"]
+    },
+    "sessions": {
+      "visibility": "all"
     }
   }
 }
