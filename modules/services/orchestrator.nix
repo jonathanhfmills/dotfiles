@@ -259,7 +259,21 @@ AUTHEOF
       Type = "simple";
       Restart = "on-failure";
       RestartSec = 10;
+      ExecStartPre = "${pkgs.writeShellScript "orchestrator-pre-cleanup" ''
+        # Remove stale orchestrator sandbox from previous run
+        SANDBOX_ID=$(cat /var/lib/orchestrator/wanda-sandbox-id 2>/dev/null || true)
+        if [ -n "$SANDBOX_ID" ]; then
+          ${pkgs.curl}/bin/curl -sf -X DELETE "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" 2>/dev/null || true
+          rm -f /var/lib/orchestrator/wanda-sandbox-id /var/lib/orchestrator/wanda-proxy-port
+        fi
+      ''}";
       ExecStopPost = "${pkgs.writeShellScript "orchestrator-cleanup" ''
+        # Clean up sandbox
+        SANDBOX_ID=$(cat /var/lib/orchestrator/wanda-sandbox-id 2>/dev/null || true)
+        if [ -n "$SANDBOX_ID" ]; then
+          ${pkgs.curl}/bin/curl -sf -X DELETE "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" 2>/dev/null || true
+          rm -f /var/lib/orchestrator/wanda-sandbox-id /var/lib/orchestrator/wanda-proxy-port
+        fi
         rm -f /var/www/html/wanda/caddyfile
         /run/current-system/sw/bin/systemctl reload caddy 2>/dev/null || true
         ${pkgs.tailscale}/bin/tailscale serve --https=8100 off 2>/dev/null || true
@@ -275,8 +289,9 @@ AUTHEOF
         sleep 2
       done
 
-      # Load Anthropic API key from agenix secret
+      # Load secrets from agenix
       source ${config.age.secrets.anthropic-api-key.path}
+      source ${config.age.secrets.gateway-token.path}
 
       # Create orchestrator sandbox via OpenSandbox API
       # Follows the official OpenSandbox + OpenClaw example pattern
@@ -288,7 +303,7 @@ AUTHEOF
           "timeout": 86400,
           "resourceLimits": {"cpu": "1000m", "memory": "2Gi"},
           "entrypoint": ["node", "dist/index.js", "gateway", "--bind=lan", "--port=8100", "--allow-unconfigured", "--verbose"],
-          "env": {"OPENCLAW_GATEWAY_TOKEN": "wanda-fleet-token", "ANTHROPIC_API_KEY": "'"$ANTHROPIC_API_KEY"'", "NODE_PATH": "/opt/lobster/node_modules", "PATH": "/opt/lobster/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
+          "env": {"OPENCLAW_GATEWAY_TOKEN": "'"$OPENCLAW_GATEWAY_TOKEN"'", "ANTHROPIC_API_KEY": "'"$ANTHROPIC_API_KEY"'", "NODE_PATH": "/opt/lobster/node_modules", "PATH": "/opt/lobster/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
           "networkPolicy": ${networkPolicy},
           "volumes": [
             {"name": "wanda-config", "host": {"path": "/var/lib/orchestrator/wanda-config"}, "mountPath": "/home/node/.openclaw"},
@@ -321,11 +336,22 @@ AUTHEOF
       # HTTPS required: OpenClaw Control UI needs secure context for device identity
       if [ -n "$PROXY_PORT" ]; then
         mkdir -p /var/www/html/wanda
-        # Base64-encode caddyfile to preserve '#' (Caddyfile comment char)
-        echo "d2FuZGEuaGVsbGZpcmVhZS5jb20gewogIGltcG9ydCBjbG91ZGZsYXJlLXRscwogIGJpbmQgMTAwLjk1LjIwMS4xMAoKICBAbG9naW4gcGF0aCAvbG9naW4KICByZWRpciBAbG9naW4gIi8jdG9rZW49d2FuZGEtZmxlZXQtdG9rZW4iCgogIHJld3JpdGUgKiAvcHJveHkvODEwMHt1cml9CiAgcmV2ZXJzZV9wcm94eSAxMjcuMC4wLjE6UFJPWFlfUE9SVCB7CiAgICBoZWFkZXJfdXAgWC1Gb3J3YXJkZWQtUHJvdG8gaHR0cHMKICB9Cn0K" \
-          | base64 -d \
-          | sed "s/PROXY_PORT/$PROXY_PORT/" \
-          > /var/www/html/wanda/caddyfile
+        # Generate caddyfile with dynamic proxy port and gateway token
+        # '#' in the redirect is a Caddyfile comment char — must be quoted
+        cat > /var/www/html/wanda/caddyfile << CADDYEOF
+wanda.hellfireae.com {
+  import cloudflare-tls
+  bind 100.95.201.10
+
+  @login path /login
+  redir @login "/#token=$OPENCLAW_GATEWAY_TOKEN"
+
+  rewrite * /proxy/8100{uri}
+  reverse_proxy 127.0.0.1:$PROXY_PORT {
+    header_up X-Forwarded-Proto https
+  }
+}
+CADDYEOF
         /run/current-system/sw/bin/systemctl reload caddy
         echo "Caddy: https://wanda.hellfireae.com → :$PROXY_PORT/proxy/8100/"
 
