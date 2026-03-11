@@ -2,6 +2,7 @@
 
 let
   hostname = osConfig.networking.hostName;
+  isAgentHost = hostname == "workstation" || hostname == "nas";
   qwenModel = {
     workstation = "qwen3.5:9b";
     nas = "qwen3.5";
@@ -186,8 +187,8 @@ in
     };
   };
 
-  # Qwen Code — per-host ollama routing.
-  home.file.".qwen/settings.json".text = builtins.toJSON {
+  # Qwen Code — per-host ollama routing + fleet config.
+  home.file.".qwen/settings.json".text = builtins.toJSON ({
     modelProviders.openai = [{
       id = qwenModel;
       name = "Qwen 3.5 (${hostname} ollama)";
@@ -196,7 +197,54 @@ in
     }];
     security.auth.selectedType = "openai";
     model.name = qwenModel;
-  };
+    general.enableAutoUpdate = false;
+    privacy.usageStatisticsEnabled = false;
+    telemetry.enabled = false;
+  } // lib.optionalAttrs isAgentHost {
+    tools.approvalMode = "yolo";
+    output.format = "json";
+  });
+
+  # Qwen Code — global context loaded for all sessions.
+  home.file.".qwen/QWEN.md".text = ''
+    # Fleet Context — ${hostname}
+
+    You are running on **${hostname}**, part of Jon's NixOS fleet.
+
+    ## Host Inventory
+
+    | Host | Tailscale IP | GPU | Model | Role |
+    |------|-------------|-----|-------|------|
+    | desktop | 100.74.117.36 | — | (remote) | Developer workstation |
+    | workstation (Cosmo) | 100.87.216.16 | RTX 3080 10GB | qwen3.5:9b (CUDA) | Agent compute |
+    | nas (Wanda) | 100.95.201.10 | AMD 9070 XT 16GB | gemma3:12b (Vulkan) | Orchestrator + research |
+    | laptop | — | — | (remote) | Developer portable |
+
+    ## NixOS Conventions
+
+    - Nix flake at `~/dotfiles` manages all hosts
+    - Disko for declarative disk layouts
+    - SSH key-only auth via 1Password (`jon@nixos-fleet`)
+    - LTS kernel on ZFS hosts, latest otherwise
+    - `systemd.settings.Manager` not `systemd.extraConfig` (deprecated)
+
+    ## NixOS Gotchas
+
+    - .NET self-contained apps: use `dontFixup = true` + `buildFHSEnv` — `autoPatchelfHook` corrupts runtime
+    - GTK3 tinysparql pulls system `libsqlite3.so` overriding SQLCipher — fix with `LD_PRELOAD`
+
+    ## Git Workflow
+
+    - Feature branches, PRs to main
+    - Commit messages: imperative, concise
+    - Never force-push to main
+
+    ## Self-Learning
+
+    After completing a task, check your MEMORY.md. If you learned something non-obvious
+    (a gotcha, a pattern that worked, a tool quirk), append it under the right heading.
+    Keep entries concise — one line per lesson.
+  '';
 
   home.file.".continue/config.json".text = builtins.toJSON {
     models = [

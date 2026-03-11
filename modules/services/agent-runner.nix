@@ -13,6 +13,24 @@ let
   nasAgents = [ "writer" "reader" ];
   workstationAgents = [ "cosmo" "coder" "reviewer" "deployer" ];
   localAgents = if isNas then nasAgents else workstationAgents;
+
+  # Qwen Code settings per agent (always overwritten — nix-managed infra config)
+  ollamaModel = if isNas then "gemma3:12b" else "qwen3.5:9b";
+  agentSettingsJson = builtins.toJSON {
+    modelProviders.openai = [{
+      id = ollamaModel;
+      name = "${ollamaModel} (${hostname} ollama)";
+      envKey = "QWEN_API_KEY";
+      baseUrl = "http://localhost:11434/v1";
+    }];
+    security.auth.selectedType = "openai";
+    model.name = ollamaModel;
+    general.enableAutoUpdate = false;
+    privacy.usageStatisticsEnabled = false;
+    telemetry.enabled = false;
+    tools.approvalMode = "yolo";
+    output.format = "json";
+  };
 in
 lib.mkIf isAgentHost {
   # Agent workspace directories (persist across nixos-rebuild)
@@ -40,8 +58,10 @@ lib.mkIf isAgentHost {
       # NAS agents
       writer-soul = builtins.path { path = ../../agents/writer/SOUL.md; name = "writer-SOUL.md"; };
       writer-agents = builtins.path { path = ../../agents/writer/AGENTS.md; name = "writer-AGENTS.md"; };
+      writer-qwen = builtins.path { path = ../../agents/writer/QWEN.md; name = "writer-QWEN.md"; };
       reader-soul = builtins.path { path = ../../agents/reader/SOUL.md; name = "reader-SOUL.md"; };
       reader-agents = builtins.path { path = ../../agents/reader/AGENTS.md; name = "reader-AGENTS.md"; };
+      reader-qwen = builtins.path { path = ../../agents/reader/QWEN.md; name = "reader-QWEN.md"; };
       # Workstation agents
       cosmo-identity = builtins.path { path = ../../cosmo/IDENTITY.md; name = "cosmo-IDENTITY.md"; };
       cosmo-soul = builtins.path { path = ../../cosmo/SOUL.md; name = "cosmo-SOUL.md"; };
@@ -49,10 +69,13 @@ lib.mkIf isAgentHost {
       cosmo-personality = builtins.path { path = ../../cosmo/personality.yaml; name = "cosmo-personality.yaml"; };
       coder-soul = builtins.path { path = ../../agents/coder/SOUL.md; name = "coder-SOUL.md"; };
       coder-agents = builtins.path { path = ../../agents/coder/AGENTS.md; name = "coder-AGENTS.md"; };
+      coder-qwen = builtins.path { path = ../../agents/coder/QWEN.md; name = "coder-QWEN.md"; };
       reviewer-soul = builtins.path { path = ../../agents/reviewer/SOUL.md; name = "reviewer-SOUL.md"; };
       reviewer-agents = builtins.path { path = ../../agents/reviewer/AGENTS.md; name = "reviewer-AGENTS.md"; };
+      reviewer-qwen = builtins.path { path = ../../agents/reviewer/QWEN.md; name = "reviewer-QWEN.md"; };
       deployer-soul = builtins.path { path = ../../agents/deployer/SOUL.md; name = "deployer-SOUL.md"; };
       deployer-agents = builtins.path { path = ../../agents/deployer/AGENTS.md; name = "deployer-AGENTS.md"; };
+      deployer-qwen = builtins.path { path = ../../agents/deployer/QWEN.md; name = "deployer-QWEN.md"; };
     in {
     text = ''
       seed_file() {
@@ -62,6 +85,14 @@ lib.mkIf isAgentHost {
           cp "$src" "$dest"
           echo "Seeded $dest"
         fi
+      }
+
+      overwrite_file() {
+        local dest="$1"
+        local content="$2"
+        mkdir -p "$(dirname "$dest")"
+        echo "$content" > "$dest"
+        echo "Wrote $dest"
       }
 
       seed_memory() {
@@ -83,6 +114,16 @@ SEED
         fi
       }
 
+      # Qwen Code settings — always overwritten (nix-managed infra config)
+      seed_qwen_config() {
+        local agent_dir="$1"
+        local agent_name="$2"
+        local qwen_src="$3"
+        mkdir -p "$agent_dir/.qwen"
+        overwrite_file "$agent_dir/.qwen/settings.json" '${agentSettingsJson}'
+        seed_file "$agent_dir/.qwen/QWEN.md" "$qwen_src"
+      }
+
     '' + (if isNas then ''
       # NAS agents: writer, reader
       mkdir -p /var/lib/orchestrator/agents/{writer,reader}/{memory,specialists}
@@ -90,10 +131,12 @@ SEED
       seed_file /var/lib/orchestrator/agents/writer/SOUL.md ${writer-soul}
       seed_file /var/lib/orchestrator/agents/writer/AGENTS.md ${writer-agents}
       seed_memory /var/lib/orchestrator/agents/writer/MEMORY.md "Writer"
+      seed_qwen_config /var/lib/orchestrator/agents/writer "Writer" ${writer-qwen}
 
       seed_file /var/lib/orchestrator/agents/reader/SOUL.md ${reader-soul}
       seed_file /var/lib/orchestrator/agents/reader/AGENTS.md ${reader-agents}
       seed_memory /var/lib/orchestrator/agents/reader/MEMORY.md "Reader"
+      seed_qwen_config /var/lib/orchestrator/agents/reader "Reader" ${reader-qwen}
     '' else ''
       # Workstation agents: cosmo (lead), coder, reviewer, deployer
       mkdir -p /var/lib/orchestrator/agents/{cosmo,coder,reviewer,deployer}/{memory,specialists}
@@ -109,16 +152,19 @@ SEED
       seed_file /var/lib/orchestrator/agents/coder/SOUL.md ${coder-soul}
       seed_file /var/lib/orchestrator/agents/coder/AGENTS.md ${coder-agents}
       seed_memory /var/lib/orchestrator/agents/coder/MEMORY.md "Coder"
+      seed_qwen_config /var/lib/orchestrator/agents/coder "Coder" ${coder-qwen}
 
       # Reviewer
       seed_file /var/lib/orchestrator/agents/reviewer/SOUL.md ${reviewer-soul}
       seed_file /var/lib/orchestrator/agents/reviewer/AGENTS.md ${reviewer-agents}
       seed_memory /var/lib/orchestrator/agents/reviewer/MEMORY.md "Reviewer"
+      seed_qwen_config /var/lib/orchestrator/agents/reviewer "Reviewer" ${reviewer-qwen}
 
       # Deployer
       seed_file /var/lib/orchestrator/agents/deployer/SOUL.md ${deployer-soul}
       seed_file /var/lib/orchestrator/agents/deployer/AGENTS.md ${deployer-agents}
       seed_memory /var/lib/orchestrator/agents/deployer/MEMORY.md "Deployer"
+      seed_qwen_config /var/lib/orchestrator/agents/deployer "Deployer" ${deployer-qwen}
     '');
   };
 
