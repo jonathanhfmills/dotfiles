@@ -47,6 +47,7 @@
       opensandbox-code-interpreter = final.callPackage ./pkgs/opensandbox-code-interpreter {
         opensandbox-sdk = final.opensandbox-sdk;
       };
+      qwen-code = final.callPackage ./pkgs/qwen-code {};
     };
     overlayModule = { nixpkgs.overlays = [ localOverlay ]; };
   in {
@@ -63,6 +64,7 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/nullclaw.nix
+        ./modules/programs/qwen-code.nix
         ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
@@ -92,6 +94,7 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/nullclaw.nix
+        ./modules/programs/qwen-code.nix
         ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
@@ -126,6 +129,7 @@
         ./modules/services/syncthing.nix
         ./modules/services/opensandbox.nix
         ./modules/services/agent-runner.nix
+        ./modules/programs/qwen-code.nix
         ./modules/programs/activitywatch.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
@@ -153,6 +157,7 @@
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
+        ./modules/programs/qwen-code.nix
         ./modules/services/syncthing.nix
         ./modules/services/opensandbox.nix
         ./modules/services/orchestrator.nix
@@ -200,6 +205,7 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/nullclaw.nix
+        ./modules/programs/qwen-code.nix
         ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
