@@ -1,5 +1,16 @@
-{ pkgs, lib, ... }:
+{ pkgs, lib, osConfig, ... }:
 
+let
+  hostname = osConfig.networking.hostName;
+  qwenModel = {
+    workstation = "qwen3.5:9b";
+    nas = "qwen3.5";
+  }.${hostname} or "qwen3.5:9b";
+  qwenBaseUrl = {
+    workstation = "http://localhost:11434/v1";
+    nas = "http://localhost:11434/v1";
+  }.${hostname} or "http://workstation:11434/v1";
+in
 {
   home.username = "jon";
   home.homeDirectory = "/home/jon";
@@ -173,6 +184,18 @@
         }
       ];
     };
+  };
+
+  # Qwen Code — per-host ollama routing.
+  home.file.".qwen/settings.json".text = builtins.toJSON {
+    modelProviders.openai = [{
+      id = qwenModel;
+      name = "Qwen 3.5 (${hostname} ollama)";
+      envKey = "QWEN_API_KEY";
+      baseUrl = qwenBaseUrl;
+    }];
+    security.auth.selectedType = "openai";
+    model.name = qwenModel;
   };
 
   home.file.".continue/config.json".text = builtins.toJSON {
