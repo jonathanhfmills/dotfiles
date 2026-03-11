@@ -1,0 +1,51 @@
+name: dispatch
+description: "Lobster routing — routes tasks by label to the correct queue and agent"
+
+# OpenClaw reads task labels and writes queue files to the appropriate directory.
+# Syncthing handles cross-machine delivery. The agent-runner on each host polls its queue.
+
+routes:
+  # Coding tasks → workstation (Qwen 3.5 9B, RTX 3080)
+  - match: "code/*"
+    queue: queue/workstation/
+    lead: cosmo
+    agents: [coder, reviewer, deployer]
+    model: qwen3.5-9b-q4km
+    description: "Code changes, bug fixes, features — routed to Cosmo's team"
+
+  # Content tasks → NAS (Gemma 3 12B, 9070 XT)
+  - match: "content/*"
+    queue: queue/nas/
+    lead: writer
+    agents: [writer]
+    model: gemma3:12b
+    description: "Blog posts, landing pages, copy — routed to writer"
+
+  # Research tasks → NAS (Gemma 3 12B, 9070 XT)
+  - match: "research/*"
+    queue: queue/nas/
+    lead: reader
+    agents: [reader]
+    model: gemma3:12b
+    description: "Source reading, summaries, fact-checking — routed to reader"
+
+  # Review tasks → workstation (Qwen 3.5 9B)
+  - match: "review/*"
+    queue: queue/workstation/
+    lead: cosmo
+    agents: [reviewer]
+    model: qwen3.5-9b-q4km
+    description: "Code review requests — routed to Cosmo's reviewer"
+
+  # Deploy tasks → workstation (Qwen 3.5 9B)
+  - match: "deploy/*"
+    queue: queue/workstation/
+    lead: cosmo
+    agents: [deployer]
+    model: qwen3.5-9b-q4km
+    description: "Deployment requests — routed to Cosmo's deployer"
+
+# Default: unmatched tasks stay in queue/nas/ for Wanda to triage
+default:
+  queue: queue/nas/
+  description: "Unmatched tasks — Wanda triages manually"

@@ -49,6 +49,7 @@ in
       ExecStart = "${opensandbox-server}/bin/opensandbox-server --config ${configFile}";
       Restart = "on-failure";
       RestartSec = 5;
+      # Run as root to access Docker socket
       DynamicUser = false;
     };
     environment = {
@@ -68,9 +69,20 @@ in
     };
     path = [ pkgs.docker ];
     script = ''
-      docker pull ghcr.io/nullclaw/nullclaw:latest || true
+      # Core infrastructure
       docker pull opensandbox/execd:v1.0.6 || true
       docker pull opensandbox/egress:v1.0.1 || true
+
+      # Agent runtimes
+      docker pull ghcr.io/nullclaw/nullclaw:latest || true
+      docker pull ghcr.io/openclaw/openclaw:latest || true
+
+      # Sandbox images for child agents
+      docker pull opensandbox/code-interpreter:v1.0.1 || true
+      docker pull opensandbox/playwright:latest || true
+      docker pull opensandbox/chrome:latest || true
+      docker pull opensandbox/desktop:latest || true
+      docker pull opensandbox/vscode:latest || true
     '';
   };
 

@@ -1,0 +1,54 @@
+name: content-task
+description: "Research → Write → Review → Publish → Learn pipeline for content"
+
+steps:
+  - name: research
+    agent: reader
+    description: "Research the topic — gather sources, verify facts"
+    sandbox:
+      image: ghcr.io/nullclaw/nullclaw:latest
+      egress:
+        - "*.google.com"
+        - "*.wikipedia.org"
+        - "*.github.com"
+    on_failure: retry(3)
+    on_retry_exhausted: escalate
+
+  - name: write
+    agent: writer
+    description: "Draft content based on research findings"
+    sandbox:
+      image: ghcr.io/nullclaw/nullclaw:latest
+      egress: []
+    on_failure: retry(3)
+    on_retry_exhausted: escalate
+
+  - name: review
+    agent: reviewer
+    description: "Review content for accuracy, tone, and SEO"
+    sandbox:
+      image: ghcr.io/nullclaw/nullclaw:latest
+      egress: []
+    on_failure: retry(3)
+    on_retry_exhausted: escalate
+
+  - name: publish
+    agent: deployer
+    description: "Publish approved content to target platform"
+    sandbox:
+      image: ubuntu:22.04
+      egress:
+        - "*.kinsta.cloud"
+        - api.github.com
+    on_failure: escalate
+
+  - name: learn
+    description: "Extract what worked and save to agent memory"
+    # OpenClaw built-in memory flush
+    # Writer's MEMORY.md updated with style/audience patterns
+    # Reader's MEMORY.md updated with trusted sources
+    # Daily notes appended to memory/YYYY-MM-DD.md
+
+escalation:
+  agent: gemini-2.5-pro
+  description: "Content frontier fallback — Gemini for writing/research tasks"

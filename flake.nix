@@ -24,12 +24,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+
     nullclaw = {
       url = "github:nullclaw/nullclaw";
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, disko, agenix, claude-code, nullclaw, ... }:
+  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, disko, agenix, claude-code, nullclaw, ... }:
   let
     localOverlay = final: prev: {
       aw-watcher-window-wayland = final.callPackage ./pkgs/aw-watcher-window-wayland {};
@@ -40,6 +42,10 @@
       aw-watcher-bash = final.callPackage ./pkgs/aw-watcher-bash {};
       tmuxPlugins = prev.tmuxPlugins // {
         aw-watcher-tmux = final.callPackage ./pkgs/aw-watcher-tmux {};
+      };
+      opensandbox-sdk = final.callPackage ./pkgs/opensandbox-sdk {};
+      opensandbox-code-interpreter = final.callPackage ./pkgs/opensandbox-code-interpreter {
+        opensandbox-sdk = final.opensandbox-sdk;
       };
     };
     overlayModule = { nixpkgs.overlays = [ localOverlay ]; };
@@ -104,7 +110,7 @@
 
     nixosConfigurations.workstation = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code nullclaw; };
+      specialArgs = { inherit claude-code nullclaw nixpkgs-unstable; };
       modules = [
         overlayModule
         ./hosts/workstation
@@ -112,13 +118,14 @@
         ./modules/networking.nix
         ./modules/development.nix
         ./modules/programs/1password.nix
-        ./modules/services/ollama.nix
+        ./modules/programs/nullclaw.nix
+        ./modules/services/ollama-nvidia.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
         ./modules/services/syncthing.nix
         ./modules/services/opensandbox.nix
-        ./modules/programs/nullclaw.nix
+        ./modules/services/agent-runner.nix
         ./modules/programs/activitywatch.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
@@ -133,18 +140,24 @@
 
     nixosConfigurations.nas = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code nullclaw; };
+      specialArgs = { inherit claude-code nullclaw nixpkgs-unstable; };
       modules = [
         overlayModule
         ./hosts/nas
         ./modules/base.nix
         ./modules/networking.nix
         ./modules/development.nix
-        ./modules/services/ollama-nvidia.nix
+        ./modules/programs/1password.nix
+        ./modules/programs/nullclaw.nix
+        ./modules/services/ollama.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
-        ./modules/programs/activitywatch.nix
+        ./modules/services/stremio-server.nix
         ./modules/services/syncthing.nix
+        ./modules/services/opensandbox.nix
+        ./modules/services/orchestrator.nix
+        ./modules/services/agent-runner.nix
+        ./modules/programs/activitywatch.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -158,7 +171,7 @@
 
     nixosConfigurations.portable = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code nullclaw; };
+      specialArgs = { inherit claude-code; };
       modules = [
         overlayModule
         ./hosts/portable
@@ -171,7 +184,7 @@
         {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
-          home-manager.users.jon = { imports = [ ./modules/users/jon.nix ./modules/users/i3-portable.nix ]; };
+          home-manager.users.jon = import ./modules/users/jon.nix;
         }
       ];
     };

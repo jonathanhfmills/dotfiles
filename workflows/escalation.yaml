@@ -1,0 +1,51 @@
+name: escalation
+description: "Per-domain escalation tiers — local model first, frontier fallback on 3 strikes"
+
+# 3-strikes policy: if a local model agent fails the same task 3 times,
+# escalate to the frontier model. Capture the solution in the agent's MEMORY.md
+# and shared/escalation-log/ for cross-learning.
+
+tiers:
+  coding:
+    machine: workstation
+    local_model: qwen3.5-9b-q4km
+    frontier: claude-opus
+    agents: [cosmo, coder, deployer]
+    max_attempts: 3
+    on_escalation:
+      - capture_to: escalation-log/coding/
+      - update_memory: true
+      - description: "Frontier solves it, solution saved to agent MEMORY.md"
+
+  code_review:
+    machine: workstation
+    local_model: qwen3.5-9b-q4km
+    frontier: claude-opus
+    agents: [reviewer]
+    max_attempts: 3
+    on_escalation:
+      - capture_to: escalation-log/review/
+      - update_memory: true
+
+  writing:
+    machine: nas
+    local_model: gemma3:12b
+    frontier: gemini-2.5-pro
+    agents: [writer]
+    max_attempts: 3
+    on_escalation:
+      - capture_to: escalation-log/writing/
+      - update_memory: true
+
+  research:
+    machine: nas
+    local_model: gemma3:12b
+    frontier: gemini-2.5-pro
+    agents: [reader]
+    max_attempts: 3
+    on_escalation:
+      - capture_to: escalation-log/research/
+      - update_memory: true
+
+# Frontier API keys are NOT in this file — injected via environment (agenix later)
+# For now: ANTHROPIC_API_KEY, GOOGLE_API_KEY as env vars on each host

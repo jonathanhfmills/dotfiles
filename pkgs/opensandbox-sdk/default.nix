@@ -1,7 +1,7 @@
 { python3Packages, fetchFromGitHub }:
 
 let
-  version = "0.1.0";
+  version = "0.1.1";
   src = fetchFromGitHub {
     owner = "alibaba";
     repo = "OpenSandbox";
@@ -9,11 +9,11 @@ let
     hash = "sha256-+09ZsxCg9xHs9zQbdxTVeX8ideHJoLLY9gR29lIlxQk=";
   };
 in
-python3Packages.buildPythonApplication {
-  pname = "opensandbox-server";
+python3Packages.buildPythonPackage {
+  pname = "opensandbox";
   inherit version;
 
-  sourceRoot = "${src.name}/server";
+  sourceRoot = "${src.name}/sdks/sandbox/python";
   inherit src;
 
   pyproject = true;
@@ -24,24 +24,19 @@ python3Packages.buildPythonApplication {
   ];
 
   dependencies = with python3Packages; [
-    docker
-    fastapi
-    httpx
-    kubernetes
     pydantic
-    pydantic-settings
-    pyyaml
-    uvicorn
+    python-dateutil
+    attrs
+    httpx
   ];
 
   # hatch-vcs needs git history; override version directly
   env.SETUPTOOLS_SCM_PRETEND_VERSION = version;
 
-  # No tests in package context
   doCheck = false;
 
   meta = {
-    description = "OpenSandbox server — sandbox control plane for AI applications";
+    description = "OpenSandbox Python SDK — sandbox lifecycle management";
     homepage = "https://github.com/alibaba/OpenSandbox";
   };
 }

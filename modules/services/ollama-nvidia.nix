@@ -1,11 +1,16 @@
-{ pkgs, ... }:
+# Workstation ollama — NVIDIA RTX 3080 (10GB VRAM)
+# Qwen 3.5 9B for agent compute (coding, review, deploy)
+{ pkgs, nixpkgs-unstable, ... }:
 
+let
+  unstable = import nixpkgs-unstable { system = pkgs.system; config.allowUnfree = true; };
+in
 {
   services.ollama = {
     enable = true;
-    package = pkgs.ollama-cuda;
+    package = unstable.ollama-cuda;
     host = "0.0.0.0";
-    loadModels = [ "gemma3:12b" ];
+    loadModels = [ "qwen3.5:9b" ];
     environmentVariables = {
       OLLAMA_FLASH_ATTENTION = "1";
       OLLAMA_KV_CACHE_TYPE = "q4_0";

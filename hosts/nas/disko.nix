@@ -1,14 +1,11 @@
 # Declarative disk layout for NAS.
-# Boot + Root: Samsung 990 PRO 2TB (NVMe) — ESP + ZFS single-disk pool
+# Pool + Boot: 2x Samsung 980 Pro OEM 1TB (NVMe) — ZFS mirror + mirrored ESP
 #
-# NOTE: A Samsung 980 PRO is also installed but has a firmware bug
-# preventing initialization outside BIOS. Excluded until firmware
-# is updated to 5B2QGXA7, then it can be added as a ZFS mirror.
 {
   disko.devices = {
     disk = {
       nvme0 = {
-        device = "/dev/disk/by-id/nvme-Samsung_SSD_990_PRO_2TB_S7KHNJ0WC57731R";
+        device = "/dev/disk/by-id/nvme-SAMSUNG_MZVL21T0HCLR-00A00_S6H6NA0W700362";
         type = "disk";
         content = {
           type = "gpt";
@@ -33,10 +30,37 @@
           };
         };
       };
+      nvme1 = {
+        device = "/dev/disk/by-id/nvme-SAMSUNG_MZVL21T0HCLR-00A00_S6H6NA0W700375";
+        type = "disk";
+        content = {
+          type = "gpt";
+          partitions = {
+            ESP = {
+              size = "1G";
+              type = "EF00";
+              content = {
+                type = "filesystem";
+                format = "vfat";
+                mountpoint = "/boot-fallback";
+                mountOptions = [ "fmask=0077" "dmask=0077" ];
+              };
+            };
+            zfs = {
+              size = "100%";
+              content = {
+                type = "zfs";
+                pool = "rpool";
+              };
+            };
+          };
+        };
+      };
     };
     zpool = {
       rpool = {
         type = "zpool";
+        mode = "mirror";
         rootFsOptions = {
           compression = "zstd";
           acltype = "posixacl";
@@ -63,12 +87,22 @@
             options.mountpoint = "legacy";
             options."com.sun:auto-snapshot" = "true";
           };
-          stremio = {
+          games = {
             type = "zfs_fs";
-            mountpoint = "/var/lib/stremio-server";
+            mountpoint = "/home/jon/.local/share/Steam/steamapps";
+            options.mountpoint = "legacy";
+            options.recordsize = "1M";
+            options.compression = "lz4";
+            options.atime = "off";
+          };
+          postgres = {
+            type = "zfs_fs";
+            mountpoint = "/var/lib/postgresql";
             options.mountpoint = "legacy";
             options.recordsize = "16K";
-            options."com.sun:auto-snapshot" = "false";
+            options.logbias = "throughput";
+            options.atime = "off";
+            options."com.sun:auto-snapshot" = "true";
           };
           activitywatch = {
             type = "zfs_fs";

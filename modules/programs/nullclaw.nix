@@ -2,15 +2,35 @@
 
 let
   hostname = config.networking.hostName;
-  isWorkstation = hostname == "workstation";
+  hasOpenSandbox = hostname == "workstation" || hostname == "nas";
+
+  # Each server uses its local ollama; other hosts default to workstation.
+  ollamaModel = {
+    workstation = "qwen3.5-9b-q4km";
+    nas = "gemma3:12b";
+  }.${hostname} or "qwen3.5-9b-q4km";
+
+  ollamaUrl = {
+    workstation = "http://localhost:11434";
+    nas = "http://localhost:11434";
+  }.${hostname} or "http://workstation:11434";
 in
 {
   environment.systemPackages = [
     nullclaw.packages.${pkgs.system}.default
+  ] ++ pkgs.lib.optionals hasOpenSandbox [
+    (pkgs.python3.withPackages (ps: [
+      pkgs.opensandbox-sdk
+      pkgs.opensandbox-code-interpreter
+    ]))
   ];
 
   environment.sessionVariables = {
-    OLLAMA_MODEL = "qwen3.5-9b-q6";
-    OLLAMA_BASE_URL = "http://100.95.201.10:11434";
+    OLLAMA_MODEL = ollamaModel;
+    OLLAMA_BASE_URL = ollamaUrl;
+    ORCHESTRATOR_NAME = {
+      nas = "wanda";
+      workstation = "cosmo";
+    }.${hostname} or "";
   };
 }
