@@ -118,6 +118,13 @@ SEED
     },
     "trustedProxies": ["127.0.0.1", "172.17.0.0/16"]
   },
+  "plugins": {
+    "entries": {
+      "lobster": {
+        "enabled": true
+      }
+    }
+  },
   "env": {
     "ANTHROPIC_API_KEY": "$ANTHROPIC_API_KEY"
   },
@@ -137,6 +144,11 @@ SEED
             "id": "qwen3:8b",
             "name": "Qwen 3 8B",
             "contextWindow": 32768
+          },
+          {
+            "id": "qwen3:14b",
+            "name": "Qwen 3 14B",
+            "contextWindow": 32768
           }
         ]
       }
@@ -145,8 +157,46 @@ SEED
   "agents": {
     "defaults": {
       "model": {
-        "primary": "ollama/qwen3:8b"
+        "primary": "ollama/qwen3:14b"
+      },
+      "subagents": {
+        "maxSpawnDepth": 2,
+        "maxChildrenPerAgent": 5,
+        "maxConcurrent": 3,
+        "runTimeoutSeconds": 900
       }
+    },
+    "list": [
+      {
+        "id": "main",
+        "workspace": "/home/node/.openclaw/workspace",
+        "tools": {
+          "alsoAllow": ["lobster", "sessions_spawn", "sessions_send", "sessions_list", "sessions_history"]
+        },
+        "subagents": {
+          "allowAgents": ["*"]
+        }
+      },
+      {
+        "id": "writer",
+        "workspace": "/home/node/.openclaw/agents-workspace/writer",
+        "tools": {
+          "allow": ["read", "write", "edit"]
+        }
+      },
+      {
+        "id": "reader",
+        "workspace": "/home/node/.openclaw/agents-workspace/reader",
+        "tools": {
+          "allow": ["read"]
+        }
+      }
+    ]
+  },
+  "tools": {
+    "agentToAgent": {
+      "enabled": true,
+      "allow": ["writer", "reader"]
     }
   }
 }
@@ -174,6 +224,16 @@ OCCONFIG
 }
 AUTHEOF
       fi
+
+      # Seed sub-agent workspaces
+      mkdir -p /var/lib/orchestrator/wanda-config/agents-workspace/writer
+      mkdir -p /var/lib/orchestrator/wanda-config/agents-workspace/reader
+      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/writer/SOUL.md ${builtins.path { path = ../../agents/writer/SOUL.md; name = "writer-SOUL.md"; }}
+      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/writer/AGENTS.md ${builtins.path { path = ../../agents/writer/AGENTS.md; name = "writer-AGENTS.md"; }}
+      cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/writer/USER.md
+      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/reader/SOUL.md ${builtins.path { path = ../../agents/reader/SOUL.md; name = "reader-SOUL.md"; }}
+      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/reader/AGENTS.md ${builtins.path { path = ../../agents/reader/AGENTS.md; name = "reader-AGENTS.md"; }}
+      cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/reader/USER.md
 
       # Fix permissions — container runs as node (UID 1000)
       chown -R 1000:1000 /var/lib/orchestrator/wanda
@@ -229,14 +289,16 @@ AUTHEOF
           "image": {"uri": "ghcr.io/openclaw/openclaw:latest"},
           "timeout": 86400,
           "resourceLimits": {"cpu": "1000m", "memory": "2Gi"},
-          "entrypoint": ["node", "dist/index.js", "gateway", "--bind=lan", "--port", "8100", "--allow-unconfigured", "--verbose"],
-          "env": {"OPENCLAW_GATEWAY_TOKEN": "wanda-fleet-token", "ANTHROPIC_API_KEY": "'"$ANTHROPIC_API_KEY"'"},
+          "entrypoint": ["node", "dist/index.js", "gateway", "--bind=lan", "--port=8100", "--allow-unconfigured", "--verbose"],
+          "env": {"OPENCLAW_GATEWAY_TOKEN": "wanda-fleet-token", "ANTHROPIC_API_KEY": "'"$ANTHROPIC_API_KEY"'", "NODE_PATH": "/opt/lobster/node_modules", "PATH": "/opt/lobster/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
           "networkPolicy": ${networkPolicy},
           "volumes": [
             {"name": "wanda-config", "host": {"path": "/var/lib/orchestrator/wanda-config"}, "mountPath": "/home/node/.openclaw"},
             {"name": "wanda-identity", "host": {"path": "/var/lib/orchestrator/wanda"}, "mountPath": "/home/node/.openclaw/identity"},
             {"name": "shared-queue", "host": {"path": "/var/lib/orchestrator/shared"}, "mountPath": "/home/node/.openclaw/shared"},
-            {"name": "workflows", "host": {"path": "/var/lib/orchestrator/workflows"}, "mountPath": "/home/node/.openclaw/workflows"}
+            {"name": "workflows", "host": {"path": "/var/lib/orchestrator/workflows"}, "mountPath": "/home/node/.openclaw/workflows"},
+            {"name": "lobster", "host": {"path": "/var/lib/orchestrator/lobster"}, "mountPath": "/opt/lobster"},
+            {"name": "agents-workspace", "host": {"path": "/var/lib/orchestrator/wanda-config/agents-workspace"}, "mountPath": "/home/node/.openclaw/agents-workspace"}
           ]
         }' | jq -r '.id')
 
@@ -273,6 +335,21 @@ AUTHEOF
         tailscale serve --bg --https 8100 "http://127.0.0.1:$PROXY_PORT/proxy/8100/"
         echo "Tailscale: https://wanda.starling-ostrich.ts.net:8100 → :$PROXY_PORT/proxy/8100/"
       fi
+
+      # Wait for sandbox to become Running (gateway takes a few seconds to start)
+      echo "Waiting for Wanda to become healthy..."
+      for i in $(seq 1 30); do
+        STATUS=$(curl -sf "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" | jq -r '.status.state' 2>/dev/null)
+        if [ "$STATUS" = "Running" ]; then
+          echo "Wanda is healthy (attempt $i)"
+          break
+        fi
+        if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Terminated" ]; then
+          echo "Wanda failed to start (status: $STATUS)"
+          exit 1
+        fi
+        sleep 2
+      done
 
       # Keep service alive — poll sandbox health + renew expiration
       while true; do
