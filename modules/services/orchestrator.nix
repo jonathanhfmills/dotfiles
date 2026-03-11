@@ -141,13 +141,8 @@ SEED
             "contextWindow": 65536
           },
           {
-            "id": "qwen3:8b",
-            "name": "Qwen 3 8B",
-            "contextWindow": 32768
-          },
-          {
-            "id": "qwen3:14b",
-            "name": "Qwen 3 14B",
+            "id": "qwen3.5",
+            "name": "Qwen 3.5",
             "contextWindow": 32768
           }
         ]
@@ -157,7 +152,7 @@ SEED
   "agents": {
     "defaults": {
       "model": {
-        "primary": "ollama/qwen3:14b"
+        "primary": "ollama/qwen3.5"
       },
       "subagents": {
         "maxSpawnDepth": 2,

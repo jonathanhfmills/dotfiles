@@ -24,12 +24,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+
     nullclaw = {
       url = "github:nullclaw/nullclaw";
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, disko, agenix, claude-code, nullclaw, ... }:
+  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, disko, agenix, claude-code, nullclaw, ... }:
   let
     localOverlay = final: prev: {
       aw-watcher-window-wayland = final.callPackage ./pkgs/aw-watcher-window-wayland {};
@@ -108,7 +110,7 @@
 
     nixosConfigurations.workstation = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code nullclaw; };
+      specialArgs = { inherit claude-code nullclaw nixpkgs-unstable; };
       modules = [
         overlayModule
         ./hosts/workstation
@@ -138,7 +140,7 @@
 
     nixosConfigurations.nas = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code nullclaw; };
+      specialArgs = { inherit claude-code nullclaw nixpkgs-unstable; };
       modules = [
         overlayModule
         ./hosts/nas
