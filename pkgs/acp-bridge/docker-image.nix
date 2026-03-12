@@ -8,11 +8,11 @@ let
     setuptools
   ]);
 
-  # Script to install google-adk on first run (cached in /home/agent/.local)
+  # Script to install google-adk + litellm on first run (cached in /home/agent/.local)
   adkBootstrap = pkgs.writeShellScriptBin "adk-bootstrap" ''
     if ! ${pythonEnv}/bin/python -c "import google.adk" 2>/dev/null; then
-      echo "[adk-bootstrap] Installing google-adk..."
-      ${pythonEnv}/bin/pip install --user --quiet google-adk 2>&1 || true
+      echo "[adk-bootstrap] Installing google-adk + litellm..."
+      ${pythonEnv}/bin/pip install --user --quiet google-adk litellm 2>&1 || true
     fi
   '';
 
@@ -49,6 +49,9 @@ pkgs.dockerTools.buildLayeredImage {
     pythonEnv
     adkBootstrap
 
+    # C++ runtime (libstdc++.so.6) — needed by litellm's tokenizers dependency
+    pkgs.stdenv.cc.cc.lib
+
     # CA certs for HTTPS (ollama, OpenClaw, frontier APIs)
     cacert
 
@@ -66,6 +69,7 @@ pkgs.dockerTools.buildLayeredImage {
       "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       "NODE_EXTRA_CA_CERTS=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       "PYTHONUSERBASE=/home/agent/.local"
+      "LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib"
       "PATH=/home/agent/.local/bin:/usr/bin:/bin"
     ];
   };

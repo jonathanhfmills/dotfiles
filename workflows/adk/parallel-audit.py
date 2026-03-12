@@ -14,12 +14,21 @@ from google.adk.agents import ParallelAgent, SequentialAgent, Agent
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 
+# LiteLLM integration for local ollama models
+from google.adk.models.lite_llm import LiteLlm
+
+
+def get_model():
+    """Get the ADK model — uses ollama via LiteLLM by default."""
+    model_name = os.environ.get("ADK_MODEL", "ollama_chat/qwen3.5:9b")
+    return LiteLlm(model=model_name)
+
 
 def make_auditor(target: str, index: int) -> Agent:
     """Create an audit agent for a specific target."""
     return Agent(
-        name=f"auditor-{index}",
-        model=os.environ.get("ADK_MODEL", "gemini-2.0-flash"),
+        name=f"auditor_{index}",
+        model=get_model(),
         description=f"Auditor for {target}",
         instruction=(
             f"Audit the target: {target}\n"
@@ -34,7 +43,7 @@ def make_synthesizer() -> Agent:
     """Create the synthesis agent that combines parallel audit results."""
     return Agent(
         name="synthesizer",
-        model=os.environ.get("ADK_MODEL", "gemini-2.0-flash"),
+        model=get_model(),
         description="Synthesizes parallel audit results into a unified report",
         instruction=(
             "You receive audit results from multiple parallel auditors. "
@@ -52,7 +61,7 @@ def build_audit_pipeline(targets: list[str]) -> SequentialAgent:
     auditors = [make_auditor(target, i) for i, target in enumerate(targets)]
 
     parallel_audit = ParallelAgent(
-        name="parallel-audit",
+        name="parallel_audit",
         sub_agents=auditors,
         description=f"Fan-out audit across {len(targets)} targets",
     )
@@ -60,7 +69,7 @@ def build_audit_pipeline(targets: list[str]) -> SequentialAgent:
     synthesizer = make_synthesizer()
 
     return SequentialAgent(
-        name="audit-pipeline",
+        name="audit_pipeline",
         sub_agents=[parallel_audit, synthesizer],
         description="Parallel audit → synthesis pipeline",
     )
@@ -72,12 +81,12 @@ async def run_audit(targets: list[str], task_prompt: str) -> str:
 
     runner = InMemoryRunner(
         agent=pipeline,
-        app_name="parallel-audit",
+        app_name="parallel_audit",
     )
 
     user_id = os.environ.get("AGENT_NAME", "cosmo")
     session = await runner.session_service.create_session(
-        app_name="parallel-audit",
+        app_name="parallel_audit",
         user_id=user_id,
     )
 
@@ -126,6 +135,6 @@ if __name__ == "__main__":
         result = asyncio.run(run_audit(targets, task_prompt))
         print(result)
         with open("/workspace/results/adk-result.json", "w") as f:
-            json.dump({"pipeline": "parallel-audit", "targets": targets, "result": result}, f)
+            json.dump({"pipeline": "parallel_audit", "targets": targets, "result": result}, f)
     else:
         print("No targets provided. Set ADK_TARGETS or include targets in task.json.")

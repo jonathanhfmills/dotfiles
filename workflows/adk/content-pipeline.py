@@ -16,12 +16,21 @@ from google.adk.agents import SequentialAgent, Agent
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 
+# LiteLLM integration for local ollama models
+from google.adk.models.lite_llm import LiteLlm
+
+
+def get_model():
+    """Get the ADK model — uses ollama via LiteLLM by default."""
+    model_name = os.environ.get("ADK_MODEL", "ollama_chat/qwen3.5:9b")
+    return LiteLlm(model=model_name)
+
 
 def make_agent(agent_id: str, description: str, instruction: str) -> Agent:
     """Create an ADK agent that delegates to an ACP session."""
     return Agent(
         name=agent_id,
-        model=os.environ.get("ADK_MODEL", "gemini-2.0-flash"),
+        model=get_model(),
         description=description,
         instruction=instruction,
     )
@@ -60,7 +69,7 @@ deployer_agent = make_agent(
 
 # Sequential pipeline — runs agents in order
 content_pipeline = SequentialAgent(
-    name="content-pipeline",
+    name="content_pipeline",
     sub_agents=[reader_agent, writer_agent, reviewer_agent, deployer_agent],
     description="Research → Write → Review → Publish content pipeline",
 )
@@ -70,12 +79,12 @@ async def run_pipeline(task_prompt: str) -> str:
     """Execute the content pipeline with the given task prompt."""
     runner = InMemoryRunner(
         agent=content_pipeline,
-        app_name="content-pipeline",
+        app_name="content_pipeline",
     )
 
     user_id = os.environ.get("AGENT_NAME", "cosmo")
     session = await runner.session_service.create_session(
-        app_name="content-pipeline",
+        app_name="content_pipeline",
         user_id=user_id,
     )
 
