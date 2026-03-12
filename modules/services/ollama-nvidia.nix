@@ -1,5 +1,6 @@
-# Workstation ollama — NVIDIA RTX 3080 (10GB VRAM)
+# NVIDIA ollama — RTX 3080 (10GB VRAM)
 # Qwen 3.5 9B for agent compute (coding, review, deploy)
+# Used by: workstation (RTX 3080)
 { pkgs, nixpkgs-unstable, ... }:
 
 let

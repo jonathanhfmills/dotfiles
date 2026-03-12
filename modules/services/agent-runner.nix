@@ -7,6 +7,7 @@ let
   isAgentHost = isNas || isWorkstation;
 
   # Which queue this host polls
+  # Desktop takes over workstation's queue (same agents, same role)
   queueDir = if isNas then "queue/nas" else "queue/workstation";
 
   # Agent files to seed per host
@@ -14,14 +15,28 @@ let
   workstationAgents = [ "cosmo" "coder" "reviewer" "deployer" ];
   localAgents = if isNas then nasAgents else workstationAgents;
 
-  # Qwen Code settings per agent (always overwritten — nix-managed infra config)
-  ollamaModel = if isNas then "gemma3:12b" else "qwen3.5:9b";
+  # Per-agent CLI command (which LLM reasoning engine to use)
+  # OpenSandbox IS the sandbox — no --sandbox docker needed
+  agentCli = {
+    cosmo = "claude --acp";
+    coder = "qwen --acp --auth-type=openai";
+    reviewer = "claude --acp";
+    deployer = "qwen --acp --auth-type=openai";
+    writer = "qwen --acp --auth-type=openai";
+    reader = "qwen --acp --auth-type=openai";
+  };
+
+  # Both agent hosts use local ollama — NAS: 9070 XT Vulkan, Workstation: RTX 3080 CUDA
+  ollamaModel = "qwen3.5:9b";
+  ollamaBaseUrl = "http://localhost:11434";       # host-side (qwen settings, direct access)
+  ollamaDockerUrl = "http://172.17.0.1:11434";    # container-side (Docker bridge to host)
+  # Settings written to agent workspace — read inside Docker containers, so use bridge URL
   agentSettingsJson = builtins.toJSON {
     modelProviders.openai = [{
       id = ollamaModel;
       name = "${ollamaModel} (${hostname} ollama)";
       envKey = "QWEN_API_KEY";
-      baseUrl = "http://localhost:11434/v1";
+      baseUrl = "${ollamaDockerUrl}/v1";
     }];
     security.auth.selectedType = "openai";
     model.name = ollamaModel;
@@ -168,9 +183,11 @@ SEED
     '');
   };
 
-  # Agent runner — polls local queue, spawns Nullclaw sandboxes via opensandbox API
+  # Agent runner — polls local queue, spawns ACP reasoning containers via OpenSandbox API
+  # Each agent gets a pluggable CLI (qwen-code default, claude/gemini for escalation)
+  # OpenSandbox IS the sandbox — no inner Docker sandbox needed
   systemd.services.agent-runner = {
-    description = "Agent Runner — Nullclaw task executor (${hostname}, polls ${queueDir})";
+    description = "Agent Runner — ACP reasoning executor (${hostname}, polls ${queueDir})";
     after = [ "opensandbox-server.service" "opensandbox-pull-images.service" "network-online.target" ];
     requires = [ "opensandbox-server.service" ];
     wants = [ "network-online.target" "opensandbox-pull-images.service" ];
@@ -200,14 +217,37 @@ SEED
         sleep 2
       done
 
-      echo "Agent runner started — polling $QUEUE_DIR"
+      # Read Wanda's proxy port for OpenClaw endpoint (NAS only, read once at startup)
+      WANDA_PROXY_PORT="$(cat /var/lib/orchestrator/wanda-proxy-port 2>/dev/null || echo 0)"
+      ${if isNas then ''
+      OPENCLAW_ENDPOINT="http://172.17.0.1:''${WANDA_PROXY_PORT}/proxy/8100"
+      '' else ''
+      OPENCLAW_ENDPOINT="http://wanda:8100"
+      ''}
+
+      # Per-agent CLI command lookup
+      # OpenSandbox IS the sandbox — no --sandbox docker flag needed
+      get_agent_cli() {
+        case "$1" in
+          cosmo)    echo "claude --acp" ;;
+          coder)    echo "qwen --acp --auth-type=openai" ;;
+          reviewer) echo "claude --acp" ;;
+          deployer) echo "qwen --acp --auth-type=openai" ;;
+          writer)   echo "qwen --acp --auth-type=openai" ;;
+          reader)   echo "qwen --acp --auth-type=openai" ;;
+          *)        echo "qwen --acp --auth-type=openai" ;;
+        esac
+      }
+
+      echo "Agent runner started — polling $QUEUE_DIR (OpenClaw: $OPENCLAW_ENDPOINT)"
 
       process_task() {
         local task_file="$1"
         local task_id=$(basename "$task_file" .json)
         local agent=$(jq -r '.agent // "unknown"' "$task_file")
+        local cli_command=$(get_agent_cli "$agent")
 
-        echo "Processing task $task_id (agent: $agent)"
+        echo "Processing task $task_id (agent: $agent, cli: $cli_command)"
 
         # Determine agent identity dir
         local agent_dir="$AGENTS_DIR/$agent"
@@ -217,17 +257,49 @@ SEED
           return
         fi
 
-        # Spawn Nullclaw sandbox for this agent
+        # Create per-task results directory and copy task file into it
+        # (OpenSandbox mounts directories, not individual files)
+        local result_dir="$RESULTS_DIR/$task_id"
+        mkdir -p "$result_dir"
+        cp "$task_file" "$result_dir/task.json"
+
+        # Spawn ACP reasoning container for this agent
+        # Image: acp-reasoning (pluggable brain with qwen-code + bridge)
+        # Entrypoint: acp-bridge.mjs spawns the CLI internally via ACP_CLI_COMMAND
         local SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/v1/sandboxes \
           -H 'Content-Type: application/json' \
           -d "{
-            \"image\": {\"uri\": \"ghcr.io/nullclaw/nullclaw:latest\"},
+            \"image\": {\"uri\": \"acp-reasoning:latest\"},
+            \"entrypoint\": [\"${pkgs.acp-bridge}/bin/acp-bridge\"],
             \"timeout\": 1800,
-            \"resourceLimits\": {\"cpu\": \"500m\", \"memory\": \"1Gi\"},
-            \"entrypoint\": [\"nullclaw\", \"run\", \"/home/user/task.json\"],
+            \"resourceLimits\": {\"cpu\": \"1000m\", \"memory\": \"2Gi\"},
+            \"env\": {
+              \"ACP_CLI_COMMAND\": \"$cli_command\",
+              \"QWEN_API_KEY\": \"ollama\",
+              \"OPENAI_API_KEY\": \"ollama\",
+              \"OPENAI_BASE_URL\": \"${ollamaDockerUrl}/v1\",
+              \"OLLAMA_BASE_URL\": \"${ollamaDockerUrl}\",
+              \"OPENCLAW_ENDPOINT\": \"$OPENCLAW_ENDPOINT\",
+              \"AGENT_NAME\": \"$agent\",
+              \"WORKSPACE\": \"/workspace\",
+              \"TASK_FILE\": \"/workspace/results/task.json\",
+              \"HOME\": \"/workspace/agent\"
+            },
+            \"networkPolicy\": {
+              \"defaultAction\": \"deny\",
+              \"egress\": [
+                {\"action\": \"allow\", \"target\": \"172.17.0.1:11434\"},
+                ${if isNas then
+                  ''{\"action\": \"allow\", \"target\": \"172.17.0.1:$WANDA_PROXY_PORT\"}''
+                else
+                  ''{\"action\": \"allow\", \"target\": \"100.95.201.10:8100\"}''
+                },
+                {\"action\": \"allow\", \"target\": \"api.anthropic.com:443\"}
+              ]
+            },
             \"volumes\": [
-              {\"name\": \"agent-identity\", \"host\": {\"path\": \"$agent_dir\"}, \"mountPath\": \"/home/user/.nullclaw/identity\"},
-              {\"name\": \"task-input\", \"host\": {\"path\": \"$task_file\"}, \"mountPath\": \"/home/user/task.json\", \"readOnly\": true}
+              {\"name\": \"agent-workspace\", \"host\": {\"path\": \"$agent_dir\"}, \"mountPath\": \"/workspace/agent\"},
+              {\"name\": \"results\", \"host\": {\"path\": \"$result_dir\"}, \"mountPath\": \"/workspace/results\"}
             ]
           }" | jq -r '.id' 2>/dev/null)
 
@@ -237,7 +309,7 @@ SEED
           return
         fi
 
-        echo "Spawned $agent sandbox: $SANDBOX_ID"
+        echo "Spawned $agent ACP reasoning sandbox: $SANDBOX_ID"
 
         # Wait for sandbox to complete (poll every 10s, timeout 30m)
         local elapsed=0
@@ -256,7 +328,7 @@ SEED
 
         # Move task to results
         mv "$task_file" "$RESULTS_DIR/$task_id.done.json"
-        echo "Task $task_id completed"
+        echo "Task $task_id completed (results in $result_dir)"
       }
 
       # Main loop: watch queue directory for new task files

@@ -52,6 +52,10 @@ in
     enable = true;
     historySize = 10000;
     historyControl = [ "ignoredups" "erasedups" ];
+    shellAliases = {
+      claude = "command claude --dangerously-skip-permissions";
+      qwen = "QWEN_API_KEY=ollama command qwen --auth-type=openai";
+    };
     initExtra = ''
       if command -v tmux &>/dev/null && [ -z "$TMUX" ] && [[ $- == *i* ]] && [ -z "$INSIDE_EMACS" ] && [ -z "$VSCODE_RESOLVING_ENVIRONMENT" ]; then
         tmux new-session -A -s main && exit
@@ -217,7 +221,7 @@ in
     |------|-------------|-----|-------|------|
     | desktop | 100.74.117.36 | — | (remote) | Developer workstation |
     | workstation (Cosmo) | 100.87.216.16 | RTX 3080 10GB | qwen3.5:9b (CUDA) | Agent compute |
-    | nas (Wanda) | 100.95.201.10 | AMD 9070 XT 16GB | gemma3:12b (Vulkan) | Orchestrator + research |
+    | nas (Wanda) | 100.95.201.10 | AMD 9070 XT 16GB | qwen3.5:9b 4x64k (Vulkan) | Orchestrator + agents |
     | laptop | — | — | (remote) | Developer portable |
 
     ## NixOS Conventions
@@ -255,10 +259,10 @@ in
         apiBase = "http://100.95.201.10:11434";
       }
       {
-        title = "gemma3:12b (nas)";
+        title = "qwen3.5:9b (nas)";
         provider = "ollama";
-        model = "gemma3:12b";
-        apiBase = "http://100.87.216.16:11434";
+        model = "qwen3.5:9b";
+        apiBase = "http://100.95.201.10:11434";
       }
     ];
     tabAutocompleteModel = {
