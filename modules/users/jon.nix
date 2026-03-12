@@ -10,7 +10,7 @@ let
   qwenBaseUrl = {
     workstation = "http://localhost:11434/v1";
     nas = "http://localhost:11434/v1";
-  }.${hostname} or "http://workstation:11434/v1";
+  }.${hostname} or "http://wanda:11434/v1";
 in
 {
   home.username = "jon";
