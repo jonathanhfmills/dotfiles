@@ -1,29 +1,70 @@
+# Hermes Agent — Brain tier orchestrator (NAS only)
+# Replaces OpenClaw with Hermes as native systemd service.
+# Hermes handles routing, delegation, MCP tools, and trajectory capture.
+# Identity: Wanda (IDENTITY.md, SOUL.md, USER.md, MEMORY.md)
+#
+# Rollback: swap import to orchestrator-openclaw.nix in flake.nix
 { pkgs, config, lib, ... }:
 
 let
   hostname = config.networking.hostName;
   isNas = hostname == "nas";
 
-  opensandbox-server = pkgs.callPackage ../../pkgs/opensandbox-server {};
+  pythonEnv = pkgs.python312.withPackages (ps: with ps; [
+    pip
+    setuptools
+    requests
+    pyyaml
+  ]);
 
-  # Network policy: filesystem (queue writes) + localhost vLLM + frontier APIs
-  # NO opensandbox API access — Wanda never spawns sandboxes directly
-  networkPolicy = builtins.toJSON {
-    defaultAction = "deny";
-    egress = [
-      { action = "allow"; target = "172.17.0.1:11434"; }
-      { action = "allow"; target = "172.17.0.1:11435"; }
-      { action = "allow"; target = "openrouter.ai:443"; }
-    ];
-  };
+  # Hermes config pointing to local SGLang
+  hermesConfig = pkgs.writeText "hermes-config.yaml" ''
+    model:
+      default: "openai/Qwen/Qwen3.5-9B"
+      provider: "auto"
+
+    terminal:
+      backend: "local"
+      cwd: "/var/lib/orchestrator/shared"
+      timeout: 300
+
+    mcp_servers:
+      dispatch:
+        command: "${pythonEnv}/bin/python"
+        args: ["${../../pkgs/mcp-servers/dispatch.py}"]
+        env:
+          QUEUE_BASE: "/var/lib/orchestrator/shared/queue"
+      escalation:
+        command: "${pythonEnv}/bin/python"
+        args: ["${../../pkgs/mcp-servers/escalation.py}"]
+        env:
+          EVALUATOR_URL: "http://localhost:11435/v1"
+          EVALUATOR_MODEL: "Qwen/Qwen3.5-35B-A3B"
+          ESCALATION_LOG_DIR: "/var/lib/orchestrator/shared/escalation-log"
+      memory:
+        command: "${pythonEnv}/bin/python"
+        args: ["${../../pkgs/mcp-servers/memory.py}"]
+        env:
+          AGENTS_DIR: "/var/lib/orchestrator/agents"
+          WANDA_DIR: "/var/lib/orchestrator/wanda"
+  '';
+
+  hermesEnvFile = pkgs.writeText "hermes-env" ''
+    OPENAI_BASE_URL=http://localhost:11434/v1
+    OPENAI_API_KEY=ollama
+    LLM_MODEL=openai/Qwen/Qwen3.5-9B
+  '';
 in
 lib.mkIf isNas {
-  # Orchestrator + shared queue directory structure (persists across nixos-rebuild)
+  # Orchestrator directory structure (persists across nixos-rebuild)
   systemd.tmpfiles.rules = [
     "d /var/lib/orchestrator 0755 root root -"
-    # Wanda — the orchestrator's own identity and memory
+    # Wanda — the Brain's identity and memory
     "d /var/lib/orchestrator/wanda 0755 root root -"
     "d /var/lib/orchestrator/wanda/memory 0755 root root -"
+    # Hermes runtime
+    "d /var/lib/hermes 0755 root root -"
+    "d /var/lib/hermes/lib 0755 root root -"
     # Shared queue structure — Syncthing syncs this between NAS and workstation
     "d /var/lib/orchestrator/shared 0755 root root -"
     "d /var/lib/orchestrator/shared/queue 0755 root root -"
@@ -31,16 +72,20 @@ lib.mkIf isNas {
     "d /var/lib/orchestrator/shared/queue/workstation 0755 root root -"
     "d /var/lib/orchestrator/shared/queue/results 0755 root root -"
     "d /var/lib/orchestrator/shared/skills 0755 root root -"
+    "d /var/lib/orchestrator/shared/skills/verified 0755 root root -"
     "d /var/lib/orchestrator/shared/escalation-log 0755 root root -"
     "d /var/lib/orchestrator/shared/escalation-log/coding 0755 root root -"
     "d /var/lib/orchestrator/shared/escalation-log/review 0755 root root -"
     "d /var/lib/orchestrator/shared/escalation-log/writing 0755 root root -"
     "d /var/lib/orchestrator/shared/escalation-log/research 0755 root root -"
+    # Trajectory capture for RL training
+    "d /var/lib/orchestrator/shared/trajectories 0755 root root -"
+    "d /var/lib/orchestrator/shared/trajectories/scored 0755 root root -"
     # Workflow storage
     "d /var/lib/orchestrator/workflows 0755 root root -"
   ];
 
-  # Seed Wanda's identity + workflow files (only if not already present — preserves growth)
+  # Seed Wanda's identity (only if not already present — preserves growth)
   system.activationScripts.orchestrator-seed =
     let
       wanda-identity = builtins.path { path = ../../wanda/IDENTITY.md; name = "wanda-IDENTITY.md"; };
@@ -56,14 +101,17 @@ lib.mkIf isNas {
     text = ''
       mkdir -p /var/lib/orchestrator/wanda/memory
       mkdir -p /var/lib/orchestrator/shared/queue/{nas,workstation,results}
-      mkdir -p /var/lib/orchestrator/shared/{skills,escalation-log/{coding,review,writing,research}}
+      mkdir -p /var/lib/orchestrator/shared/{skills/verified,escalation-log/{coding,review,writing,research}}
+      mkdir -p /var/lib/orchestrator/shared/trajectories/scored
 
       # Syncthing folder marker (required for sync to work)
       touch /var/lib/orchestrator/shared/.stfolder
 
       # Syncthing runs as jon — ensure it can read/write the shared dir
       chown -R jon:users /var/lib/orchestrator/shared
+
       mkdir -p /var/lib/orchestrator/workflows
+      mkdir -p /var/lib/hermes/lib
 
       seed_file() {
         local dest="$1"
@@ -74,256 +122,35 @@ lib.mkIf isNas {
         fi
       }
 
-      # Wanda — the orchestrator herself
+      # Wanda — the Brain
       seed_file /var/lib/orchestrator/wanda/IDENTITY.md ${wanda-identity}
       seed_file /var/lib/orchestrator/wanda/SOUL.md ${wanda-soul}
       seed_file /var/lib/orchestrator/wanda/USER.md ${wanda-user}
       seed_file /var/lib/orchestrator/wanda/personality.yaml ${wanda-personality}
 
-      # Anti-loop system prompt — prevents 4-bit reasoning spirals
+      # Anti-loop system prompt
       cp ${builtins.path { path = ../../agents/SYSTEM.md; name = "agent-SYSTEM.md"; }} /var/lib/orchestrator/wanda/SYSTEM.md
 
-      # OpenClaw reads identity from workspace/ — copy Wanda's files there
-      mkdir -p /var/lib/orchestrator/wanda-config/workspace
-      cp ${wanda-identity} /var/lib/orchestrator/wanda-config/workspace/IDENTITY.md
-      cp ${wanda-soul} /var/lib/orchestrator/wanda-config/workspace/SOUL.md
-      cp ${wanda-user} /var/lib/orchestrator/wanda-config/workspace/USER.md
-
-      # Wanda's memory starts empty — she fills it herself
+      # Wanda's memory starts empty — she fills it via RL
       if [ ! -f /var/lib/orchestrator/wanda/MEMORY.md ]; then
         cat > /var/lib/orchestrator/wanda/MEMORY.md << 'SEED'
 # MEMORY.md — Wanda
 
 *This file is mine. I update it as I learn.*
 
-## Patterns
-
-## Preferences
+## Routing Patterns
 
 ## Lessons
+
+## Training Observations
 SEED
         echo "Seeded /var/lib/orchestrator/wanda/MEMORY.md"
       fi
 
-      # OpenClaw gateway config — vLLM as default provider, Anthropic as escalation
-      mkdir -p /var/lib/orchestrator/wanda-config
-      if [ -f ${config.age.secrets.openrouter-api-key.path} ]; then
-        source ${config.age.secrets.openrouter-api-key.path}
-        export OPENROUTER_API_KEY
-      fi
-      cat > /var/lib/orchestrator/wanda-config/openclaw.json << OCCONFIG
-{
-  "gateway": {
-    "auth": {
-      "allowTailscale": true
-    },
-    "controlUi": {
-      "dangerouslyAllowHostHeaderOriginFallback": true
-    },
-    "trustedProxies": ["127.0.0.1", "172.17.0.0/16"]
-  },
-  "plugins": {
-    "entries": {
-      "lobster": {
-        "enabled": true
-      }
-    }
-  },
-  "env": {
-    "OPENROUTER_API_KEY": "$OPENROUTER_API_KEY"
-  },
-  "models": {
-    "providers": {
-      "vllm": {
-        "baseUrl": "http://172.17.0.1:11434/v1",
-        "apiKey": "ollama",
-        "api": "openai-completions",
-        "models": [
-          {
-            "id": "Qwen/Qwen3.5-9B",
-            "name": "Qwen 3.5 9B (NAS, vLLM ROCm, 32K ctx)",
-            "contextWindow": 32768
-          }
-        ]
-      },
-      "vllm-light": {
-        "baseUrl": "http://172.17.0.1:11435/v1",
-        "apiKey": "ollama",
-        "api": "openai-completions",
-        "models": [
-          {
-            "id": "Qwen/Qwen3.5-0.8B",
-            "name": "Qwen 3.5 0.8B (NAS, vLLM CPU, 16K ctx)",
-            "contextWindow": 16384
-          }
-        ]
-      },
-      "openrouter": {
-        "baseUrl": "https://openrouter.ai/api/v1",
-        "apiKey": "$OPENROUTER_API_KEY",
-        "api": "openai-completions",
-        "models": [
-          {
-            "id": "qwen/qwen3.5-397b-a17b",
-            "name": "Qwen 3.5 397B-A17B MoE (OpenRouter, 262K ctx)",
-            "contextWindow": 262144
-          },
-          {
-            "id": "anthropic/claude-opus-4-6",
-            "name": "Claude Opus 4.6 (OpenRouter, break-glass)",
-            "contextWindow": 200000
-          }
-        ]
-      }
-    }
-  },
-  "agents": {
-    "defaults": {
-      "model": {
-        "primary": "vllm/Qwen/Qwen3.5-9B"
-      },
-      "runtime": "acp",
-      "subagents": {
-        "maxSpawnDepth": 2,
-        "maxChildrenPerAgent": 5,
-        "maxConcurrent": 3,
-        "runTimeoutSeconds": 900
-      }
-    },
-    "list": [
-      {
-        "id": "main",
-        "workspace": "/home/node/.openclaw/workspace",
-        "tools": {
-          "alsoAllow": ["lobster", "sessions_spawn", "sessions_send", "sessions_list", "sessions_history"]
-        },
-        "subagents": {
-          "allowAgents": ["*"]
-        }
-      },
-      {
-        "id": "cosmo",
-        "runtime": "acp",
-        "role": "lead",
-        "workspace": "/home/node/.openclaw/agents-workspace/cosmo",
-        "tools": {
-          "allow": ["read", "write", "lobster", "adk", "clawhub", "agent-delegate"]
-        },
-        "description": "Technical lead. Designs Lobster workflows, delegates to agents, reviews results."
-      },
-      {
-        "id": "coder",
-        "runtime": "acp",
-        "workspace": "/home/node/.openclaw/agents-workspace/coder",
-        "tools": {
-          "allow": ["read", "write", "edit", "shell", "git"]
-        }
-      },
-      {
-        "id": "reviewer",
-        "runtime": "acp",
-        "workspace": "/home/node/.openclaw/agents-workspace/reviewer",
-        "tools": {
-          "allow": ["read", "shell"]
-        }
-      },
-      {
-        "id": "deployer",
-        "runtime": "acp",
-        "workspace": "/home/node/.openclaw/agents-workspace/deployer",
-        "tools": {
-          "allow": ["read", "shell", "git"]
-        }
-      },
-      {
-        "id": "writer",
-        "runtime": "acp",
-        "workspace": "/home/node/.openclaw/agents-workspace/writer",
-        "tools": {
-          "allow": ["read", "write", "edit"]
-        }
-      },
-      {
-        "id": "reader",
-        "runtime": "acp",
-        "workspace": "/home/node/.openclaw/agents-workspace/reader",
-        "tools": {
-          "allow": ["read"]
-        }
-      }
-    ]
-  },
-  "tools": {
-    "agentToAgent": {
-      "enabled": true,
-      "allow": ["cosmo", "coder", "reviewer", "deployer", "writer", "reader"]
-    },
-    "sessions": {
-      "visibility": "all"
-    }
-  }
-}
-OCCONFIG
-
-      # OpenClaw agent auth — OpenRouter for all external models (Qwen 397B, Opus)
-      mkdir -p /var/lib/orchestrator/wanda-config/agents/main/agent
-      if [ -n "$OPENROUTER_API_KEY" ]; then
-        cat > /var/lib/orchestrator/wanda-config/agents/main/agent/auth-profiles.json << AUTHEOF
-{
-  "version": 1,
-  "profiles": {
-    "openrouter:default": {
-      "type": "token",
-      "provider": "openrouter",
-      "token": "$OPENROUTER_API_KEY"
-    }
-  },
-  "order": {
-    "openrouter": ["openrouter:default"]
-  },
-  "lastGood": {
-    "openrouter": "openrouter:default"
-  }
-}
-AUTHEOF
-      fi
-
-      # Seed sub-agent workspaces (all agents known to Wanda's Carapace)
-      mkdir -p /var/lib/orchestrator/wanda-config/agents-workspace/{cosmo,coder,reviewer,deployer,writer,reader}
-
-      # Cosmo — technical lead (workstation)
-      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/cosmo/IDENTITY.md ${builtins.path { path = ../../cosmo/IDENTITY.md; name = "cosmo-IDENTITY.md"; }}
-      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/cosmo/SOUL.md ${builtins.path { path = ../../cosmo/SOUL.md; name = "cosmo-SOUL.md"; }}
-      cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/cosmo/USER.md
-
-      # Coder (workstation)
-      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/coder/SOUL.md ${builtins.path { path = ../../agents/coder/SOUL.md; name = "coder-SOUL.md"; }}
-      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/coder/AGENTS.md ${builtins.path { path = ../../agents/coder/AGENTS.md; name = "coder-AGENTS.md"; }}
-      cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/coder/USER.md
-
-      # Reviewer (workstation)
-      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/reviewer/SOUL.md ${builtins.path { path = ../../agents/reviewer/SOUL.md; name = "reviewer-SOUL.md"; }}
-      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/reviewer/AGENTS.md ${builtins.path { path = ../../agents/reviewer/AGENTS.md; name = "reviewer-AGENTS.md"; }}
-      cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/reviewer/USER.md
-
-      # Deployer (workstation)
-      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/deployer/SOUL.md ${builtins.path { path = ../../agents/deployer/SOUL.md; name = "deployer-SOUL.md"; }}
-      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/deployer/AGENTS.md ${builtins.path { path = ../../agents/deployer/AGENTS.md; name = "deployer-AGENTS.md"; }}
-      cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/deployer/USER.md
-
-      # Writer (NAS)
-      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/writer/SOUL.md ${builtins.path { path = ../../agents/writer/SOUL.md; name = "writer-SOUL.md"; }}
-      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/writer/AGENTS.md ${builtins.path { path = ../../agents/writer/AGENTS.md; name = "writer-AGENTS.md"; }}
-      cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/writer/USER.md
-
-      # Reader (NAS)
-      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/reader/SOUL.md ${builtins.path { path = ../../agents/reader/SOUL.md; name = "reader-SOUL.md"; }}
-      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/reader/AGENTS.md ${builtins.path { path = ../../agents/reader/AGENTS.md; name = "reader-AGENTS.md"; }}
-      cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/reader/USER.md
-
-      # Fix permissions — container runs as node (UID 1000)
-      chown -R 1000:1000 /var/lib/orchestrator/wanda
-      chown -R 1000:1000 /var/lib/orchestrator/wanda-config
+      # Hermes config
+      mkdir -p /var/lib/hermes
+      cp ${hermesConfig} /var/lib/hermes/config.yaml
+      cp ${hermesEnvFile} /var/lib/hermes/.env
 
       # Lobster workflow files
       seed_file /var/lib/orchestrator/workflows/dispatch.yaml ${wf-dispatch}
@@ -334,152 +161,116 @@ AUTHEOF
     '';
   };
 
-  # OpenClaw orchestrator — Wanda runs inside an OpenSandbox container
-  # Network: filesystem queue writes + localhost vLLM + openrouter.ai
-  # NO opensandbox API access — agent-runner handles sandbox spawning
+  # Hermes Agent — Brain orchestrator as native systemd service
+  # Routes tasks to Engineer (Qwen-Agent) or Grunt (NullClaw) via MCP dispatch
+  # Scores trajectories via MoE evaluator (35B-A3B) via MCP escalation
+  # Captures routing decisions in MEMORY.md via MCP memory
   systemd.services.orchestrator = {
-    description = "Wanda — OpenClaw Orchestrator (NAS, air-gapped)";
-    after = [ "opensandbox-server.service" "opensandbox-pull-images.service" "network-online.target" "caddy.service" ];
-    requires = [ "opensandbox-server.service" ];
-    wants = [ "network-online.target" "opensandbox-pull-images.service" "caddy.service" ];
+    description = "Hermes Agent — Brain (NAS)";
+    after = [ "docker-sglang.service" "opensandbox-server.service" "network-online.target" ];
+    wants = [ "network-online.target" "docker-sglang.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "simple";
       Restart = "on-failure";
       RestartSec = 10;
-      ExecStartPre = "${pkgs.writeShellScript "orchestrator-pre-cleanup" ''
-        # Remove stale orchestrator sandbox from previous run
-        SANDBOX_ID=$(cat /var/lib/orchestrator/wanda-sandbox-id 2>/dev/null || true)
-        if [ -n "$SANDBOX_ID" ]; then
-          ${pkgs.curl}/bin/curl -sf -X DELETE "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" 2>/dev/null || true
-          rm -f /var/lib/orchestrator/wanda-sandbox-id /var/lib/orchestrator/wanda-proxy-port
-        fi
-      ''}";
-      ExecStopPost = "${pkgs.writeShellScript "orchestrator-cleanup" ''
-        # Clean up sandbox
-        SANDBOX_ID=$(cat /var/lib/orchestrator/wanda-sandbox-id 2>/dev/null || true)
-        if [ -n "$SANDBOX_ID" ]; then
-          ${pkgs.curl}/bin/curl -sf -X DELETE "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" 2>/dev/null || true
-          rm -f /var/lib/orchestrator/wanda-sandbox-id /var/lib/orchestrator/wanda-proxy-port
-        fi
-        rm -f /var/www/html/wanda/caddyfile
-        /run/current-system/sw/bin/systemctl reload caddy 2>/dev/null || true
-        ${pkgs.tailscale}/bin/tailscale serve --https=8100 off 2>/dev/null || true
-      ''}";
+      TimeoutStartSec = 300;
     };
-    path = [ pkgs.curl pkgs.jq pkgs.tailscale ];
+    path = [ pythonEnv pkgs.curl pkgs.jq pkgs.git ];
+    environment = {
+      OPENAI_BASE_URL = "http://localhost:11434/v1";
+      OPENAI_API_KEY = "ollama";
+      LLM_MODEL = "openai/Qwen/Qwen3.5-9B";
+      HERMES_HOME = "/var/lib/hermes";
+      PYTHONPATH = "/var/lib/hermes/lib";
+      HOME = "/var/lib/hermes";
+      QUEUE_BASE = "/var/lib/orchestrator/shared/queue";
+      EVALUATOR_URL = "http://localhost:11435/v1";
+      EVALUATOR_MODEL = "Qwen/Qwen3.5-35B-A3B";
+    };
     script = ''
-      # Wait for OpenSandbox API to be ready
-      for i in $(seq 1 30); do
-        if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+      # Wait for SGLang to be ready
+      for i in $(seq 1 60); do
+        if curl -sf -H "Authorization: Bearer ollama" http://localhost:11434/v1/models > /dev/null 2>&1; then
+          echo "SGLang is ready"
           break
         fi
-        sleep 2
+        sleep 5
       done
 
-      # Load secrets from agenix
-      source ${config.age.secrets.openrouter-api-key.path}
-      source ${config.age.secrets.gateway-token.path}
-
-      # Create orchestrator sandbox via OpenSandbox API
-      # Follows the official OpenSandbox + OpenClaw example pattern
-      # Network: queue dir (filesystem) + localhost vLLM + openrouter.ai
-      SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/v1/sandboxes \
-        -H 'Content-Type: application/json' \
-        -d '{
-          "image": {"uri": "ghcr.io/openclaw/openclaw:latest"},
-          "timeout": 86400,
-          "resourceLimits": {"cpu": "1000m", "memory": "2Gi"},
-          "entrypoint": ["node", "dist/index.js", "gateway", "--bind=lan", "--port=8100", "--allow-unconfigured", "--verbose"],
-          "env": {"OPENCLAW_GATEWAY_TOKEN": "'"$OPENCLAW_GATEWAY_TOKEN"'", "OPENROUTER_API_KEY": "'"$OPENROUTER_API_KEY"'", "NODE_PATH": "/opt/lobster/node_modules", "PATH": "/opt/lobster/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
-          "networkPolicy": ${networkPolicy},
-          "volumes": [
-            {"name": "wanda-config", "host": {"path": "/var/lib/orchestrator/wanda-config"}, "mountPath": "/home/node/.openclaw"},
-            {"name": "wanda-identity", "host": {"path": "/var/lib/orchestrator/wanda"}, "mountPath": "/home/node/.openclaw/identity"},
-            {"name": "shared-queue", "host": {"path": "/var/lib/orchestrator/shared"}, "mountPath": "/home/node/.openclaw/shared"},
-            {"name": "workflows", "host": {"path": "/var/lib/orchestrator/workflows"}, "mountPath": "/home/node/.openclaw/workflows"},
-            {"name": "lobster", "host": {"path": "/var/lib/orchestrator/lobster"}, "mountPath": "/opt/lobster"},
-            {"name": "agents-workspace", "host": {"path": "/var/lib/orchestrator/wanda-config/agents-workspace"}, "mountPath": "/home/node/.openclaw/agents-workspace"}
-          ]
-        }' | jq -r '.id')
-
-      if [ -z "$SANDBOX_ID" ] || [ "$SANDBOX_ID" = "null" ]; then
-        echo "Failed to create orchestrator sandbox"
-        exit 1
+      # Install hermes-agent if not already present
+      if [ ! -f /var/lib/hermes/.installed ]; then
+        echo "Installing hermes-agent..."
+        ${pythonEnv}/bin/pip install --target /var/lib/hermes/lib \
+          "hermes-agent[mcp]" 2>&1 | tail -5
+        touch /var/lib/hermes/.installed
       fi
 
-      echo "Wanda is awake (sandbox: $SANDBOX_ID)"
-
-      # Write sandbox ID for easy access from other hosts
-      echo "$SANDBOX_ID" > /var/lib/orchestrator/wanda-sandbox-id
-
-      # Discover the dynamic proxy port for the gateway
-      ENDPOINT=$(curl -sf "http://localhost:8080/v1/sandboxes/$SANDBOX_ID/endpoints/8100" | jq -r '.endpoint')
-      PROXY_PORT=$(echo "$ENDPOINT" | grep -oP ':\K[0-9]+')
-      echo "$PROXY_PORT" > /var/lib/orchestrator/wanda-proxy-port
-      echo "Wanda gateway: opensandbox proxy port $PROXY_PORT"
-
-      # Write caddyfile for system Caddy (Cloudflare TLS via caddy.nix)
-      # Caddy natively handles WebSocket upgrade — no extra config needed
-      # HTTPS required: OpenClaw Control UI needs secure context for device identity
-      if [ -n "$PROXY_PORT" ]; then
-        mkdir -p /var/www/html/wanda
-        # Generate caddyfile with dynamic proxy port and gateway token
-        # '#' in the redirect is a Caddyfile comment char — must be quoted
-        cat > /var/www/html/wanda/caddyfile << CADDYEOF
-wanda.hellfireae.com {
-  import cloudflare-tls
-  bind 100.95.201.10
-
-  @login path /login
-  redir @login "/#token=$OPENCLAW_GATEWAY_TOKEN"
-
-  rewrite * /proxy/8100{uri}
-  reverse_proxy 127.0.0.1:$PROXY_PORT {
-    header_up X-Forwarded-Proto https
-  }
-}
-CADDYEOF
-        /run/current-system/sw/bin/systemctl reload caddy
-        echo "Caddy: https://wanda.hellfireae.com → :$PROXY_PORT/proxy/8100/"
-
-        # Tailscale serve — tailnet-authenticated HTTPS on :8100
-        tailscale serve --bg --https 8100 "http://127.0.0.1:$PROXY_PORT/proxy/8100/"
-        echo "Tailscale: https://wanda.starling-ostrich.ts.net:8100 → :$PROXY_PORT/proxy/8100/"
+      # Load secrets for frontier escalation
+      if [ -f ${config.age.secrets.openrouter-api-key.path} ]; then
+        source ${config.age.secrets.openrouter-api-key.path}
+        export OPENROUTER_API_KEY
       fi
 
-      # Wait for sandbox to become Running (gateway takes a few seconds to start)
-      echo "Waiting for Wanda to become healthy..."
-      for i in $(seq 1 30); do
-        STATUS=$(curl -sf "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" | jq -r '.status.state' 2>/dev/null)
-        if [ "$STATUS" = "Running" ]; then
-          echo "Wanda is healthy (attempt $i)"
-          break
-        fi
-        if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Terminated" ]; then
-          echo "Wanda failed to start (status: $STATUS)"
-          exit 1
-        fi
-        sleep 2
-      done
+      echo "Wanda is awake (Hermes Brain)"
 
-      # Keep service alive — poll sandbox health + renew expiration
+      # Main loop: watch queue for tasks, process via Hermes
+      QUEUE_DIR="/var/lib/orchestrator/shared/queue/nas"
+      RESULTS_DIR="/var/lib/orchestrator/shared/queue/results"
+
+      process_task() {
+        local task_file="$1"
+        local task_id=$(basename "$task_file" .json)
+        local prompt=$(${pkgs.jq}/bin/jq -r '.prompt // ""' "$task_file")
+
+        echo "Processing task $task_id via Hermes"
+
+        local result_dir="$RESULTS_DIR/$task_id"
+        mkdir -p "$result_dir"
+
+        # Run through Hermes ACP adapter
+        echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | \
+          TASK_FILE="$task_file" ${pythonEnv}/bin/python ${../../pkgs/hermes-agent/hermes-acp-adapter.py} > /dev/null 2>&1 || true
+
+        # Simple direct call for now — Hermes chat() handles routing internally
+        ${pythonEnv}/bin/python -c "
+import sys, json, os
+sys.path.insert(0, '/var/lib/hermes/lib')
+try:
+    from run_agent import AIAgent
+    agent = AIAgent(
+        model=os.environ.get('LLM_MODEL', 'openai/Qwen/Qwen3.5-9B'),
+        base_url=os.environ.get('OPENAI_BASE_URL', 'http://localhost:11434/v1'),
+        api_key=os.environ.get('OPENAI_API_KEY', 'ollama'),
+        max_iterations=50,
+        quiet_mode=True,
+        save_trajectories=True,
+    )
+    result = agent.chat('''$prompt''')
+    with open('$result_dir/output.txt', 'w') as f:
+        f.write(result or 'No output')
+    print(f'Task $task_id completed')
+except Exception as e:
+    with open('$result_dir/error.txt', 'w') as f:
+        f.write(str(e))
+    print(f'Task $task_id failed: {e}')
+" 2>&1
+
+        mv "$task_file" "$RESULTS_DIR/$task_id.done.json"
+        echo "Task $task_id done (results in $result_dir)"
+      }
+
+      # Poll queue
       while true; do
-        STATUS=$(curl -sf "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" | jq -r '.status.state' 2>/dev/null)
-        if [ "$STATUS" != "Running" ] && [ "$STATUS" != "Pending" ]; then
-          echo "Wanda stopped (status: $STATUS)"
-          exit 1
-        fi
-        # Renew expiration to keep sandbox alive (24h rolling)
-        EXPIRES=$(date -u -d '+24 hours' '+%Y-%m-%dT%H:%M:%SZ')
-        curl -sf -X POST "http://localhost:8080/v1/sandboxes/$SANDBOX_ID/renew-expiration" \
-          -H 'Content-Type: application/json' \
-          -d "{\"expiresAt\": \"$EXPIRES\"}" > /dev/null 2>&1
-        sleep 30
+        for task_file in "$QUEUE_DIR"/*.json; do
+          [ -f "$task_file" ] || continue
+          process_task "$task_file"
+        done
+        ${pkgs.inotify-tools}/bin/inotifywait -t 60 -e create -e moved_to "$QUEUE_DIR" 2>/dev/null || true
       done
     '';
   };
 
-  # Firewall — opensandbox API on Tailscale (gateway via system Caddy on 443)
+  # Firewall — OpenSandbox API on Tailscale
   networking.firewall.allowedTCPPorts = [ 8080 ];
 }
