@@ -30,7 +30,12 @@ let
   vllmModel = if isNas then "Qwen/Qwen3.5-9B" else "Qwen/Qwen3.5-4B";
   vllmBaseUrl = "http://localhost:11434";       # host-side (qwen settings, direct access)
   vllmDockerUrl = "http://172.17.0.1:11434";    # container-side (Docker bridge to host)
+
+  # Anti-loop system prompt — forces structured scratchpad, prevents reasoning spirals
+  systemPromptFile = builtins.path { path = ../../agents/SYSTEM.md; name = "agent-SYSTEM.md"; };
+
   # Settings written to agent workspace — read inside Docker containers, so use bridge URL
+  # Sampling params tuned for 4-bit quantization stability (min_p + freq penalty prevent loops)
   agentSettingsJson = builtins.toJSON {
     modelProviders.openai = [{
       id = vllmModel;
@@ -40,6 +45,13 @@ let
     }];
     security.auth.selectedType = "openai";
     model.name = vllmModel;
+    model.parameters = {
+      temperature = 0.7;
+      top_p = 0.9;
+      min_p = 0.05;
+      frequency_penalty = 1.1;
+      repeat_last_n = 64;
+    };
     general.enableAutoUpdate = false;
     privacy.usageStatisticsEnabled = false;
     telemetry.enabled = false;
@@ -130,6 +142,7 @@ SEED
       }
 
       # Qwen Code settings — always overwritten (nix-managed infra config)
+      # SYSTEM.md = anti-loop adaptive logic prompt (prevents 4-bit reasoning spirals)
       seed_qwen_config() {
         local agent_dir="$1"
         local agent_name="$2"
@@ -137,6 +150,7 @@ SEED
         mkdir -p "$agent_dir/.qwen"
         overwrite_file "$agent_dir/.qwen/settings.json" '${agentSettingsJson}'
         seed_file "$agent_dir/.qwen/QWEN.md" "$qwen_src"
+        cp ${systemPromptFile} "$agent_dir/.qwen/SYSTEM.md"
       }
 
     '' + (if isNas then ''

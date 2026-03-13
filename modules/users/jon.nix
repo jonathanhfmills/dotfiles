@@ -193,6 +193,7 @@ in
   };
 
   # Qwen Code — per-host vLLM routing + fleet config.
+  # Sampling params tuned for 4-bit quantization stability (anti-loop)
   home.file.".qwen/settings.json".text = builtins.toJSON ({
     modelProviders.openai = [{
       id = qwenModel;
@@ -202,6 +203,13 @@ in
     }];
     security.auth.selectedType = "openai";
     model.name = qwenModel;
+    model.parameters = {
+      temperature = 0.7;
+      top_p = 0.9;
+      min_p = 0.05;
+      frequency_penalty = 1.1;
+      repeat_last_n = 64;
+    };
     general.enableAutoUpdate = false;
     privacy.usageStatisticsEnabled = false;
     telemetry.enabled = false;

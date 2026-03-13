@@ -80,6 +80,9 @@ lib.mkIf isNas {
       seed_file /var/lib/orchestrator/wanda/USER.md ${wanda-user}
       seed_file /var/lib/orchestrator/wanda/personality.yaml ${wanda-personality}
 
+      # Anti-loop system prompt — prevents 4-bit reasoning spirals
+      cp ${builtins.path { path = ../../agents/SYSTEM.md; name = "agent-SYSTEM.md"; }} /var/lib/orchestrator/wanda/SYSTEM.md
+
       # OpenClaw reads identity from workspace/ — copy Wanda's files there
       mkdir -p /var/lib/orchestrator/wanda-config/workspace
       cp ${wanda-identity} /var/lib/orchestrator/wanda-config/workspace/IDENTITY.md
