@@ -300,8 +300,7 @@ SEED
                 else
                   ''{\"action\": \"allow\", \"target\": \"100.95.201.10:8100\"}''
                 },
-                {\"action\": \"allow\", \"target\": \"openrouter.ai:443\"},
-                {\"action\": \"allow\", \"target\": \"api.anthropic.com:443\"}
+                {\"action\": \"allow\", \"target\": \"openrouter.ai:443\"}
               ]
             },
             \"volumes\": [

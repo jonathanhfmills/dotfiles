@@ -80,5 +80,5 @@ tiers:
       - distill: true
 
 # API keys injected via environment (agenix):
-#   OPENROUTER_API_KEY — 397B via OpenRouter
-#   ANTHROPIC_API_KEY  — Claude Opus 4.6 (break-glass only)
+#   OPENROUTER_API_KEY — all external models (397B, Opus) via OpenRouter
+#   OpenRouter has no-training guarantee — safe for all tiers
