@@ -1,11 +1,11 @@
 # NAS vLLM — AMD 9070 XT (16GB VRAM, ROCm)
 # Qwen3.5-9B @ 4-bit: ~5GB weights, ~10GB KV cache headroom, 32K ctx x 2 parallel
-# Docker: rocm/vllm-dev:latest with gfx1201 (RDNA 4) support
+# Docker: rocm/vllm-dev navi image with ROCm 7.2 for RDNA 4 (gfx1201) support
 { pkgs, ... }:
 
 {
   virtualisation.oci-containers.containers.vllm = {
-    image = "rocm/vllm-dev:latest";
+    image = "rocm/vllm-dev:rocm7.2_navi_ubuntu24.04_py3.12_pytorch_2.9_vllm_0.14.0rc0";
     extraOptions = [
       "--device=/dev/kfd"
       "--device=/dev/dri"
