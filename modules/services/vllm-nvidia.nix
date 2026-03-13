@@ -29,6 +29,7 @@
       "--enable-auto-tool-choice"
       "--tool-call-parser" "qwen3_coder"
       "--enable-prefix-caching"
+      "--compilation-config" "{\"cudagraph_mode\": \"none\"}"
       "--gpu-memory-utilization" "0.90"
       "--api-key" "ollama"
       "--host" "0.0.0.0"
