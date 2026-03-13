@@ -16,30 +16,43 @@ let
   localAgents = if isNas then nasAgents else workstationAgents;
 
   # Per-agent CLI command (which LLM reasoning engine to use)
+  # All agents use qwen-code with local vLLM. Escalation to frontier happens via promotion chain (escalation.yaml).
   # OpenSandbox IS the sandbox — no --sandbox docker needed
   agentCli = {
-    cosmo = "claude --acp";
+    cosmo = "qwen --acp --auth-type=openai";
     coder = "qwen --acp --auth-type=openai";
-    reviewer = "claude --acp";
+    reviewer = "qwen --acp --auth-type=openai";
     deployer = "qwen --acp --auth-type=openai";
     writer = "qwen --acp --auth-type=openai";
     reader = "qwen --acp --auth-type=openai";
   };
 
-  # Both agent hosts use local ollama — NAS: 9070 XT Vulkan, Workstation: RTX 3080 CUDA
-  ollamaModel = "qwen3.5:9b";
-  ollamaBaseUrl = "http://localhost:11434";       # host-side (qwen settings, direct access)
-  ollamaDockerUrl = "http://172.17.0.1:11434";    # container-side (Docker bridge to host)
+  # Both agent hosts use local vLLM — NAS: 9070 XT ROCm (9B), Workstation: RTX 3080 CUDA (4B)
+  vllmModel = if isNas then "Qwen/Qwen3.5-9B" else "Qwen/Qwen3.5-4B";
+  vllmBaseUrl = "http://localhost:11434";       # host-side (qwen settings, direct access)
+  vllmDockerUrl = "http://172.17.0.1:11434";    # container-side (Docker bridge to host)
+
+  # Anti-loop system prompt — forces structured scratchpad, prevents reasoning spirals
+  systemPromptFile = builtins.path { path = ../../agents/SYSTEM.md; name = "agent-SYSTEM.md"; };
+
   # Settings written to agent workspace — read inside Docker containers, so use bridge URL
+  # Sampling params tuned for 4-bit quantization stability (min_p + freq penalty prevent loops)
   agentSettingsJson = builtins.toJSON {
     modelProviders.openai = [{
-      id = ollamaModel;
-      name = "${ollamaModel} (${hostname} ollama)";
+      id = vllmModel;
+      name = "${vllmModel} (${hostname} vLLM)";
       envKey = "QWEN_API_KEY";
-      baseUrl = "${ollamaDockerUrl}/v1";
+      baseUrl = "${vllmDockerUrl}/v1";
     }];
     security.auth.selectedType = "openai";
-    model.name = ollamaModel;
+    model.name = vllmModel;
+    model.parameters = {
+      temperature = 0.7;
+      top_p = 0.9;
+      min_p = 0.05;
+      frequency_penalty = 1.1;
+      repeat_last_n = 64;
+    };
     general.enableAutoUpdate = false;
     privacy.usageStatisticsEnabled = false;
     telemetry.enabled = false;
@@ -130,6 +143,7 @@ SEED
       }
 
       # Qwen Code settings — always overwritten (nix-managed infra config)
+      # SYSTEM.md = anti-loop adaptive logic prompt (prevents 4-bit reasoning spirals)
       seed_qwen_config() {
         local agent_dir="$1"
         local agent_name="$2"
@@ -137,6 +151,7 @@ SEED
         mkdir -p "$agent_dir/.qwen"
         overwrite_file "$agent_dir/.qwen/settings.json" '${agentSettingsJson}'
         seed_file "$agent_dir/.qwen/QWEN.md" "$qwen_src"
+        cp ${systemPromptFile} "$agent_dir/.qwen/SYSTEM.md"
       }
 
     '' + (if isNas then ''
@@ -209,6 +224,12 @@ SEED
       touch /var/lib/orchestrator/shared/.stfolder
       chown -R jon:users /var/lib/orchestrator/shared
 
+      # Load API keys for frontier escalation
+      OPENROUTER_API_KEY=""
+      if [ -f ${config.age.secrets.openrouter-api-key.path} ]; then
+        source ${config.age.secrets.openrouter-api-key.path}
+      fi
+
       # Wait for OpenSandbox API to be ready
       for i in $(seq 1 30); do
         if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
@@ -229,9 +250,9 @@ SEED
       # OpenSandbox IS the sandbox — no --sandbox docker flag needed
       get_agent_cli() {
         case "$1" in
-          cosmo)    echo "claude --acp" ;;
+          cosmo)    echo "qwen --acp --auth-type=openai" ;;
           coder)    echo "qwen --acp --auth-type=openai" ;;
-          reviewer) echo "claude --acp" ;;
+          reviewer) echo "qwen --acp --auth-type=openai" ;;
           deployer) echo "qwen --acp --auth-type=openai" ;;
           writer)   echo "qwen --acp --auth-type=openai" ;;
           reader)   echo "qwen --acp --auth-type=openai" ;;
@@ -277,8 +298,8 @@ SEED
               \"ACP_CLI_COMMAND\": \"$cli_command\",
               \"QWEN_API_KEY\": \"ollama\",
               \"OPENAI_API_KEY\": \"ollama\",
-              \"OPENAI_BASE_URL\": \"${ollamaDockerUrl}/v1\",
-              \"OLLAMA_BASE_URL\": \"${ollamaDockerUrl}\",
+              \"OPENAI_BASE_URL\": \"${vllmDockerUrl}/v1\",
+              \"OPENROUTER_API_KEY\": \"$OPENROUTER_API_KEY\",
               \"OPENCLAW_ENDPOINT\": \"$OPENCLAW_ENDPOINT\",
               \"AGENT_NAME\": \"$agent\",
               \"WORKSPACE\": \"/workspace\",
@@ -294,7 +315,7 @@ SEED
                 else
                   ''{\"action\": \"allow\", \"target\": \"100.95.201.10:8100\"}''
                 },
-                {\"action\": \"allow\", \"target\": \"api.anthropic.com:443\"}
+                {\"action\": \"allow\", \"target\": \"openrouter.ai:443\"}
               ]
             },
             \"volumes\": [

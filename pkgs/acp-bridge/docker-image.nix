@@ -52,7 +52,7 @@ pkgs.dockerTools.buildLayeredImage {
     # C++ runtime (libstdc++.so.6) — needed by litellm's tokenizers dependency
     pkgs.stdenv.cc.cc.lib
 
-    # CA certs for HTTPS (ollama, OpenClaw, frontier APIs)
+    # CA certs for HTTPS (vLLM, OpenClaw, frontier APIs)
     cacert
 
     # User/group files for Node.js os.userInfo()

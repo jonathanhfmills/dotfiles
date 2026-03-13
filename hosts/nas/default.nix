@@ -33,7 +33,7 @@ in
   powerManagement.cpuFreqGovernor = "powersave";
 
   # CPU affinity: default all processes to E-cores (CPUs 12-19).
-  # P-cores (0-11) reserved for gamescope-steam and ollama.
+  # P-cores (0-11) reserved for gamescope-steam and vLLM.
   # i5-13600K topology: P-cores 0-5 + HT 6-11, E-cores 12-19.
   # Verify with: lscpu --extended
   systemd.settings.Manager.CPUAffinity = "12 13 14 15 16 17 18 19";
@@ -63,8 +63,8 @@ in
   # Secrets.
   age.secrets.password-jon.file = ../../secrets/password-jon.age;
   age.secrets.caddy-cloudflare-token.file = ../../secrets/caddy-cloudflare-token.age;
-  age.secrets.anthropic-api-key.file = ../../secrets/anthropic-api-key.age;
   age.secrets.gateway-token.file = ../../secrets/gateway-token.age;
+  age.secrets.openrouter-api-key.file = ../../secrets/openrouter-api-key.age;
 
   # User accounts.
   users.users.jon = {
@@ -281,8 +281,8 @@ in
     pkgs.triggerhappy
   ];
 
-  # Pin ollama to P-cores for inference performance.
-  systemd.services.ollama.serviceConfig = {
+  # Pin vLLM (9B GPU instance) to P-cores for inference performance.
+  systemd.services.docker-vllm.serviceConfig = {
     CPUAffinity = "0-11";
     AllowedCPUs = "0-11";
   };

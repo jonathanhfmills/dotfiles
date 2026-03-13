@@ -6,13 +6,14 @@ let
 
   opensandbox-server = pkgs.callPackage ../../pkgs/opensandbox-server {};
 
-  # Network policy: filesystem (queue writes) + localhost ollama + Anthropic API
+  # Network policy: filesystem (queue writes) + localhost vLLM + frontier APIs
   # NO opensandbox API access — Wanda never spawns sandboxes directly
   networkPolicy = builtins.toJSON {
     defaultAction = "deny";
     egress = [
       { action = "allow"; target = "172.17.0.1:11434"; }
-      { action = "allow"; target = "api.anthropic.com:443"; }
+      { action = "allow"; target = "172.17.0.1:11435"; }
+      { action = "allow"; target = "openrouter.ai:443"; }
     ];
   };
 in
@@ -79,6 +80,9 @@ lib.mkIf isNas {
       seed_file /var/lib/orchestrator/wanda/USER.md ${wanda-user}
       seed_file /var/lib/orchestrator/wanda/personality.yaml ${wanda-personality}
 
+      # Anti-loop system prompt — prevents 4-bit reasoning spirals
+      cp ${builtins.path { path = ../../agents/SYSTEM.md; name = "agent-SYSTEM.md"; }} /var/lib/orchestrator/wanda/SYSTEM.md
+
       # OpenClaw reads identity from workspace/ — copy Wanda's files there
       mkdir -p /var/lib/orchestrator/wanda-config/workspace
       cp ${wanda-identity} /var/lib/orchestrator/wanda-config/workspace/IDENTITY.md
@@ -101,11 +105,11 @@ SEED
         echo "Seeded /var/lib/orchestrator/wanda/MEMORY.md"
       fi
 
-      # OpenClaw gateway config — ollama as default provider, Anthropic as escalation
+      # OpenClaw gateway config — vLLM as default provider, Anthropic as escalation
       mkdir -p /var/lib/orchestrator/wanda-config
-      if [ -f ${config.age.secrets.anthropic-api-key.path} ]; then
-        source ${config.age.secrets.anthropic-api-key.path}
-        export ANTHROPIC_API_KEY
+      if [ -f ${config.age.secrets.openrouter-api-key.path} ]; then
+        source ${config.age.secrets.openrouter-api-key.path}
+        export OPENROUTER_API_KEY
       fi
       cat > /var/lib/orchestrator/wanda-config/openclaw.json << OCCONFIG
 {
@@ -126,19 +130,48 @@ SEED
     }
   },
   "env": {
-    "ANTHROPIC_API_KEY": "$ANTHROPIC_API_KEY"
+    "OPENROUTER_API_KEY": "$OPENROUTER_API_KEY"
   },
   "models": {
     "providers": {
-      "ollama": {
+      "vllm": {
         "baseUrl": "http://172.17.0.1:11434/v1",
-        "apiKey": "ollama-local",
+        "apiKey": "ollama",
         "api": "openai-completions",
         "models": [
           {
-            "id": "qwen3.5:9b",
-            "name": "Qwen 3.5 9B (NAS, 4x parallel 64k)",
-            "contextWindow": 65536
+            "id": "Qwen/Qwen3.5-9B",
+            "name": "Qwen 3.5 9B (NAS, vLLM ROCm, 32K ctx)",
+            "contextWindow": 32768
+          }
+        ]
+      },
+      "vllm-light": {
+        "baseUrl": "http://172.17.0.1:11435/v1",
+        "apiKey": "ollama",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "Qwen/Qwen3.5-0.8B",
+            "name": "Qwen 3.5 0.8B (NAS, vLLM CPU, 16K ctx)",
+            "contextWindow": 16384
+          }
+        ]
+      },
+      "openrouter": {
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "apiKey": "$OPENROUTER_API_KEY",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "qwen/qwen3.5-397b-a17b",
+            "name": "Qwen 3.5 397B-A17B MoE (OpenRouter, 262K ctx)",
+            "contextWindow": 262144
+          },
+          {
+            "id": "anthropic/claude-opus-4-6",
+            "name": "Claude Opus 4.6 (OpenRouter, break-glass)",
+            "contextWindow": 200000
           }
         ]
       }
@@ -147,7 +180,7 @@ SEED
   "agents": {
     "defaults": {
       "model": {
-        "primary": "ollama/qwen3.5:9b"
+        "primary": "vllm/Qwen/Qwen3.5-9B"
       },
       "runtime": "acp",
       "subagents": {
@@ -232,24 +265,24 @@ SEED
 }
 OCCONFIG
 
-      # OpenClaw agent auth — seed auth-profiles.json as backup
+      # OpenClaw agent auth — OpenRouter for all external models (Qwen 397B, Opus)
       mkdir -p /var/lib/orchestrator/wanda-config/agents/main/agent
-      if [ -n "$ANTHROPIC_API_KEY" ]; then
+      if [ -n "$OPENROUTER_API_KEY" ]; then
         cat > /var/lib/orchestrator/wanda-config/agents/main/agent/auth-profiles.json << AUTHEOF
 {
   "version": 1,
   "profiles": {
-    "anthropic:default": {
+    "openrouter:default": {
       "type": "token",
-      "provider": "anthropic",
-      "token": "$ANTHROPIC_API_KEY"
+      "provider": "openrouter",
+      "token": "$OPENROUTER_API_KEY"
     }
   },
   "order": {
-    "anthropic": ["anthropic:default"]
+    "openrouter": ["openrouter:default"]
   },
   "lastGood": {
-    "anthropic": "anthropic:default"
+    "openrouter": "openrouter:default"
   }
 }
 AUTHEOF
@@ -302,7 +335,7 @@ AUTHEOF
   };
 
   # OpenClaw orchestrator — Wanda runs inside an OpenSandbox container
-  # Network: filesystem queue writes + localhost:11434 (ollama) + api.anthropic.com:443
+  # Network: filesystem queue writes + localhost vLLM + openrouter.ai
   # NO opensandbox API access — agent-runner handles sandbox spawning
   systemd.services.orchestrator = {
     description = "Wanda — OpenClaw Orchestrator (NAS, air-gapped)";
@@ -345,12 +378,12 @@ AUTHEOF
       done
 
       # Load secrets from agenix
-      source ${config.age.secrets.anthropic-api-key.path}
+      source ${config.age.secrets.openrouter-api-key.path}
       source ${config.age.secrets.gateway-token.path}
 
       # Create orchestrator sandbox via OpenSandbox API
       # Follows the official OpenSandbox + OpenClaw example pattern
-      # Network: queue dir (filesystem) + localhost ollama + api.anthropic.com
+      # Network: queue dir (filesystem) + localhost vLLM + openrouter.ai
       SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/v1/sandboxes \
         -H 'Content-Type: application/json' \
         -d '{
@@ -358,7 +391,7 @@ AUTHEOF
           "timeout": 86400,
           "resourceLimits": {"cpu": "1000m", "memory": "2Gi"},
           "entrypoint": ["node", "dist/index.js", "gateway", "--bind=lan", "--port=8100", "--allow-unconfigured", "--verbose"],
-          "env": {"OPENCLAW_GATEWAY_TOKEN": "'"$OPENCLAW_GATEWAY_TOKEN"'", "ANTHROPIC_API_KEY": "'"$ANTHROPIC_API_KEY"'", "NODE_PATH": "/opt/lobster/node_modules", "PATH": "/opt/lobster/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
+          "env": {"OPENCLAW_GATEWAY_TOKEN": "'"$OPENCLAW_GATEWAY_TOKEN"'", "OPENROUTER_API_KEY": "'"$OPENROUTER_API_KEY"'", "NODE_PATH": "/opt/lobster/node_modules", "PATH": "/opt/lobster/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
           "networkPolicy": ${networkPolicy},
           "volumes": [
             {"name": "wanda-config", "host": {"path": "/var/lib/orchestrator/wanda-config"}, "mountPath": "/home/node/.openclaw"},

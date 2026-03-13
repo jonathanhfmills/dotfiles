@@ -1,51 +1,84 @@
 name: escalation
-description: "Per-domain escalation tiers — local model first, frontier fallback on 3 strikes"
+description: "5-tier confidence-based escalation — local → OpenRouter → break-glass"
 
-# 3-strikes policy: if a local model agent fails the same task 3 times,
-# escalate to the frontier model. Capture the solution in the agent's MEMORY.md
-# and shared/escalation-log/ for cross-learning.
+# Full promotion chain: 0.8B → 4B → 9B → 397B → Opus 4.6
+#
+# Local tiers (self-hosted vLLM, zero API cost):
+#   Low:    Qwen3.5-0.8B  (NAS CPU, wanda:11435)  — classification, formatting, routine
+#   Medium: Qwen3.5-4B    (workstation RTX 3080)   — execution, logic, code
+#   High:   Qwen3.5-9B    (NAS 9070 XT ROCm)      — orchestration, complex reasoning, QC
+#
+# OpenRouter tier (pay-per-token, knowledge distillation source):
+#   Expert: Qwen3.5-397B-A17B MoE (262K ctx)  — hard problems, generates training data
+#
+# Break-glass (last resort — specific technical / Google blockers):
+#   Frontier: Claude Opus 4.6                  — when all Qwen tiers fail
+#
+# NOTE: Qwen3.5-Plus-0215 excluded (ZDR violation)
+#
+# Distillation loop: 397B solutions are captured and used to fine-tune
+# local weights (0.8B/4B/9B) via unsloth, reducing future API calls.
 
 tiers:
   coding:
     machine: workstation
-    local_model: qwen3.5-9b-q4km
-    frontier: claude-opus
+    local_model: Qwen/Qwen3.5-4B
+    promotion_chain:
+      - Qwen/Qwen3.5-4B              # medium tier (workstation, cosmo:11434)
+      - Qwen/Qwen3.5-9B              # high tier (NAS, wanda:11434)
+      - qwen/qwen3.5-397b-a17b       # expert tier (OpenRouter, 262K ctx)
+      - claude-opus                    # break-glass (Anthropic)
     agents: [cosmo, coder, deployer]
     max_attempts: 3
     on_escalation:
       - capture_to: escalation-log/coding/
       - update_memory: true
-      - description: "Frontier solves it, solution saved to agent MEMORY.md"
+      - distill: true
+      - description: "Solution captured for distillation → local weight fine-tuning"
 
   code_review:
     machine: workstation
-    local_model: qwen3.5-9b-q4km
-    frontier: claude-opus
+    local_model: Qwen/Qwen3.5-4B
+    promotion_chain:
+      - Qwen/Qwen3.5-4B
+      - Qwen/Qwen3.5-9B
+      - qwen/qwen3.5-397b-a17b
+      - claude-opus
     agents: [reviewer]
     max_attempts: 3
     on_escalation:
       - capture_to: escalation-log/review/
       - update_memory: true
+      - distill: true
 
   writing:
     machine: nas
-    local_model: qwen3.5:9b
-    frontier: gemini-2.5-pro
+    local_model: Qwen/Qwen3.5-9B
+    promotion_chain:
+      - Qwen/Qwen3.5-9B
+      - qwen/qwen3.5-397b-a17b
+      - claude-opus
     agents: [writer]
     max_attempts: 3
     on_escalation:
       - capture_to: escalation-log/writing/
       - update_memory: true
+      - distill: true
 
   research:
     machine: nas
-    local_model: qwen3.5:9b
-    frontier: gemini-2.5-pro
+    local_model: Qwen/Qwen3.5-9B
+    promotion_chain:
+      - Qwen/Qwen3.5-9B
+      - qwen/qwen3.5-397b-a17b
+      - claude-opus
     agents: [reader]
     max_attempts: 3
     on_escalation:
       - capture_to: escalation-log/research/
       - update_memory: true
+      - distill: true
 
-# Frontier API keys are NOT in this file — injected via environment (agenix later)
-# For now: ANTHROPIC_API_KEY, GOOGLE_API_KEY as env vars on each host
+# API keys injected via environment (agenix):
+#   OPENROUTER_API_KEY — all external models (397B, Opus) via OpenRouter
+#   OpenRouter has no-training guarantee — safe for all tiers

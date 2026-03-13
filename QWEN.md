@@ -8,7 +8,7 @@ You are working in Jon's NixOS fleet repository. This is a Nix flake managing mu
 flake.nix              — Flake entry point (inputs, host definitions)
 hosts/<name>/           — Per-host configuration (configuration.nix, hardware.nix, disko.nix)
 modules/programs/       — Shared program modules (1password, activitywatch, qwen-code, etc.)
-modules/services/       — Shared service modules (ollama, caddy, agent-runner, etc.)
+modules/services/       — Shared service modules (vllm, caddy, agent-runner, etc.)
 modules/users/          — User configs (jon.nix — home-manager)
 pkgs/                   — Custom packages (qwen-code, etc.)
 agents/                 — Agent identity files (SOUL.md, AGENTS.md per role)
@@ -36,7 +36,7 @@ nixos-install --flake /tmp/dotfiles#<host> --no-root-passwd
 ## Module Conventions
 
 - `modules/programs/` — things users interact with (GUI apps, CLI tools)
-- `modules/services/` — background daemons (ollama, caddy, syncthing)
+- `modules/services/` — background daemons (vLLM, caddy, syncthing)
 - Modules use `lib.mkIf` guards based on hostname or features
 - Hardware-specific config stays in `hosts/<name>/hardware.nix`
 - Secrets use agenix — encrypted in `secrets/`, decrypted at activation

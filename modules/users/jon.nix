@@ -4,9 +4,9 @@ let
   hostname = osConfig.networking.hostName;
   isAgentHost = hostname == "workstation" || hostname == "nas";
   qwenModel = {
-    workstation = "qwen3.5:9b";
-    nas = "qwen3.5";
-  }.${hostname} or "qwen3.5:9b";
+    workstation = "Qwen/Qwen3.5-4B";
+    nas = "Qwen/Qwen3.5-9B";
+  }.${hostname} or "Qwen/Qwen3.5-9B";
   qwenBaseUrl = {
     workstation = "http://localhost:11434/v1";
     nas = "http://localhost:11434/v1";
@@ -55,6 +55,7 @@ in
     shellAliases = {
       claude = "command claude --dangerously-skip-permissions";
       qwen = "QWEN_API_KEY=ollama command qwen --auth-type=openai";
+      qwen-acp = "QWEN_API_KEY=ollama command qwen --acp --auth-type=openai";
     };
     initExtra = ''
       if command -v tmux &>/dev/null && [ -z "$TMUX" ] && [[ $- == *i* ]] && [ -z "$INSIDE_EMACS" ] && [ -z "$VSCODE_RESOLVING_ENVIRONMENT" ]; then
@@ -191,16 +192,24 @@ in
     };
   };
 
-  # Qwen Code — per-host ollama routing + fleet config.
+  # Qwen Code — per-host vLLM routing + fleet config.
+  # Sampling params tuned for 4-bit quantization stability (anti-loop)
   home.file.".qwen/settings.json".text = builtins.toJSON ({
     modelProviders.openai = [{
       id = qwenModel;
-      name = "Qwen 3.5 (${hostname} ollama)";
+      name = "Qwen 3.5 (${hostname} vLLM)";
       envKey = "QWEN_API_KEY";
       baseUrl = qwenBaseUrl;
     }];
     security.auth.selectedType = "openai";
     model.name = qwenModel;
+    model.parameters = {
+      temperature = 0.7;
+      top_p = 0.9;
+      min_p = 0.05;
+      frequency_penalty = 1.1;
+      repeat_last_n = 64;
+    };
     general.enableAutoUpdate = false;
     privacy.usageStatisticsEnabled = false;
     telemetry.enabled = false;
@@ -220,9 +229,15 @@ in
     | Host | Tailscale IP | GPU | Model | Role |
     |------|-------------|-----|-------|------|
     | desktop | 100.74.117.36 | — | (remote) | Developer workstation |
-    | workstation (Cosmo) | 100.87.216.16 | RTX 3080 10GB | qwen3.5:9b (CUDA) | Agent compute |
-    | nas (Wanda) | 100.95.201.10 | AMD 9070 XT 16GB | qwen3.5:9b 4x64k (Vulkan) | Orchestrator + agents |
+    | workstation (Cosmo) | 100.87.216.16 | RTX 3080 10GB | Qwen3.5-4B (vLLM CUDA) | Agent compute |
+    | nas (Wanda) | 100.95.201.10 | AMD 9070 XT 16GB | Qwen3.5-9B (vLLM ROCm) + 0.8B (CPU) | Orchestrator + agents |
     | laptop | — | — | (remote) | Developer portable |
+
+    ## Escalation Stack
+
+    0.8B (CPU) → 4B (RTX 3080) → 9B (9070 XT) → 397B-A17B (OpenRouter) → Claude Opus 4.6 (break-glass)
+
+    Solutions from higher tiers are captured for distillation back to local weights via unsloth.
 
     ## NixOS Conventions
 
@@ -253,23 +268,26 @@ in
   home.file.".continue/config.json".text = builtins.toJSON {
     models = [
       {
-        title = "qwen3:14b (workstation)";
-        provider = "ollama";
-        model = "qwen3:14b";
-        apiBase = "http://100.95.201.10:11434";
+        title = "Qwen3.5-9B (NAS vLLM)";
+        provider = "openai";
+        model = "Qwen/Qwen3.5-9B";
+        apiBase = "http://100.95.201.10:11434/v1";
+        apiKey = "ollama";
       }
       {
-        title = "qwen3.5:9b (nas)";
-        provider = "ollama";
-        model = "qwen3.5:9b";
-        apiBase = "http://100.95.201.10:11434";
+        title = "Qwen3.5-0.8B (NAS CPU)";
+        provider = "openai";
+        model = "Qwen/Qwen3.5-0.8B";
+        apiBase = "http://100.95.201.10:11435/v1";
+        apiKey = "ollama";
       }
     ];
     tabAutocompleteModel = {
-      title = "qwen3:14b";
-      provider = "ollama";
-      model = "qwen3:14b";
-      apiBase = "http://100.95.201.10:11434";
+      title = "Qwen3.5-0.8B (NAS CPU)";
+      provider = "openai";
+      model = "Qwen/Qwen3.5-0.8B";
+      apiBase = "http://100.95.201.10:11435/v1";
+      apiKey = "ollama";
     };
     tabAutocompleteOptions = {
       useCopyBuffer = false;
