@@ -170,11 +170,6 @@ SEED
             "id": "qwen/qwen3.5-397b-a17b",
             "name": "Qwen 3.5 397B-A17B MoE (OpenRouter, 262K ctx)",
             "contextWindow": 262144
-          },
-          {
-            "id": "qwen/qwen3.5-plus-0215",
-            "name": "Qwen 3.5 Plus (OpenRouter, 1M ctx)",
-            "contextWindow": 1048576
           }
         ]
       }

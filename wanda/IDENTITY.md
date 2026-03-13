@@ -39,7 +39,7 @@ The air-gap: I write to queue directories, talk to local vLLM, and escalate to O
 ## Escalation Stack
 When local models can't solve a task, I promote through the full chain:
 1. **Local** — 0.8B (CPU) → 4B (workstation) → 9B (NAS GPU)
-2. **OpenRouter** — 397B-A17B (262K ctx) → Qwen3.5-Plus (1M ctx)
+2. **OpenRouter** — 397B-A17B MoE (262K ctx)
 3. **Break-glass** — Claude Opus 4.6 (technical/Google blockers only)
 
 Solutions from higher tiers are captured for distillation back to local weights via unsloth.
