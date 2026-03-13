@@ -16,15 +16,20 @@ let
   localAgents = if isNas then nasAgents else workstationAgents;
 
   # Per-agent CLI command (which LLM reasoning engine to use)
-  # All agents use qwen-code with local vLLM. Escalation to frontier happens via promotion chain (escalation.yaml).
+  # Engineer tasks use Qwen-Agent with native ATIC + MCP tools
+  # Grunt tasks use NullClaw for fast execution (<2ms boot)
+  # Proven roles keep qwen-code during gradual transition
   # OpenSandbox IS the sandbox — no --sandbox docker needed
   agentCli = {
-    cosmo = "qwen --acp --auth-type=openai";
-    coder = "qwen --acp --auth-type=openai";
+    # Engineer tier — Qwen-Agent ATIC with MCP tools (gradual rollout: reader first)
+    reader   = "python /opt/qwen-agent/qwen-agent-acp.py";
+    writer   = "python /opt/qwen-agent/qwen-agent-acp.py";
+    coder    = "python /opt/qwen-agent/qwen-agent-acp.py";
+    # Grunt tier — NullClaw for fast execution
+    deployer = "nullclaw --acp";
+    # Keep qwen-code for proven roles during transition
+    cosmo    = "qwen --acp --auth-type=openai";
     reviewer = "qwen --acp --auth-type=openai";
-    deployer = "qwen --acp --auth-type=openai";
-    writer = "qwen --acp --auth-type=openai";
-    reader = "qwen --acp --auth-type=openai";
   };
 
   # Both agent hosts use local vLLM — NAS: 9070 XT ROCm (9B), Workstation: RTX 3080 CUDA (4B)
@@ -247,15 +252,15 @@ SEED
       ''}
 
       # Per-agent CLI command lookup
-      # OpenSandbox IS the sandbox — no --sandbox docker flag needed
+      # Engineer: Qwen-Agent ATIC | Grunt: NullClaw | Legacy: qwen-code
       get_agent_cli() {
         case "$1" in
+          reader)   echo "python /opt/qwen-agent/qwen-agent-acp.py" ;;
+          writer)   echo "python /opt/qwen-agent/qwen-agent-acp.py" ;;
+          coder)    echo "python /opt/qwen-agent/qwen-agent-acp.py" ;;
+          deployer) echo "nullclaw --acp" ;;
           cosmo)    echo "qwen --acp --auth-type=openai" ;;
-          coder)    echo "qwen --acp --auth-type=openai" ;;
           reviewer) echo "qwen --acp --auth-type=openai" ;;
-          deployer) echo "qwen --acp --auth-type=openai" ;;
-          writer)   echo "qwen --acp --auth-type=openai" ;;
-          reader)   echo "qwen --acp --auth-type=openai" ;;
           *)        echo "qwen --acp --auth-type=openai" ;;
         esac
       }

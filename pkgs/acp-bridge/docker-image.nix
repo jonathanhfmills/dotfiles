@@ -16,6 +16,26 @@ let
     fi
   '';
 
+  # Script to install qwen-agent + agent-sandbox on first run (cached in /home/agent/.local)
+  qwenAgentBootstrap = pkgs.writeShellScriptBin "qwen-agent-bootstrap" ''
+    if ! ${pythonEnv}/bin/python -c "import qwen_agent" 2>/dev/null; then
+      echo "[qwen-agent-bootstrap] Installing qwen-agent + agent-sandbox..."
+      ${pythonEnv}/bin/pip install --user --quiet "qwen-agent[mcp]>=0.0.34" "agent-sandbox>=0.0.18" 2>&1 || true
+    fi
+  '';
+
+  # Qwen-Agent ACP adapter script
+  qwenAgentAcp = pkgs.writeTextDir "opt/qwen-agent/qwen-agent-acp.py"
+    (builtins.readFile ../../pkgs/qwen-agent/qwen-agent-acp.py);
+
+  # Custom MCP servers — bundled into a single derivation
+  mcpServers = pkgs.runCommand "mcp-servers" {} ''
+    mkdir -p $out/opt/mcp-servers
+    cp ${../../pkgs/mcp-servers/dispatch.py} $out/opt/mcp-servers/dispatch.py
+    cp ${../../pkgs/mcp-servers/escalation.py} $out/opt/mcp-servers/escalation.py
+    cp ${../../pkgs/mcp-servers/memory.py} $out/opt/mcp-servers/memory.py
+  '';
+
   # /etc/passwd + /etc/group + home dir — required by Node.js os.userInfo()
   passwdEtc = pkgs.runCommand "passwd-etc" {} ''
     mkdir -p $out/etc $out/home/agent $out/tmp $out/workspace
@@ -45,9 +65,14 @@ pkgs.dockerTools.buildLayeredImage {
     curl
     jq
 
-    # Python runtime + ADK bootstrap (pip installs on first run)
+    # Python runtime + bootstraps (pip installs on first run)
     pythonEnv
     adkBootstrap
+    qwenAgentBootstrap
+
+    # Qwen-Agent ACP adapter + MCP servers
+    qwenAgentAcp
+    mcpServers
 
     # C++ runtime (libstdc++.so.6) — needed by litellm's tokenizers dependency
     pkgs.stdenv.cc.cc.lib
@@ -70,6 +95,7 @@ pkgs.dockerTools.buildLayeredImage {
       "NODE_EXTRA_CA_CERTS=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       "PYTHONUSERBASE=/home/agent/.local"
       "LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib"
+      "MCP_SERVERS_DIR=/opt/mcp-servers"
       "PATH=/home/agent/.local/bin:/usr/bin:/bin"
     ];
   };
