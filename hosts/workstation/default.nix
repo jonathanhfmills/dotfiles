@@ -14,7 +14,7 @@
 
   # ZFS support (single 990 PRO — 980 PRO can mirror once firmware is fixed).
   boot.supportedFilesystems = [ "zfs" ];
-  boot.kernelParams = [ "zfs.zfs_arc_max=12884901888" ];  # 12 GB
+  boot.kernelParams = [ "zfs.zfs_arc_max=4294967296" ];  # 4 GB (reduced for 0.8B classifier + 4B GPU)
   networking.hostId = "c1192ca0";
 
   # ZFS maintenance.

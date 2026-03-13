@@ -21,7 +21,7 @@ in
 
   # ZFS support (mirror pool across 2x NVMe drives).
   boot.supportedFilesystems = [ "zfs" ];
-  boot.kernelParams = [ "zfs.zfs_arc_max=12884901888" ];  # 12 GB
+  boot.kernelParams = [ "zfs.zfs_arc_max=2147483648" ];  # 2 GB (reduced for 35B-A3B MoE evaluator)
   networking.hostId = "2f50e4ce";
 
   # ZFS maintenance.
@@ -281,8 +281,8 @@ in
     pkgs.triggerhappy
   ];
 
-  # Pin vLLM (9B GPU instance) to P-cores for inference performance.
-  systemd.services.docker-vllm.serviceConfig = {
+  # Pin SGLang (9B GPU instance) to P-cores for inference performance.
+  systemd.services.docker-sglang.serviceConfig = {
     CPUAffinity = "0-11";
     AllowedCPUs = "0-11";
   };

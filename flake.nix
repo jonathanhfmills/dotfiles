@@ -129,7 +129,8 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/nullclaw.nix
-        ./modules/services/vllm-nvidia.nix
+        ./modules/services/sglang-nvidia.nix
+        ./modules/services/sglang-classifier.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
@@ -160,8 +161,8 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/nullclaw.nix
-        ./modules/services/vllm.nix
-        ./modules/services/vllm-cpu.nix
+        ./modules/services/sglang.nix
+        ./modules/services/sglang-evaluator.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
