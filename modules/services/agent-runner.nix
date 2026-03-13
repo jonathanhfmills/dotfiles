@@ -16,11 +16,12 @@ let
   localAgents = if isNas then nasAgents else workstationAgents;
 
   # Per-agent CLI command (which LLM reasoning engine to use)
+  # All agents use qwen-code with local vLLM. Escalation to frontier happens via promotion chain (escalation.yaml).
   # OpenSandbox IS the sandbox — no --sandbox docker needed
   agentCli = {
-    cosmo = "claude --acp";
+    cosmo = "qwen --acp --auth-type=openai";
     coder = "qwen --acp --auth-type=openai";
-    reviewer = "claude --acp";
+    reviewer = "qwen --acp --auth-type=openai";
     deployer = "qwen --acp --auth-type=openai";
     writer = "qwen --acp --auth-type=openai";
     reader = "qwen --acp --auth-type=openai";
@@ -249,9 +250,9 @@ SEED
       # OpenSandbox IS the sandbox — no --sandbox docker flag needed
       get_agent_cli() {
         case "$1" in
-          cosmo)    echo "claude --acp" ;;
+          cosmo)    echo "qwen --acp --auth-type=openai" ;;
           coder)    echo "qwen --acp --auth-type=openai" ;;
-          reviewer) echo "claude --acp" ;;
+          reviewer) echo "qwen --acp --auth-type=openai" ;;
           deployer) echo "qwen --acp --auth-type=openai" ;;
           writer)   echo "qwen --acp --auth-type=openai" ;;
           reader)   echo "qwen --acp --auth-type=openai" ;;
