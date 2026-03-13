@@ -80,6 +80,9 @@ in
       # ACP reasoning image (Nix-built — qwen-code + bridge)
       docker load < ${pkgs.acp-reasoning-image} || true
 
+      # AIO Sandbox — MCP tool hub (browser, file, shell, markitdown)
+      docker pull ghcr.io/agent-infra/sandbox:latest || true
+
       # Sandbox images for child agents
       docker pull opensandbox/code-interpreter:v1.0.1 || true
       docker pull opensandbox/playwright:latest || true

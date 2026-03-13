@@ -1,47 +1,54 @@
 name: escalation
-description: "5-tier confidence-based escalation — local → OpenRouter → break-glass"
+description: "6-tier confidence-based escalation — classifier → local → scorer → frontier"
 
-# Full promotion chain: 0.8B → 4B → 9B → 397B → Opus 4.6
+# Full promotion chain: 0.8B → 4B → 9B → 35B-A3B (scorer) → 397B → Opus 4.6
 #
-# Local tiers (self-hosted vLLM, zero API cost):
-#   Low:    Qwen3.5-0.8B  (NAS CPU, wanda:11435)  — classification, formatting, routine
-#   Medium: Qwen3.5-4B    (workstation RTX 3080)   — execution, logic, code
-#   High:   Qwen3.5-9B    (NAS 9070 XT ROCm)      — orchestration, complex reasoning, QC
+# Local tiers (self-hosted SGLang, zero API cost):
+#   Classifier: Qwen3.5-0.8B  (workstation CPU, cosmo:11435) — classification, formatting, routing
+#   Medium:     Qwen3.5-4B    (workstation RTX 3080, cosmo:11434) — execution, logic, code
+#   High:       Qwen3.5-9B    (NAS 9070 XT ROCm, wanda:11434) — orchestration, complex reasoning
+#
+# Scorer tier (self-hosted SGLang, zero API cost):
+#   Scorer:     Qwen3.5-35B-A3B MoE (NAS CPU, wanda:11435) — reward/punishment scoring ONLY
+#               Too slow for inference (~2-5 tok/s). Sole job: score trajectories for RL training.
+#               Never used for task completion.
 #
 # OpenRouter tier (pay-per-token, knowledge distillation source):
-#   Expert: Qwen3.5-397B-A17B MoE (262K ctx)  — hard problems, generates training data
+#   Expert:     Qwen3.5-397B-A17B MoE (262K ctx) — hard problems, generates training data
 #
-# Break-glass (last resort — specific technical / Google blockers):
-#   Frontier: Claude Opus 4.6                  — when all Qwen tiers fail
+# Break-glass (last resort):
+#   Frontier:   Claude Opus 4.6 — when all Qwen tiers fail
 #
-# NOTE: Qwen3.5-Plus-0215 excluded (ZDR violation)
-#
-# Distillation loop: 397B solutions are captured and used to fine-tune
-# local weights (0.8B/4B/9B) via unsloth, reducing future API calls.
+# Distillation loop: frontier solutions are captured and used to fine-tune
+# local weights (0.8B/4B/9B) via QLoRA + Atropos RL.
 
 tiers:
   coding:
     machine: workstation
     local_model: Qwen/Qwen3.5-4B
     promotion_chain:
-      - Qwen/Qwen3.5-4B              # medium tier (workstation, cosmo:11434)
-      - Qwen/Qwen3.5-9B              # high tier (NAS, wanda:11434)
-      - qwen/qwen3.5-397b-a17b       # expert tier (OpenRouter, 262K ctx)
-      - claude-opus                    # break-glass (Anthropic)
+      - Qwen/Qwen3.5-0.8B              # classifier (workstation CPU, cosmo:11435)
+      - Qwen/Qwen3.5-4B                # medium tier (workstation GPU, cosmo:11434)
+      - Qwen/Qwen3.5-9B                # high tier (NAS GPU, wanda:11434)
+      - Qwen/Qwen3.5-35B-A3B           # scorer (NAS CPU, wanda:11435) — reward only
+      - qwen/qwen3.5-397b-a17b         # expert tier (OpenRouter, 262K ctx)
+      - claude-opus                      # break-glass (Anthropic)
     agents: [cosmo, coder, deployer]
     max_attempts: 3
     on_escalation:
       - capture_to: escalation-log/coding/
       - update_memory: true
       - distill: true
-      - description: "Solution captured for distillation → local weight fine-tuning"
+      - description: "Solution captured for distillation → QLoRA fine-tuning"
 
   code_review:
     machine: workstation
     local_model: Qwen/Qwen3.5-4B
     promotion_chain:
+      - Qwen/Qwen3.5-0.8B
       - Qwen/Qwen3.5-4B
       - Qwen/Qwen3.5-9B
+      - Qwen/Qwen3.5-35B-A3B           # scorer — reward only
       - qwen/qwen3.5-397b-a17b
       - claude-opus
     agents: [reviewer]
@@ -56,6 +63,7 @@ tiers:
     local_model: Qwen/Qwen3.5-9B
     promotion_chain:
       - Qwen/Qwen3.5-9B
+      - Qwen/Qwen3.5-35B-A3B           # scorer — reward only
       - qwen/qwen3.5-397b-a17b
       - claude-opus
     agents: [writer]
@@ -70,6 +78,7 @@ tiers:
     local_model: Qwen/Qwen3.5-9B
     promotion_chain:
       - Qwen/Qwen3.5-9B
+      - Qwen/Qwen3.5-35B-A3B           # scorer — reward only
       - qwen/qwen3.5-397b-a17b
       - claude-opus
     agents: [reader]
