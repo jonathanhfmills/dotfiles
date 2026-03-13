@@ -21,8 +21,10 @@
     volumes = [
       "/var/lib/vllm/models:/models"
     ];
+    entrypoint = "vllm";
     cmd = [
-      "--model" "Qwen/Qwen3.5-9B"
+      "serve"
+      "Qwen/Qwen3.5-9B"
       "--quantization" "bitsandbytes"
       "--load-format" "bitsandbytes"
       "--dtype" "float16"
