@@ -137,6 +137,7 @@
         ./modules/services/syncthing.nix
         ./modules/services/opensandbox.nix
         ./modules/services/agent-runner.nix
+        ./modules/services/training-timer.nix
         ./modules/programs/qwen-code.nix
         ./modules/programs/activitywatch.nix
         agenix.nixosModules.default
