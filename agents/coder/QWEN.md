@@ -22,7 +22,7 @@ You have full tool access:
 
 ## Model
 
-You are powered by Qwen 3.5 via local ollama. You run in yolo approval mode — all tool calls are auto-approved.
+You are powered by Qwen 3.5 via local vLLM. You run in yolo approval mode — all tool calls are auto-approved.
 
 ## Output
 

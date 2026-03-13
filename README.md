@@ -38,7 +38,7 @@ Headless gaming/streaming server. No display manager — boots to console. Alway
 - **hostId:** `2f50e4ce`
 - **ZFS ARC max:** 4 GB
 - **Kernel:** LTS (ZFS compat)
-- **Services:** Ollama (Vulkan, qwen3:14b), Caddy, Stremio Server, Syncthing
+- **Services:** vLLM (ROCm, Qwen3.5-9B), Caddy, Stremio Server, Syncthing
 
 **Session management via SSH:**
 ```bash
@@ -52,7 +52,7 @@ Sunshine is always running (user lingering enabled). Connect with Moonlight anyt
 
 ### nas
 
-Headless storage and AI inference server. NVIDIA RTX 3080 for CUDA-accelerated Ollama.
+Headless storage and AI inference server. NVIDIA RTX 3080 for CUDA-accelerated vLLM.
 
 - **Drive:** Samsung 990 PRO 2TB (NVMe)
 - **By-ID:** `nvme-Samsung_SSD_990_PRO_2TB_S7KHNJ0WC57731R`
@@ -61,7 +61,7 @@ Headless storage and AI inference server. NVIDIA RTX 3080 for CUDA-accelerated O
 - **ZFS ARC max:** 12 GB
 - **Kernel:** LTS (ZFS compat)
 - **GPU:** NVIDIA RTX 3080 (proprietary driver)
-- **Services:** Ollama (CUDA, gemma3:12b), Caddy, Syncthing
+- **Services:** vLLM (CUDA, Qwen3.5-4B), Caddy, Syncthing
 
 ### portable
 
@@ -100,7 +100,7 @@ hosts/
     hardware.nix                   # Kernel modules, CPU microcode
     disko.nix                      # 3-disk: SATA boot + 2x NVMe ZFS mirror
   nas/
-    default.nix                    # Headless, NVIDIA GPU, Ollama CUDA
+    default.nix                    # Headless, NVIDIA GPU, vLLM CUDA
     hardware.nix                   # Kernel modules, Intel microcode, NVIDIA
     disko.nix                      # 1G ESP + ZFS pool (2TB NVMe)
   portable/
@@ -122,12 +122,11 @@ modules/
   services/
     caddy.nix                      # Caddy reverse proxy with Cloudflare DNS plugin
     dnscrypt-proxy.nix             # Encrypted DNS (Cloudflare/Google DoH, DNSSEC)
-    ollama.nix                     # Ollama LLM service (Vulkan, qwen3:14b)
-    ollama-nvidia.nix              # Ollama LLM service (CUDA, gemma3:12b)
+    vllm.nix                       # vLLM service (ROCm, Qwen3.5-9B on NAS)
+    vllm-nvidia.nix                # vLLM service (CUDA, Qwen3.5-4B on workstation)
+    vllm-cpu.nix                   # vLLM CPU service (Qwen3.5-0.8B on NAS)
     stremio-server.nix             # Stremio streaming server (hardened systemd)
     syncthing.nix                  # Syncthing per-folder sync across fleet
-    ollama-qwen3-14b-128k.modelfile
-    ollama-qwen3-8b-256k.modelfile
   users/
     jon.nix                        # Home Manager: git, ssh, bash, vscode, direnv, mime
     cosmic-desktop.nix             # COSMIC config (delegated to Syncthing)
@@ -170,8 +169,8 @@ Which modules each host loads:
 | syncthing.nix | x | x | x | | x |
 | dnscrypt-proxy.nix | x | x | x | x | x |
 | caddy.nix | | x | x | | |
-| ollama.nix | | x | | | |
-| ollama-nvidia.nix | | | x | | |
+| vllm.nix + vllm-cpu.nix | | | x | | |
+| vllm-nvidia.nix | | x | | | |
 | stremio-server.nix | | x | | | |
 | disko | x | x | x | x | x |
 | home-manager | x | x | x | x | x |

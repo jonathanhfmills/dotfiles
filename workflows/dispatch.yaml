@@ -5,44 +5,44 @@ description: "Lobster routing — routes tasks by label to the correct queue and
 # Syncthing handles cross-machine delivery. The agent-runner on each host polls its queue.
 
 routes:
-  # Coding tasks → workstation (Qwen 3.5 9B, RTX 3080)
+  # Coding tasks → workstation (Qwen 3.5 4B, RTX 3080 vLLM)
   - match: "code/*"
     queue: queue/workstation/
     lead: cosmo
     agents: [coder, reviewer, deployer]
-    model: qwen3.5-9b-q4km
+    model: Qwen/Qwen3.5-4B
     description: "Code changes, bug fixes, features — routed to Cosmo's team"
 
-  # Content tasks → NAS (Gemma 3 12B, 9070 XT)
+  # Content tasks → NAS (Qwen 3.5 9B, 9070 XT vLLM)
   - match: "content/*"
     queue: queue/nas/
     lead: writer
     agents: [writer]
-    model: qwen3.5:9b
+    model: Qwen/Qwen3.5-9B
     description: "Blog posts, landing pages, copy — routed to writer"
 
-  # Research tasks → NAS (Gemma 3 12B, 9070 XT)
+  # Research tasks → NAS (Qwen 3.5 9B, 9070 XT vLLM)
   - match: "research/*"
     queue: queue/nas/
     lead: reader
     agents: [reader]
-    model: qwen3.5:9b
+    model: Qwen/Qwen3.5-9B
     description: "Source reading, summaries, fact-checking — routed to reader"
 
-  # Review tasks → workstation (Qwen 3.5 9B)
+  # Review tasks → workstation (Qwen 3.5 4B vLLM)
   - match: "review/*"
     queue: queue/workstation/
     lead: cosmo
     agents: [reviewer]
-    model: qwen3.5-9b-q4km
+    model: Qwen/Qwen3.5-4B
     description: "Code review requests — routed to Cosmo's reviewer"
 
-  # Deploy tasks → workstation (Qwen 3.5 9B)
+  # Deploy tasks → workstation (Qwen 3.5 4B vLLM)
   - match: "deploy/*"
     queue: queue/workstation/
     lead: cosmo
     agents: [deployer]
-    model: qwen3.5-9b-q4km
+    model: Qwen/Qwen3.5-4B
     description: "Deployment requests — routed to Cosmo's deployer"
 
 # Default: unmatched tasks stay in queue/nas/ for Wanda to triage

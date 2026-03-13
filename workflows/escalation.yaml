@@ -1,15 +1,24 @@
 name: escalation
-description: "Per-domain escalation tiers — local model first, frontier fallback on 3 strikes"
+description: "Tiered confidence-based escalation — local models first, frontier fallback"
 
-# 3-strikes policy: if a local model agent fails the same task 3 times,
-# escalate to the frontier model. Capture the solution in the agent's MEMORY.md
-# and shared/escalation-log/ for cross-learning.
+# Promotion chain: 0.8B → 4B → 9B → Frontier (Claude Opus / Gemini 2.5 Pro)
+# Each tier handles tasks at its confidence level. On failure or low confidence,
+# the task promotes to the next tier. Frontier APIs are the last resort.
+#
+# Tier architecture:
+#   Low:    Qwen3.5-0.8B (NAS CPU, wanda:11435)  — classification, formatting, routine
+#   Medium: Qwen3.5-4B   (workstation RTX 3080)   — execution, logic, code
+#   High:   Qwen3.5-9B   (NAS 9070 XT, wanda:11434) — orchestration, complex reasoning, QC
+#   Frontier: Claude Opus / Gemini 2.5 Pro         — when local models can't solve it
 
 tiers:
   coding:
     machine: workstation
-    local_model: qwen3.5-9b-q4km
-    frontier: claude-opus
+    local_model: Qwen/Qwen3.5-4B
+    promotion_chain:
+      - Qwen/Qwen3.5-4B    # medium tier (workstation, cosmo:11434)
+      - Qwen/Qwen3.5-9B    # high tier (NAS, wanda:11434)
+      - claude-opus          # frontier
     agents: [cosmo, coder, deployer]
     max_attempts: 3
     on_escalation:
@@ -19,8 +28,11 @@ tiers:
 
   code_review:
     machine: workstation
-    local_model: qwen3.5-9b-q4km
-    frontier: claude-opus
+    local_model: Qwen/Qwen3.5-4B
+    promotion_chain:
+      - Qwen/Qwen3.5-4B
+      - Qwen/Qwen3.5-9B
+      - claude-opus
     agents: [reviewer]
     max_attempts: 3
     on_escalation:
@@ -29,8 +41,10 @@ tiers:
 
   writing:
     machine: nas
-    local_model: qwen3.5:9b
-    frontier: gemini-2.5-pro
+    local_model: Qwen/Qwen3.5-9B
+    promotion_chain:
+      - Qwen/Qwen3.5-9B
+      - gemini-2.5-pro
     agents: [writer]
     max_attempts: 3
     on_escalation:
@@ -39,8 +53,10 @@ tiers:
 
   research:
     machine: nas
-    local_model: qwen3.5:9b
-    frontier: gemini-2.5-pro
+    local_model: Qwen/Qwen3.5-9B
+    promotion_chain:
+      - Qwen/Qwen3.5-9B
+      - gemini-2.5-pro
     agents: [reader]
     max_attempts: 3
     on_escalation:

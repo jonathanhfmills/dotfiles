@@ -87,7 +87,7 @@
     };
 
     # Desktop (ZFS root — 990 PRO 2TB from workstation).
-    # Runs COSMIC desktop + agent compute (no local GPU — uses NAS ollama via Tailscale).
+    # Runs COSMIC desktop + agent compute (no local GPU — uses NAS vLLM via Tailscale).
     nixosConfigurations.desktop-zfs = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = { inherit claude-code nullclaw nixpkgs-unstable; };
@@ -129,7 +129,7 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/nullclaw.nix
-        ./modules/services/ollama-nvidia.nix
+        ./modules/services/vllm-nvidia.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
@@ -160,7 +160,8 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/nullclaw.nix
-        ./modules/services/ollama.nix
+        ./modules/services/vllm.nix
+        ./modules/services/vllm-cpu.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix

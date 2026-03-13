@@ -14,13 +14,13 @@ from google.adk.agents import ParallelAgent, SequentialAgent, Agent
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 
-# LiteLLM integration for local ollama models
+# LiteLLM integration for local vLLM models
 from google.adk.models.lite_llm import LiteLlm
 
 
 def get_model():
-    """Get the ADK model — uses ollama via LiteLLM by default."""
-    model_name = os.environ.get("ADK_MODEL", "ollama_chat/qwen3.5:9b")
+    """Get the ADK model — uses vLLM via LiteLLM by default."""
+    model_name = os.environ.get("ADK_MODEL", "openai/Qwen/Qwen3.5-9B")
     return LiteLlm(model=model_name)
 
 

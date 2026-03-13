@@ -4,8 +4,8 @@ let
   hostname = config.networking.hostName;
   hasOpenSandbox = hostname == "workstation" || hostname == "nas";
 
-  # Each server uses its local ollama; other hosts default to NAS (Wanda).
-  ollamaModel = "qwen3.5:9b";
+  # Each server uses its local vLLM; other hosts default to NAS (Wanda).
+  ollamaModel = "Qwen/Qwen3.5-9B";
 
   ollamaUrl = {
     workstation = "http://localhost:11434";

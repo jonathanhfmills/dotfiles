@@ -6,7 +6,7 @@ let
 
   opensandbox-server = pkgs.callPackage ../../pkgs/opensandbox-server {};
 
-  # Network policy: filesystem (queue writes) + localhost ollama + Anthropic API
+  # Network policy: filesystem (queue writes) + localhost vLLM + Anthropic API
   # NO opensandbox API access — Wanda never spawns sandboxes directly
   networkPolicy = builtins.toJSON {
     defaultAction = "deny";
@@ -101,7 +101,7 @@ SEED
         echo "Seeded /var/lib/orchestrator/wanda/MEMORY.md"
       fi
 
-      # OpenClaw gateway config — ollama as default provider, Anthropic as escalation
+      # OpenClaw gateway config — vLLM as default provider, Anthropic as escalation
       mkdir -p /var/lib/orchestrator/wanda-config
       if [ -f ${config.age.secrets.anthropic-api-key.path} ]; then
         source ${config.age.secrets.anthropic-api-key.path}
@@ -130,15 +130,27 @@ SEED
   },
   "models": {
     "providers": {
-      "ollama": {
+      "vllm": {
         "baseUrl": "http://172.17.0.1:11434/v1",
-        "apiKey": "ollama-local",
+        "apiKey": "ollama",
         "api": "openai-completions",
         "models": [
           {
-            "id": "qwen3.5:9b",
-            "name": "Qwen 3.5 9B (NAS, 4x parallel 64k)",
-            "contextWindow": 65536
+            "id": "Qwen/Qwen3.5-9B",
+            "name": "Qwen 3.5 9B (NAS, vLLM ROCm, 32K ctx)",
+            "contextWindow": 32768
+          }
+        ]
+      },
+      "vllm-light": {
+        "baseUrl": "http://172.17.0.1:11435/v1",
+        "apiKey": "ollama",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "Qwen/Qwen3.5-0.8B",
+            "name": "Qwen 3.5 0.8B (NAS, vLLM CPU, 16K ctx)",
+            "contextWindow": 16384
           }
         ]
       }
@@ -147,7 +159,7 @@ SEED
   "agents": {
     "defaults": {
       "model": {
-        "primary": "ollama/qwen3.5:9b"
+        "primary": "vllm/Qwen/Qwen3.5-9B"
       },
       "runtime": "acp",
       "subagents": {
@@ -302,7 +314,7 @@ AUTHEOF
   };
 
   # OpenClaw orchestrator — Wanda runs inside an OpenSandbox container
-  # Network: filesystem queue writes + localhost:11434 (ollama) + api.anthropic.com:443
+  # Network: filesystem queue writes + localhost:11434 (vLLM) + api.anthropic.com:443
   # NO opensandbox API access — agent-runner handles sandbox spawning
   systemd.services.orchestrator = {
     description = "Wanda — OpenClaw Orchestrator (NAS, air-gapped)";
@@ -350,7 +362,7 @@ AUTHEOF
 
       # Create orchestrator sandbox via OpenSandbox API
       # Follows the official OpenSandbox + OpenClaw example pattern
-      # Network: queue dir (filesystem) + localhost ollama + api.anthropic.com
+      # Network: queue dir (filesystem) + localhost vLLM + api.anthropic.com
       SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/v1/sandboxes \
         -H 'Content-Type: application/json' \
         -d '{

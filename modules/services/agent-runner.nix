@@ -26,20 +26,20 @@ let
     reader = "qwen --acp --auth-type=openai";
   };
 
-  # Both agent hosts use local ollama — NAS: 9070 XT Vulkan, Workstation: RTX 3080 CUDA
-  ollamaModel = "qwen3.5:9b";
-  ollamaBaseUrl = "http://localhost:11434";       # host-side (qwen settings, direct access)
-  ollamaDockerUrl = "http://172.17.0.1:11434";    # container-side (Docker bridge to host)
+  # Both agent hosts use local vLLM — NAS: 9070 XT ROCm (9B), Workstation: RTX 3080 CUDA (4B)
+  vllmModel = if isNas then "Qwen/Qwen3.5-9B" else "Qwen/Qwen3.5-4B";
+  vllmBaseUrl = "http://localhost:11434";       # host-side (qwen settings, direct access)
+  vllmDockerUrl = "http://172.17.0.1:11434";    # container-side (Docker bridge to host)
   # Settings written to agent workspace — read inside Docker containers, so use bridge URL
   agentSettingsJson = builtins.toJSON {
     modelProviders.openai = [{
-      id = ollamaModel;
-      name = "${ollamaModel} (${hostname} ollama)";
+      id = vllmModel;
+      name = "${vllmModel} (${hostname} vLLM)";
       envKey = "QWEN_API_KEY";
-      baseUrl = "${ollamaDockerUrl}/v1";
+      baseUrl = "${vllmDockerUrl}/v1";
     }];
     security.auth.selectedType = "openai";
-    model.name = ollamaModel;
+    model.name = vllmModel;
     general.enableAutoUpdate = false;
     privacy.usageStatisticsEnabled = false;
     telemetry.enabled = false;
@@ -277,8 +277,7 @@ SEED
               \"ACP_CLI_COMMAND\": \"$cli_command\",
               \"QWEN_API_KEY\": \"ollama\",
               \"OPENAI_API_KEY\": \"ollama\",
-              \"OPENAI_BASE_URL\": \"${ollamaDockerUrl}/v1\",
-              \"OLLAMA_BASE_URL\": \"${ollamaDockerUrl}\",
+              \"OPENAI_BASE_URL\": \"${vllmDockerUrl}/v1\",
               \"OPENCLAW_ENDPOINT\": \"$OPENCLAW_ENDPOINT\",
               \"AGENT_NAME\": \"$agent\",
               \"WORKSPACE\": \"/workspace\",
