@@ -9,7 +9,6 @@
     image = "vllm/vllm-openai:latest";
     extraOptions = [
       "--ipc=host"
-      "--shm-size=2g"
       "--network=host"
     ];
     environment = {

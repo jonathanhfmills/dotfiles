@@ -11,7 +11,6 @@
       "--device=/dev/dri"
       "--group-add=video"
       "--ipc=host"
-      "--shm-size=8g"
       "--network=host"
     ];
     environment = {

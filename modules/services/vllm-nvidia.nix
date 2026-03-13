@@ -12,7 +12,6 @@
     extraOptions = [
       "--gpus=all"
       "--ipc=host"
-      "--shm-size=4g"
       "--network=host"
     ];
     environment = {
