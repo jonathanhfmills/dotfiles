@@ -57,7 +57,7 @@ in
     };
   };
 
-  # Pre-pull nullclaw container image
+  # Pre-pull container images + load Nix-built images
   systemd.services.opensandbox-pull-images = {
     description = "Pre-pull OpenSandbox container images";
     after = [ "docker.service" ];
@@ -76,6 +76,9 @@ in
       # Agent runtimes
       docker pull ghcr.io/nullclaw/nullclaw:latest || true
       docker pull ghcr.io/openclaw/openclaw:latest || true
+
+      # ACP reasoning image (Nix-built — qwen-code + bridge)
+      docker load < ${pkgs.acp-reasoning-image} || true
 
       # Sandbox images for child agents
       docker pull opensandbox/code-interpreter:v1.0.1 || true

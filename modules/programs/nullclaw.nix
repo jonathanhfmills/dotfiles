@@ -4,16 +4,13 @@ let
   hostname = config.networking.hostName;
   hasOpenSandbox = hostname == "workstation" || hostname == "nas";
 
-  # Each server uses its local ollama; other hosts default to workstation.
-  ollamaModel = {
-    workstation = "qwen3.5-9b-q4km";
-    nas = "gemma3:12b";
-  }.${hostname} or "qwen3.5-9b-q4km";
+  # Each server uses its local ollama; other hosts default to NAS (Wanda).
+  ollamaModel = "qwen3.5:9b";
 
   ollamaUrl = {
     workstation = "http://localhost:11434";
     nas = "http://localhost:11434";
-  }.${hostname} or "http://workstation:11434";
+  }.${hostname} or "http://wanda:11434";
 in
 {
   environment.systemPackages = [

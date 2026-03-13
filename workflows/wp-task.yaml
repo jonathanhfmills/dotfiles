@@ -5,6 +5,7 @@ steps:
   - name: code
     agent: coder
     description: "Implement the task — write code and tests"
+    brain: acp-reasoning:latest
     sandbox:
       image: opensandbox/code-interpreter:v1.0.1
       egress:
@@ -15,6 +16,7 @@ steps:
   - name: review
     agent: reviewer
     description: "Review the code changes and test on staging"
+    brain: acp-reasoning:latest
     sandbox:
       image: opensandbox/playwright:latest
       egress:
@@ -25,6 +27,7 @@ steps:
   - name: deploy
     agent: deployer
     description: "Deploy approved changes"
+    brain: acp-reasoning:latest
     sandbox:
       image: ubuntu:22.04
       egress:

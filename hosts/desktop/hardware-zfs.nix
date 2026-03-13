@@ -1,4 +1,6 @@
 # ZFS-based hardware configuration for desktop.
+# Drive: Samsung SSD 990 PRO 2TB (moved from workstation)
+# By-ID: nvme-Samsung_SSD_990_PRO_2TB_S7KHNJ0WC57731R
 # Use with: nixos-rebuild switch --flake .#desktop-zfs
 { config, lib, pkgs, modulesPath, ... }:
 
@@ -19,14 +21,13 @@
   # ZFS requires a unique hostId (8 hex chars).
   networking.hostId = "726f84c0";
 
-  # Override kernel to default LTS — the desktop config sets linuxPackages_latest
-  # which may be too new for the out-of-tree ZFS module.
+  # LTS kernel — required for out-of-tree ZFS module compatibility.
   boot.kernelPackages = lib.mkForce pkgs.linuxPackages;
 
   # Disable disko-generated fileSystems from default.nix (ext4 layout).
   disko.enableConfig = false;
 
-  # ZFS root pool datasets (legacy mountpoints managed by NixOS).
+  # ZFS root pool on 990 PRO 2TB (imported from workstation — same dataset layout).
   fileSystems."/" = {
     device = "rpool/root";
     fsType = "zfs";
@@ -42,34 +43,14 @@
     fsType = "zfs";
   };
 
-  fileSystems."/home/jon/Documents" = {
-    device = "rpool/home/jon/Documents";
-    fsType = "zfs";
-  };
-
-  fileSystems."/home/jon/Pictures" = {
-    device = "rpool/home/jon/Pictures";
-    fsType = "zfs";
-  };
-
-  fileSystems."/home/jon/Videos" = {
-    device = "rpool/home/jon/Videos";
-    fsType = "zfs";
-  };
-
-  fileSystems."/home/jon/Music" = {
-    device = "rpool/home/jon/Music";
-    fsType = "zfs";
-  };
-
   fileSystems."/home/jon/.local/share/activitywatch" = {
     device = "rpool/activitywatch";
     fsType = "zfs";
   };
 
-  # Shared EFI system partition (same as ext4 config).
+  # EFI system partition on 990 PRO
   fileSystems."/boot" = {
-    device = "/dev/disk/by-uuid/3C74-67BA";
+    device = "/dev/disk/by-uuid/C240-4F35";
     fsType = "vfat";
     options = [ "fmask=0077" "dmask=0077" ];
   };

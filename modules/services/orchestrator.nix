@@ -136,14 +136,9 @@ SEED
         "api": "openai-completions",
         "models": [
           {
-            "id": "gemma3:12b",
-            "name": "Gemma 3 12B",
+            "id": "qwen3.5:9b",
+            "name": "Qwen 3.5 9B (NAS, 4x parallel 64k)",
             "contextWindow": 65536
-          },
-          {
-            "id": "qwen3.5",
-            "name": "Qwen 3.5",
-            "contextWindow": 32768
           }
         ]
       }
@@ -152,8 +147,9 @@ SEED
   "agents": {
     "defaults": {
       "model": {
-        "primary": "ollama/qwen3.5"
+        "primary": "ollama/qwen3.5:9b"
       },
+      "runtime": "acp",
       "subagents": {
         "maxSpawnDepth": 2,
         "maxChildrenPerAgent": 5,
@@ -173,7 +169,42 @@ SEED
         }
       },
       {
+        "id": "cosmo",
+        "runtime": "acp",
+        "role": "lead",
+        "workspace": "/home/node/.openclaw/agents-workspace/cosmo",
+        "tools": {
+          "allow": ["read", "write", "lobster", "adk", "clawhub", "agent-delegate"]
+        },
+        "description": "Technical lead. Designs Lobster workflows, delegates to agents, reviews results."
+      },
+      {
+        "id": "coder",
+        "runtime": "acp",
+        "workspace": "/home/node/.openclaw/agents-workspace/coder",
+        "tools": {
+          "allow": ["read", "write", "edit", "shell", "git"]
+        }
+      },
+      {
+        "id": "reviewer",
+        "runtime": "acp",
+        "workspace": "/home/node/.openclaw/agents-workspace/reviewer",
+        "tools": {
+          "allow": ["read", "shell"]
+        }
+      },
+      {
+        "id": "deployer",
+        "runtime": "acp",
+        "workspace": "/home/node/.openclaw/agents-workspace/deployer",
+        "tools": {
+          "allow": ["read", "shell", "git"]
+        }
+      },
+      {
         "id": "writer",
+        "runtime": "acp",
         "workspace": "/home/node/.openclaw/agents-workspace/writer",
         "tools": {
           "allow": ["read", "write", "edit"]
@@ -181,6 +212,7 @@ SEED
       },
       {
         "id": "reader",
+        "runtime": "acp",
         "workspace": "/home/node/.openclaw/agents-workspace/reader",
         "tools": {
           "allow": ["read"]
@@ -191,7 +223,7 @@ SEED
   "tools": {
     "agentToAgent": {
       "enabled": true,
-      "allow": ["writer", "reader"]
+      "allow": ["cosmo", "coder", "reviewer", "deployer", "writer", "reader"]
     },
     "sessions": {
       "visibility": "all"
@@ -223,12 +255,35 @@ OCCONFIG
 AUTHEOF
       fi
 
-      # Seed sub-agent workspaces
-      mkdir -p /var/lib/orchestrator/wanda-config/agents-workspace/writer
-      mkdir -p /var/lib/orchestrator/wanda-config/agents-workspace/reader
+      # Seed sub-agent workspaces (all agents known to Wanda's Carapace)
+      mkdir -p /var/lib/orchestrator/wanda-config/agents-workspace/{cosmo,coder,reviewer,deployer,writer,reader}
+
+      # Cosmo — technical lead (workstation)
+      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/cosmo/IDENTITY.md ${builtins.path { path = ../../cosmo/IDENTITY.md; name = "cosmo-IDENTITY.md"; }}
+      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/cosmo/SOUL.md ${builtins.path { path = ../../cosmo/SOUL.md; name = "cosmo-SOUL.md"; }}
+      cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/cosmo/USER.md
+
+      # Coder (workstation)
+      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/coder/SOUL.md ${builtins.path { path = ../../agents/coder/SOUL.md; name = "coder-SOUL.md"; }}
+      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/coder/AGENTS.md ${builtins.path { path = ../../agents/coder/AGENTS.md; name = "coder-AGENTS.md"; }}
+      cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/coder/USER.md
+
+      # Reviewer (workstation)
+      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/reviewer/SOUL.md ${builtins.path { path = ../../agents/reviewer/SOUL.md; name = "reviewer-SOUL.md"; }}
+      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/reviewer/AGENTS.md ${builtins.path { path = ../../agents/reviewer/AGENTS.md; name = "reviewer-AGENTS.md"; }}
+      cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/reviewer/USER.md
+
+      # Deployer (workstation)
+      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/deployer/SOUL.md ${builtins.path { path = ../../agents/deployer/SOUL.md; name = "deployer-SOUL.md"; }}
+      seed_file /var/lib/orchestrator/wanda-config/agents-workspace/deployer/AGENTS.md ${builtins.path { path = ../../agents/deployer/AGENTS.md; name = "deployer-AGENTS.md"; }}
+      cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/deployer/USER.md
+
+      # Writer (NAS)
       seed_file /var/lib/orchestrator/wanda-config/agents-workspace/writer/SOUL.md ${builtins.path { path = ../../agents/writer/SOUL.md; name = "writer-SOUL.md"; }}
       seed_file /var/lib/orchestrator/wanda-config/agents-workspace/writer/AGENTS.md ${builtins.path { path = ../../agents/writer/AGENTS.md; name = "writer-AGENTS.md"; }}
       cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/writer/USER.md
+
+      # Reader (NAS)
       seed_file /var/lib/orchestrator/wanda-config/agents-workspace/reader/SOUL.md ${builtins.path { path = ../../agents/reader/SOUL.md; name = "reader-SOUL.md"; }}
       seed_file /var/lib/orchestrator/wanda-config/agents-workspace/reader/AGENTS.md ${builtins.path { path = ../../agents/reader/AGENTS.md; name = "reader-AGENTS.md"; }}
       cp ${wanda-user} /var/lib/orchestrator/wanda-config/agents-workspace/reader/USER.md

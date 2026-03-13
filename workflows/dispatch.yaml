@@ -18,7 +18,7 @@ routes:
     queue: queue/nas/
     lead: writer
     agents: [writer]
-    model: gemma3:12b
+    model: qwen3.5:9b
     description: "Blog posts, landing pages, copy — routed to writer"
 
   # Research tasks → NAS (Gemma 3 12B, 9070 XT)
@@ -26,7 +26,7 @@ routes:
     queue: queue/nas/
     lead: reader
     agents: [reader]
-    model: gemma3:12b
+    model: qwen3.5:9b
     description: "Source reading, summaries, fact-checking — routed to reader"
 
   # Review tasks → workstation (Qwen 3.5 9B)

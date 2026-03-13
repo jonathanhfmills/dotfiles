@@ -5,6 +5,7 @@ steps:
   - name: research
     agent: reader
     description: "Research the topic — gather sources, verify facts"
+    brain: acp-reasoning:latest
     sandbox:
       image: ghcr.io/nullclaw/nullclaw:latest
       egress:
@@ -17,6 +18,7 @@ steps:
   - name: write
     agent: writer
     description: "Draft content based on research findings"
+    brain: acp-reasoning:latest
     sandbox:
       image: ghcr.io/nullclaw/nullclaw:latest
       egress: []
@@ -26,6 +28,7 @@ steps:
   - name: review
     agent: reviewer
     description: "Review content for accuracy, tone, and SEO"
+    brain: acp-reasoning:latest
     sandbox:
       image: ghcr.io/nullclaw/nullclaw:latest
       egress: []
@@ -35,6 +38,7 @@ steps:
   - name: publish
     agent: deployer
     description: "Publish approved content to target platform"
+    brain: acp-reasoning:latest
     sandbox:
       image: ubuntu:22.04
       egress:

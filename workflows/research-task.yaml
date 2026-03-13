@@ -5,6 +5,7 @@ steps:
   - name: read
     agent: reader
     description: "Read and browse sources on the given topic"
+    brain: acp-reasoning:latest
     sandbox:
       image: ghcr.io/nullclaw/nullclaw:latest
       egress:
@@ -18,6 +19,7 @@ steps:
   - name: summarize
     agent: reader
     description: "Cross-reference findings and produce structured summary"
+    brain: acp-reasoning:latest
     sandbox:
       image: ghcr.io/nullclaw/nullclaw:latest
       egress: []

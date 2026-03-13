@@ -6,8 +6,8 @@ let
   allHosts = [ desktop workstation nas portable ];
 in {
   "password-jon.age".publicKeys = allHosts;
-  "caddy-cloudflare-token.age".publicKeys = [ workstation nas ];
-  "anthropic-api-key.age".publicKeys = [ workstation nas ];
-  "gateway-token.age".publicKeys = [ workstation nas ];
+  "caddy-cloudflare-token.age".publicKeys = [ desktop workstation nas ];
+  "anthropic-api-key.age".publicKeys = [ desktop workstation nas ];
+  "gateway-token.age".publicKeys = [ desktop workstation nas ];
   "wifi-psk.age".publicKeys = allHosts;
 }

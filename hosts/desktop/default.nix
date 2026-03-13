@@ -24,7 +24,7 @@
   # CPU frequency governor.
   powerManagement.cpuFreqGovernor = "powersave";
 
-  # GPU hardware acceleration.
+  # GPU hardware acceleration (Intel iGPU for display, NVIDIA for compute when present).
   hardware.graphics = {
     enable = true;
     extraPackages = with pkgs; [

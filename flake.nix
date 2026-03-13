@@ -48,6 +48,11 @@
         opensandbox-sdk = final.opensandbox-sdk;
       };
       qwen-code = final.callPackage ./pkgs/qwen-code {};
+      acp-bridge = final.callPackage ./pkgs/acp-bridge {};
+      acp-reasoning-image = final.callPackage ./pkgs/acp-bridge/docker-image.nix {
+        acp-bridge = final.acp-bridge;
+        qwen-code = final.qwen-code;
+      };
     };
     overlayModule = { nixpkgs.overlays = [ localOverlay ]; };
   in {
@@ -81,10 +86,11 @@
       ];
     };
 
-    # Desktop (ZFS root — new primary config).
+    # Desktop (ZFS root — 990 PRO 2TB from workstation).
+    # Runs COSMIC desktop + agent compute (no local GPU — uses NAS ollama via Tailscale).
     nixosConfigurations.desktop-zfs = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit claude-code nullclaw; };
+      specialArgs = { inherit claude-code nullclaw nixpkgs-unstable; };
       modules = [
         overlayModule
         ./hosts/desktop
@@ -99,6 +105,7 @@
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
+        # No agent compute — desktop-zfs is a fallback config without GPU
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
