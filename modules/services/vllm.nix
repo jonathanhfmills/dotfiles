@@ -21,22 +21,13 @@
     volumes = [
       "/var/lib/vllm/models:/models"
     ];
-    entrypoint = "vllm";
+    # rocm/vllm-dev navi image has no entrypoint (defaults to /bin/bash)
+    # transformers 4.57.6 in the image predates qwen3_5 support (added Feb 2026)
+    # Upgrade transformers at startup to get qwen3_5 architecture registration
+    entrypoint = "/bin/bash";
     cmd = [
-      "serve"
-      "Qwen/Qwen3.5-9B"
-      "--quantization" "bitsandbytes"
-      "--load-format" "bitsandbytes"
-      "--dtype" "float16"
-      "--max-model-len" "32768"
-      "--reasoning-parser" "qwen3"
-      "--enable-auto-tool-choice"
-      "--tool-call-parser" "qwen3_coder"
-      "--enable-prefix-caching"
-      "--gpu-memory-utilization" "0.95"
-      "--api-key" "ollama"
-      "--host" "0.0.0.0"
-      "--port" "11434"
+      "-c"
+      "pip install --upgrade transformers && exec vllm serve Qwen/Qwen3.5-9B --quantization bitsandbytes --load-format bitsandbytes --dtype float16 --max-model-len 32768 --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder --enable-prefix-caching --gpu-memory-utilization 0.95 --api-key ollama --host 0.0.0.0 --port 11434"
     ];
   };
 
