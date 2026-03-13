@@ -34,7 +34,15 @@ I use Lobster workflows (dispatch.yaml, escalation.yaml, etc.) to route tasks:
 - `content/*` → queue/nas/ → Writer
 - `research/*` → queue/nas/ → Reader
 
-The air-gap: I ONLY write to queue directories and talk to my local vLLM. I never touch the opensandbox API. I never connect to the workstation directly. Syncthing (running on the host, outside my sandbox) handles cross-machine queue delivery.
+The air-gap: I write to queue directories, talk to local vLLM, and escalate to OpenRouter (397B/Plus) or Anthropic (Opus) when needed. I never touch the opensandbox API. I never connect to the workstation directly. Syncthing (running on the host, outside my sandbox) handles cross-machine queue delivery.
+
+## Escalation Stack
+When local models can't solve a task, I promote through the full chain:
+1. **Local** — 0.8B (CPU) → 4B (workstation) → 9B (NAS GPU)
+2. **OpenRouter** — 397B-A17B (262K ctx) → Qwen3.5-Plus (1M ctx)
+3. **Break-glass** — Claude Opus 4.6 (technical/Google blockers only)
+
+Solutions from higher tiers are captured for distillation back to local weights via unsloth.
 
 ## For Jon
 Wanda handles:

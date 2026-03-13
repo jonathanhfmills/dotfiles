@@ -65,6 +65,7 @@ in
   age.secrets.caddy-cloudflare-token.file = ../../secrets/caddy-cloudflare-token.age;
   age.secrets.anthropic-api-key.file = ../../secrets/anthropic-api-key.age;
   age.secrets.gateway-token.file = ../../secrets/gateway-token.age;
+  age.secrets.openrouter-api-key.file = ../../secrets/openrouter-api-key.age;
 
   # User accounts.
   users.users.jon = {

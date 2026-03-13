@@ -10,4 +10,5 @@ in {
   "anthropic-api-key.age".publicKeys = [ desktop workstation nas ];
   "gateway-token.age".publicKeys = [ desktop workstation nas ];
   "wifi-psk.age".publicKeys = allHosts;
+  "openrouter-api-key.age".publicKeys = [ desktop workstation nas ];
 }

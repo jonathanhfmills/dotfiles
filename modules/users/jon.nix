@@ -225,6 +225,12 @@ in
     | nas (Wanda) | 100.95.201.10 | AMD 9070 XT 16GB | Qwen3.5-9B (vLLM ROCm) + 0.8B (CPU) | Orchestrator + agents |
     | laptop | — | — | (remote) | Developer portable |
 
+    ## Escalation Stack
+
+    0.8B (CPU) → 4B (RTX 3080) → 9B (9070 XT) → 397B-A17B (OpenRouter) → Qwen3.5-Plus (OpenRouter) → Claude Opus 4.6 (break-glass)
+
+    Solutions from higher tiers are captured for distillation back to local weights via unsloth.
+
     ## NixOS Conventions
 
     - Nix flake at `~/dotfiles` manages all hosts

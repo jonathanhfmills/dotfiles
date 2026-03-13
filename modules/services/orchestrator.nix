@@ -6,12 +6,14 @@ let
 
   opensandbox-server = pkgs.callPackage ../../pkgs/opensandbox-server {};
 
-  # Network policy: filesystem (queue writes) + localhost vLLM + Anthropic API
+  # Network policy: filesystem (queue writes) + localhost vLLM + frontier APIs
   # NO opensandbox API access — Wanda never spawns sandboxes directly
   networkPolicy = builtins.toJSON {
     defaultAction = "deny";
     egress = [
       { action = "allow"; target = "172.17.0.1:11434"; }
+      { action = "allow"; target = "172.17.0.1:11435"; }
+      { action = "allow"; target = "openrouter.ai:443"; }
       { action = "allow"; target = "api.anthropic.com:443"; }
     ];
   };
@@ -107,6 +109,10 @@ SEED
         source ${config.age.secrets.anthropic-api-key.path}
         export ANTHROPIC_API_KEY
       fi
+      if [ -f ${config.age.secrets.openrouter-api-key.path} ]; then
+        source ${config.age.secrets.openrouter-api-key.path}
+        export OPENROUTER_API_KEY
+      fi
       cat > /var/lib/orchestrator/wanda-config/openclaw.json << OCCONFIG
 {
   "gateway": {
@@ -126,7 +132,8 @@ SEED
     }
   },
   "env": {
-    "ANTHROPIC_API_KEY": "$ANTHROPIC_API_KEY"
+    "ANTHROPIC_API_KEY": "$ANTHROPIC_API_KEY",
+    "OPENROUTER_API_KEY": "$OPENROUTER_API_KEY"
   },
   "models": {
     "providers": {
@@ -151,6 +158,23 @@ SEED
             "id": "Qwen/Qwen3.5-0.8B",
             "name": "Qwen 3.5 0.8B (NAS, vLLM CPU, 16K ctx)",
             "contextWindow": 16384
+          }
+        ]
+      },
+      "openrouter": {
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "apiKey": "$OPENROUTER_API_KEY",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "qwen/qwen3.5-397b-a17b",
+            "name": "Qwen 3.5 397B-A17B MoE (OpenRouter, 262K ctx)",
+            "contextWindow": 262144
+          },
+          {
+            "id": "qwen/qwen3.5-plus-0215",
+            "name": "Qwen 3.5 Plus (OpenRouter, 1M ctx)",
+            "contextWindow": 1048576
           }
         ]
       }

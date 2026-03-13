@@ -209,6 +209,12 @@ SEED
       touch /var/lib/orchestrator/shared/.stfolder
       chown -R jon:users /var/lib/orchestrator/shared
 
+      # Load API keys for frontier escalation
+      OPENROUTER_API_KEY=""
+      if [ -f ${config.age.secrets.openrouter-api-key.path} ]; then
+        source ${config.age.secrets.openrouter-api-key.path}
+      fi
+
       # Wait for OpenSandbox API to be ready
       for i in $(seq 1 30); do
         if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
@@ -278,6 +284,7 @@ SEED
               \"QWEN_API_KEY\": \"ollama\",
               \"OPENAI_API_KEY\": \"ollama\",
               \"OPENAI_BASE_URL\": \"${vllmDockerUrl}/v1\",
+              \"OPENROUTER_API_KEY\": \"$OPENROUTER_API_KEY\",
               \"OPENCLAW_ENDPOINT\": \"$OPENCLAW_ENDPOINT\",
               \"AGENT_NAME\": \"$agent\",
               \"WORKSPACE\": \"/workspace\",
@@ -293,6 +300,7 @@ SEED
                 else
                   ''{\"action\": \"allow\", \"target\": \"100.95.201.10:8100\"}''
                 },
+                {\"action\": \"allow\", \"target\": \"openrouter.ai:443\"},
                 {\"action\": \"allow\", \"target\": \"api.anthropic.com:443\"}
               ]
             },
