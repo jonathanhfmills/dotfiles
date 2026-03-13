@@ -21,13 +21,37 @@
     volumes = [
       "/var/lib/vllm/models:/models"
     ];
-    # rocm/vllm-dev navi image has no entrypoint (defaults to /bin/bash)
-    # transformers 4.57.6 in the image predates qwen3_5 support (added Feb 2026)
-    # Upgrade transformers at startup to get qwen3_5 architecture registration
+    # rocm/vllm-dev navi image ships transformers 4.57.6 which predates qwen3_5
+    # support (added in transformers 5.2.0). vLLM 0.14.0 imports ALLOWED_LAYER_TYPES
+    # which was renamed to ALLOWED_MLP_LAYER_TYPES in transformers 5.x.
+    # Fix: upgrade transformers to 5.2.0, write a sitecustomize.py to monkey-patch
+    # the renamed symbol before vLLM imports it, then run vllm serve.
     entrypoint = "/bin/bash";
     cmd = [
       "-c"
-      "pip install --upgrade transformers && exec vllm serve Qwen/Qwen3.5-9B --quantization bitsandbytes --load-format bitsandbytes --dtype float16 --max-model-len 32768 --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder --enable-prefix-caching --gpu-memory-utilization 0.95 --api-key ollama --host 0.0.0.0 --port 11434"
+      ''
+        pip install -q transformers==5.2.0 && \
+        SITE_DIR=$(python3 -c "import site; print(site.getsitepackages()[0])") && \
+        cat > "$SITE_DIR/sitecustomize.py" << 'PATCH'
+# Monkey-patch: vLLM 0.14 imports ALLOWED_LAYER_TYPES, renamed in transformers 5.x
+from transformers import configuration_utils
+if hasattr(configuration_utils, "ALLOWED_MLP_LAYER_TYPES") and not hasattr(configuration_utils, "ALLOWED_LAYER_TYPES"):
+    configuration_utils.ALLOWED_LAYER_TYPES = configuration_utils.ALLOWED_MLP_LAYER_TYPES
+PATCH
+        exec vllm serve Qwen/Qwen3.5-9B \
+          --quantization bitsandbytes \
+          --load-format bitsandbytes \
+          --dtype float16 \
+          --max-model-len 32768 \
+          --reasoning-parser qwen3 \
+          --enable-auto-tool-choice \
+          --tool-call-parser qwen3_coder \
+          --enable-prefix-caching \
+          --gpu-memory-utilization 0.95 \
+          --api-key ollama \
+          --host 0.0.0.0 \
+          --port 11434
+      ''
     ];
   };
 
