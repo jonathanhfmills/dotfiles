@@ -1,8 +1,10 @@
 # Hermes Agent — Brain tier orchestrator (NAS only)
-# Replaces OpenClaw with Hermes as native systemd service.
-# Hermes handles routing, delegation, MCP tools, and trajectory capture.
-# Identity: Wanda (IDENTITY.md, SOUL.md, USER.md, MEMORY.md)
+# Runs inside an OpenSandbox container with deny-by-default network policy.
+# Air-gapped: can only reach SGLang (inference) + OpenRouter (frontier).
+# CANNOT reach OpenSandbox API — agent-runner handles sandbox spawning.
+# All task routing happens via filesystem queue (mounted volumes).
 #
+# Identity: Wanda (IDENTITY.md, SOUL.md, USER.md, MEMORY.md)
 # Rollback: swap import to orchestrator-openclaw.nix in flake.nix
 { pkgs, config, lib, ... }:
 
@@ -10,49 +12,128 @@ let
   hostname = config.networking.hostName;
   isNas = hostname == "nas";
 
-  pythonEnv = pkgs.python312.withPackages (ps: with ps; [
-    pip
-    setuptools
-    requests
-    pyyaml
-  ]);
+  # Network policy: filesystem (queue writes) + SGLang + evaluator + frontier
+  # NO opensandbox API access — Wanda never spawns sandboxes directly
+  networkPolicy = builtins.toJSON {
+    defaultAction = "deny";
+    egress = [
+      { action = "allow"; target = "172.17.0.1:11434"; }   # SGLang 9B (GPU)
+      { action = "allow"; target = "172.17.0.1:11435"; }   # SGLang evaluator (CPU)
+      { action = "allow"; target = "openrouter.ai:443"; }  # frontier escalation
+    ];
+  };
 
-  # Hermes config pointing to local SGLang
-  hermesConfig = pkgs.writeText "hermes-config.yaml" ''
-    model:
-      default: "openai/Qwen/Qwen3.5-9B"
-      provider: "auto"
+  # MCP server scripts bundled into the container
+  mcpDispatch = builtins.path { path = ../../pkgs/mcp-servers/dispatch.py; name = "dispatch.py"; };
+  mcpEscalation = builtins.path { path = ../../pkgs/mcp-servers/escalation.py; name = "escalation.py"; };
+  mcpMemory = builtins.path { path = ../../pkgs/mcp-servers/memory.py; name = "memory.py"; };
+  mcpClawhub = builtins.path { path = ../../pkgs/mcp-servers/clawhub.py; name = "clawhub.py"; };
+  hermesAdapter = builtins.path { path = ../../pkgs/hermes-agent/hermes-acp-adapter.py; name = "hermes-acp-adapter.py"; };
 
-    terminal:
-      backend: "local"
-      cwd: "/var/lib/orchestrator/shared"
-      timeout: 300
+  # Hermes config — paths are container-internal
+  # MCP servers run as child processes inside the container (same network policy)
+  hermesConfig = builtins.toJSON {
+    model = {
+      default = "openai/Qwen/Qwen3.5-9B";
+      provider = "auto";
+    };
+    terminal = {
+      backend = "local";
+      cwd = "/workspace/shared";
+      timeout = 300;
+    };
+    mcp_servers = {
+      dispatch = {
+        command = "python3";
+        args = [ "/opt/mcp-servers/dispatch.py" ];
+      };
+      escalation = {
+        command = "python3";
+        args = [ "/opt/mcp-servers/escalation.py" ];
+      };
+      memory = {
+        command = "python3";
+        args = [ "/opt/mcp-servers/memory.py" ];
+      };
+      clawhub = {
+        command = "python3";
+        args = [ "/opt/mcp-servers/clawhub.py" ];
+      };
+    };
+  };
 
-    mcp_servers:
-      dispatch:
-        command: "${pythonEnv}/bin/python"
-        args: ["${../../pkgs/mcp-servers/dispatch.py}"]
-        env:
-          QUEUE_BASE: "/var/lib/orchestrator/shared/queue"
-      escalation:
-        command: "${pythonEnv}/bin/python"
-        args: ["${../../pkgs/mcp-servers/escalation.py}"]
-        env:
-          EVALUATOR_URL: "http://localhost:11435/v1"
-          EVALUATOR_MODEL: "Qwen/Qwen3.5-35B-A3B"
-          ESCALATION_LOG_DIR: "/var/lib/orchestrator/shared/escalation-log"
-      memory:
-        command: "${pythonEnv}/bin/python"
-        args: ["${../../pkgs/mcp-servers/memory.py}"]
-        env:
-          AGENTS_DIR: "/var/lib/orchestrator/agents"
-          WANDA_DIR: "/var/lib/orchestrator/wanda"
-  '';
+  # Entrypoint: install hermes-agent, then run queue-watching loop
+  hermesEntrypoint = pkgs.writeText "hermes-entrypoint.sh" ''
+    #!/bin/bash
+    set -euo pipefail
 
-  hermesEnvFile = pkgs.writeText "hermes-env" ''
-    OPENAI_BASE_URL=http://localhost:11434/v1
-    OPENAI_API_KEY=ollama
-    LLM_MODEL=openai/Qwen/Qwen3.5-9B
+    # Install hermes-agent if not already present (cached in /workspace/hermes)
+    if [ ! -f /workspace/hermes/.installed ]; then
+      echo "Installing hermes-agent..."
+      pip install --target /workspace/hermes/lib \
+        "hermes-agent[mcp]" 2>&1 | tail -5
+      touch /workspace/hermes/.installed
+    fi
+    export PYTHONPATH="/workspace/hermes/lib:$PYTHONPATH"
+
+    # Write Hermes config
+    mkdir -p /workspace/hermes
+    echo '${hermesConfig}' > /workspace/hermes/config.yaml
+
+    echo "Wanda is awake (Hermes Brain, air-gapped)"
+
+    # Main loop: watch NAS queue for tasks, process via Hermes
+    QUEUE_DIR="/workspace/shared/queue/nas"
+    RESULTS_DIR="/workspace/shared/queue/results"
+
+    process_task() {
+      local task_file="$1"
+      local task_id=$(basename "$task_file" .json)
+      local prompt=$(jq -r '.prompt // ""' "$task_file")
+
+      echo "Processing task $task_id via Hermes"
+      local result_dir="$RESULTS_DIR/$task_id"
+      mkdir -p "$result_dir"
+
+      python3 -c "
+import sys, json, os
+sys.path.insert(0, '/workspace/hermes/lib')
+try:
+    from run_agent import AIAgent
+    agent = AIAgent(
+        model=os.environ.get('LLM_MODEL', 'openai/Qwen/Qwen3.5-9B'),
+        base_url=os.environ.get('OPENAI_BASE_URL', 'http://172.17.0.1:11434/v1'),
+        api_key=os.environ.get('OPENAI_API_KEY', 'ollama'),
+        max_iterations=50,
+        quiet_mode=True,
+        save_trajectories=True,
+    )
+    result = agent.chat('''$prompt''')
+    with open('$result_dir/output.txt', 'w') as f:
+        f.write(result or 'No output')
+    print(f'Task $task_id completed')
+except Exception as e:
+    with open('$result_dir/error.txt', 'w') as f:
+        f.write(str(e))
+    print(f'Task $task_id failed: {e}')
+" 2>&1
+
+      mv "$task_file" "$RESULTS_DIR/$task_id.done.json"
+      echo "Task $task_id done"
+    }
+
+    while true; do
+      for task_file in "$QUEUE_DIR"/*.json; do
+        [ -f "$task_file" ] || continue
+        process_task "$task_file"
+      done
+      # inotifywait may not be available in container — fall back to polling
+      if command -v inotifywait &>/dev/null; then
+        inotifywait -t 60 -e create -e moved_to "$QUEUE_DIR" 2>/dev/null || true
+      else
+        sleep 10
+      fi
+    done
   '';
 in
 lib.mkIf isNas {
@@ -62,9 +143,11 @@ lib.mkIf isNas {
     # Wanda — the Brain's identity and memory
     "d /var/lib/orchestrator/wanda 0755 root root -"
     "d /var/lib/orchestrator/wanda/memory 0755 root root -"
-    # Hermes runtime
+    # Hermes runtime (pip install cache, persists across container restarts)
     "d /var/lib/hermes 0755 root root -"
     "d /var/lib/hermes/lib 0755 root root -"
+    # MCP server scripts (seeded from Nix, mounted into container)
+    "d /var/lib/orchestrator/mcp-servers 0755 root root -"
     # Shared queue structure — Syncthing syncs this between NAS and workstation
     "d /var/lib/orchestrator/shared 0755 root root -"
     "d /var/lib/orchestrator/shared/queue 0755 root root -"
@@ -85,7 +168,7 @@ lib.mkIf isNas {
     "d /var/lib/orchestrator/workflows 0755 root root -"
   ];
 
-  # Seed Wanda's identity (only if not already present — preserves growth)
+  # Seed Wanda's identity + MCP scripts (only if not already present — preserves growth)
   system.activationScripts.orchestrator-seed =
     let
       wanda-identity = builtins.path { path = ../../wanda/IDENTITY.md; name = "wanda-IDENTITY.md"; };
@@ -103,6 +186,7 @@ lib.mkIf isNas {
       mkdir -p /var/lib/orchestrator/shared/queue/{nas,workstation,results}
       mkdir -p /var/lib/orchestrator/shared/{skills/verified,escalation-log/{coding,review,writing,research}}
       mkdir -p /var/lib/orchestrator/shared/trajectories/scored
+      mkdir -p /var/lib/orchestrator/mcp-servers
 
       # Syncthing folder marker (required for sync to work)
       touch /var/lib/orchestrator/shared/.stfolder
@@ -147,10 +231,15 @@ SEED
         echo "Seeded /var/lib/orchestrator/wanda/MEMORY.md"
       fi
 
-      # Hermes config
-      mkdir -p /var/lib/hermes
-      cp ${hermesConfig} /var/lib/hermes/config.yaml
-      cp ${hermesEnvFile} /var/lib/hermes/.env
+      # MCP server scripts — always overwritten (nix-managed)
+      cp ${mcpDispatch} /var/lib/orchestrator/mcp-servers/dispatch.py
+      cp ${mcpEscalation} /var/lib/orchestrator/mcp-servers/escalation.py
+      cp ${mcpMemory} /var/lib/orchestrator/mcp-servers/memory.py
+      cp ${mcpClawhub} /var/lib/orchestrator/mcp-servers/clawhub.py
+
+      # Hermes entrypoint + ACP adapter
+      cp ${hermesEntrypoint} /var/lib/hermes/entrypoint.sh
+      cp ${hermesAdapter} /var/lib/hermes/hermes-acp-adapter.py
 
       # Lobster workflow files
       seed_file /var/lib/orchestrator/workflows/dispatch.yaml ${wf-dispatch}
@@ -161,112 +250,124 @@ SEED
     '';
   };
 
-  # Hermes Agent — Brain orchestrator as native systemd service
-  # Routes tasks to Engineer (Qwen-Agent) or Grunt (NullClaw) via MCP dispatch
-  # Scores trajectories via MoE evaluator (35B-A3B) via MCP escalation
-  # Captures routing decisions in MEMORY.md via MCP memory
+  # Hermes Agent — Wanda runs inside an OpenSandbox container (air-gapped)
+  # Network: filesystem queue writes + SGLang inference + frontier APIs
+  # NO opensandbox API access — agent-runner handles sandbox spawning
   systemd.services.orchestrator = {
-    description = "Hermes Agent — Brain (NAS)";
-    after = [ "docker-sglang.service" "opensandbox-server.service" "network-online.target" ];
-    wants = [ "network-online.target" "docker-sglang.service" ];
+    description = "Wanda — Hermes Brain (NAS, air-gapped)";
+    after = [ "opensandbox-server.service" "opensandbox-pull-images.service" "network-online.target" ];
+    requires = [ "opensandbox-server.service" ];
+    wants = [ "network-online.target" "opensandbox-pull-images.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "simple";
       Restart = "on-failure";
       RestartSec = 10;
-      TimeoutStartSec = 300;
+      ExecStartPre = "${pkgs.writeShellScript "orchestrator-pre-cleanup" ''
+        # Remove stale orchestrator sandbox from previous run
+        SANDBOX_ID=$(cat /var/lib/orchestrator/wanda-sandbox-id 2>/dev/null || true)
+        if [ -n "$SANDBOX_ID" ]; then
+          ${pkgs.curl}/bin/curl -sf -X DELETE "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" 2>/dev/null || true
+          rm -f /var/lib/orchestrator/wanda-sandbox-id
+        fi
+      ''}";
+      ExecStopPost = "${pkgs.writeShellScript "orchestrator-cleanup" ''
+        # Clean up sandbox
+        SANDBOX_ID=$(cat /var/lib/orchestrator/wanda-sandbox-id 2>/dev/null || true)
+        if [ -n "$SANDBOX_ID" ]; then
+          ${pkgs.curl}/bin/curl -sf -X DELETE "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" 2>/dev/null || true
+          rm -f /var/lib/orchestrator/wanda-sandbox-id
+        fi
+      ''}";
     };
-    path = [ pythonEnv pkgs.curl pkgs.jq pkgs.git ];
-    environment = {
-      OPENAI_BASE_URL = "http://localhost:11434/v1";
-      OPENAI_API_KEY = "ollama";
-      LLM_MODEL = "openai/Qwen/Qwen3.5-9B";
-      HERMES_HOME = "/var/lib/hermes";
-      PYTHONPATH = "/var/lib/hermes/lib";
-      HOME = "/var/lib/hermes";
-      QUEUE_BASE = "/var/lib/orchestrator/shared/queue";
-      EVALUATOR_URL = "http://localhost:11435/v1";
-      EVALUATOR_MODEL = "Qwen/Qwen3.5-35B-A3B";
-    };
+    path = [ pkgs.curl pkgs.jq ];
     script = ''
-      # Wait for SGLang to be ready
-      for i in $(seq 1 60); do
-        if curl -sf -H "Authorization: Bearer ollama" http://localhost:11434/v1/models > /dev/null 2>&1; then
-          echo "SGLang is ready"
+      # Wait for OpenSandbox API to be ready
+      for i in $(seq 1 30); do
+        if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
           break
+        fi
+        sleep 2
+      done
+
+      # Load secrets from agenix
+      source ${config.age.secrets.openrouter-api-key.path}
+
+      # Create orchestrator sandbox via OpenSandbox API
+      # Image: acp-reasoning (has Python 3.12, pip, bash, jq, curl)
+      # Network: deny-by-default, allow only SGLang + evaluator + frontier
+      # Volumes: identity, queue, workflows, MCP scripts, hermes runtime
+      SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/v1/sandboxes \
+        -H 'Content-Type: application/json' \
+        -d '{
+          "image": {"uri": "acp-reasoning:latest"},
+          "timeout": 86400,
+          "resourceLimits": {"cpu": "1000m", "memory": "2Gi"},
+          "entrypoint": ["bash", "/workspace/hermes/entrypoint.sh"],
+          "env": {
+            "OPENAI_BASE_URL": "http://172.17.0.1:11434/v1",
+            "OPENAI_API_KEY": "ollama",
+            "LLM_MODEL": "openai/Qwen/Qwen3.5-9B",
+            "OPENROUTER_API_KEY": "'"$OPENROUTER_API_KEY"'",
+            "EVALUATOR_URL": "http://172.17.0.1:11435/v1",
+            "EVALUATOR_MODEL": "Qwen/Qwen3.5-35B-A3B",
+            "EVALUATOR_API_KEY": "ollama",
+            "QUEUE_BASE": "/workspace/shared/queue",
+            "ESCALATION_LOG_DIR": "/workspace/shared/escalation-log",
+            "AGENTS_DIR": "/workspace/agents",
+            "WANDA_DIR": "/workspace/wanda",
+            "VERIFIED_DIR": "/workspace/shared/skills/verified",
+            "TRAJECTORY_DIR": "/workspace/shared/trajectories",
+            "HOME": "/workspace/hermes",
+            "PYTHONPATH": "/workspace/hermes/lib",
+            "PATH": "/workspace/hermes/lib/bin:/home/agent/.local/bin:/usr/bin:/bin"
+          },
+          "networkPolicy": ${networkPolicy},
+          "volumes": [
+            {"name": "wanda-identity", "host": {"path": "/var/lib/orchestrator/wanda"}, "mountPath": "/workspace/wanda"},
+            {"name": "shared-queue", "host": {"path": "/var/lib/orchestrator/shared"}, "mountPath": "/workspace/shared"},
+            {"name": "workflows", "host": {"path": "/var/lib/orchestrator/workflows"}, "mountPath": "/workspace/workflows"},
+            {"name": "mcp-servers", "host": {"path": "/var/lib/orchestrator/mcp-servers"}, "mountPath": "/opt/mcp-servers"},
+            {"name": "hermes-runtime", "host": {"path": "/var/lib/hermes"}, "mountPath": "/workspace/hermes"}
+          ]
+        }' | jq -r '.id')
+
+      if [ -z "$SANDBOX_ID" ] || [ "$SANDBOX_ID" = "null" ]; then
+        echo "Failed to create orchestrator sandbox"
+        exit 1
+      fi
+
+      echo "Wanda is awake (sandbox: $SANDBOX_ID, air-gapped)"
+      echo "$SANDBOX_ID" > /var/lib/orchestrator/wanda-sandbox-id
+
+      # Wait for sandbox to become Running
+      echo "Waiting for Wanda to become healthy..."
+      for i in $(seq 1 60); do
+        STATUS=$(curl -sf "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" | jq -r '.status.state' 2>/dev/null)
+        if [ "$STATUS" = "Running" ]; then
+          echo "Wanda is healthy (attempt $i)"
+          break
+        fi
+        if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Terminated" ]; then
+          echo "Wanda failed to start (status: $STATUS)"
+          exit 1
         fi
         sleep 5
       done
 
-      # Install hermes-agent if not already present
-      if [ ! -f /var/lib/hermes/.installed ]; then
-        echo "Installing hermes-agent..."
-        ${pythonEnv}/bin/pip install --target /var/lib/hermes/lib \
-          "hermes-agent[mcp]" 2>&1 | tail -5
-        touch /var/lib/hermes/.installed
-      fi
-
-      # Load secrets for frontier escalation
-      if [ -f ${config.age.secrets.openrouter-api-key.path} ]; then
-        source ${config.age.secrets.openrouter-api-key.path}
-        export OPENROUTER_API_KEY
-      fi
-
-      echo "Wanda is awake (Hermes Brain)"
-
-      # Main loop: watch queue for tasks, process via Hermes
-      QUEUE_DIR="/var/lib/orchestrator/shared/queue/nas"
-      RESULTS_DIR="/var/lib/orchestrator/shared/queue/results"
-
-      process_task() {
-        local task_file="$1"
-        local task_id=$(basename "$task_file" .json)
-        local prompt=$(${pkgs.jq}/bin/jq -r '.prompt // ""' "$task_file")
-
-        echo "Processing task $task_id via Hermes"
-
-        local result_dir="$RESULTS_DIR/$task_id"
-        mkdir -p "$result_dir"
-
-        # Run through Hermes ACP adapter
-        echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | \
-          TASK_FILE="$task_file" ${pythonEnv}/bin/python ${../../pkgs/hermes-agent/hermes-acp-adapter.py} > /dev/null 2>&1 || true
-
-        # Simple direct call for now — Hermes chat() handles routing internally
-        ${pythonEnv}/bin/python -c "
-import sys, json, os
-sys.path.insert(0, '/var/lib/hermes/lib')
-try:
-    from run_agent import AIAgent
-    agent = AIAgent(
-        model=os.environ.get('LLM_MODEL', 'openai/Qwen/Qwen3.5-9B'),
-        base_url=os.environ.get('OPENAI_BASE_URL', 'http://localhost:11434/v1'),
-        api_key=os.environ.get('OPENAI_API_KEY', 'ollama'),
-        max_iterations=50,
-        quiet_mode=True,
-        save_trajectories=True,
-    )
-    result = agent.chat('''$prompt''')
-    with open('$result_dir/output.txt', 'w') as f:
-        f.write(result or 'No output')
-    print(f'Task $task_id completed')
-except Exception as e:
-    with open('$result_dir/error.txt', 'w') as f:
-        f.write(str(e))
-    print(f'Task $task_id failed: {e}')
-" 2>&1
-
-        mv "$task_file" "$RESULTS_DIR/$task_id.done.json"
-        echo "Task $task_id done (results in $result_dir)"
-      }
-
-      # Poll queue
+      # Keep service alive — poll sandbox health + renew expiration
       while true; do
-        for task_file in "$QUEUE_DIR"/*.json; do
-          [ -f "$task_file" ] || continue
-          process_task "$task_file"
-        done
-        ${pkgs.inotify-tools}/bin/inotifywait -t 60 -e create -e moved_to "$QUEUE_DIR" 2>/dev/null || true
+        STATUS=$(curl -sf "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" | jq -r '.status.state' 2>/dev/null)
+        if [ "$STATUS" != "Running" ] && [ "$STATUS" != "Pending" ]; then
+          echo "Wanda stopped (status: $STATUS)"
+          exit 1
+        fi
+        # Renew expiration to keep sandbox alive (24h rolling)
+        EXPIRES=$(date -u -d '+24 hours' '+%Y-%m-%dT%H:%M:%SZ')
+        curl -sf -X POST "http://localhost:8080/v1/sandboxes/$SANDBOX_ID/renew-expiration" \
+          -H 'Content-Type: application/json' \
+          -d "{\"expiresAt\": \"$EXPIRES\"}" > /dev/null 2>&1
+        sleep 30
       done
     '';
   };
