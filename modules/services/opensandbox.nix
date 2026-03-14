@@ -35,6 +35,9 @@ in
   # Docker runtime required by OpenSandbox
   virtualisation.docker.enable = true;
 
+  # Standardize all OCI containers on Docker (OpenSandbox requires Docker anyway)
+  virtualisation.oci-containers.backend = "docker";
+
   # Add jon to docker group
   users.users.jon.extraGroups = [ "docker" ];
 

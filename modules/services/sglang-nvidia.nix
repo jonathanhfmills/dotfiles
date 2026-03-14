@@ -1,7 +1,8 @@
 # Workstation SGLang — RTX 3080 (10GB VRAM, CUDA)
 # Qwen3.5-4B @ 4-bit: ~2.5GB weights, plenty of KV cache room, 64K ctx
-# Medium confidence tier — execution, logic, code tasks
-{ pkgs, ... }:
+# Full CUDA support: graphs, fused kernels, RadixAttention — workhorse tier
+# SGLang chosen over vLLM here because sgl-kernel builds natively on CUDA
+{ pkgs, lib, ... }:
 
 {
   # nvidia-container-toolkit required for --gpus all
@@ -26,8 +27,8 @@
       "--context-length" "65536"
       "--mem-fraction-static" "0.85"
       "--trust-remote-code"
-      "--enable-auto-tool-choice"
       "--tool-call-parser" "qwen3_coder"
+      "--reasoning-parser" "qwen3"
       "--api-key" "ollama"
       "--host" "0.0.0.0"
       "--port" "11434"
@@ -41,7 +42,7 @@
   ];
 
   # Allow time for first-run model download
-  systemd.services.docker-sglang.serviceConfig.TimeoutStartSec = 900;
+  systemd.services.docker-sglang.serviceConfig.TimeoutStartSec = lib.mkForce 900;
 
   networking.firewall.allowedTCPPorts = [ 11434 ];
 }

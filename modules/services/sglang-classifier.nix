@@ -1,12 +1,15 @@
-# Workstation SGLang Classifier — i7-8700K CPU
+# Workstation vLLM Classifier — i7-8700K CPU
 # Qwen3.5-0.8B @ 4-bit: ~0.5GB weights, 8K ctx
 # Ultra-cheap classification and formatting tier — NullClaw Grunts hit this
 # Leaves the RTX 3080 free for real 4B inference
-{ pkgs, ... }:
+# Uses vLLM (not SGLang) — simpler CPU support, no sgl-kernel dependency
+#
+# Note: File named sglang-classifier.nix for import compatibility.
+{ pkgs, lib, ... }:
 
 {
   virtualisation.oci-containers.containers.sglang-classifier = {
-    image = "lmsysorg/sglang:latest";
+    image = "vllm/vllm-cpu:latest";
     extraOptions = [
       "--ipc=host"
       "--network=host"
@@ -18,9 +21,9 @@
       "/var/lib/vllm/models:/models"
     ];
     cmd = [
-      "--model-path" "Qwen/Qwen3.5-0.8B"
+      "--model" "Qwen/Qwen3.5-0.8B"
       "--quantization" "bitsandbytes"
-      "--context-length" "8192"
+      "--max-model-len" "8192"
       "--trust-remote-code"
       "--device" "cpu"
       "--api-key" "ollama"
@@ -30,7 +33,7 @@
   };
 
   # Allow time for first-run model download
-  systemd.services.docker-sglang-classifier.serviceConfig.TimeoutStartSec = 900;
+  systemd.services.docker-sglang-classifier.serviceConfig.TimeoutStartSec = lib.mkForce 900;
 
   networking.firewall.allowedTCPPorts = [ 11435 ];
 }

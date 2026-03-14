@@ -20,6 +20,8 @@ let
       { action = "allow"; target = "172.17.0.1:11434"; }   # SGLang 9B (GPU)
       { action = "allow"; target = "172.17.0.1:11435"; }   # SGLang evaluator (CPU)
       { action = "allow"; target = "openrouter.ai:443"; }  # frontier escalation
+      { action = "allow"; target = "pypi.org:443"; }       # pip install (hermes-agent)
+      { action = "allow"; target = "files.pythonhosted.org:443"; }  # pip downloads
     ];
   };
 
@@ -62,79 +64,9 @@ let
     };
   };
 
-  # Entrypoint: install hermes-agent, then run queue-watching loop
-  hermesEntrypoint = pkgs.writeText "hermes-entrypoint.sh" ''
-    #!/bin/bash
-    set -euo pipefail
-
-    # Install hermes-agent if not already present (cached in /workspace/hermes)
-    if [ ! -f /workspace/hermes/.installed ]; then
-      echo "Installing hermes-agent..."
-      pip install --target /workspace/hermes/lib \
-        "hermes-agent[mcp]" 2>&1 | tail -5
-      touch /workspace/hermes/.installed
-    fi
-    export PYTHONPATH="/workspace/hermes/lib:$PYTHONPATH"
-
-    # Write Hermes config
-    mkdir -p /workspace/hermes
-    echo '${hermesConfig}' > /workspace/hermes/config.yaml
-
-    echo "Wanda is awake (Hermes Brain, air-gapped)"
-
-    # Main loop: watch NAS queue for tasks, process via Hermes
-    QUEUE_DIR="/workspace/shared/queue/nas"
-    RESULTS_DIR="/workspace/shared/queue/results"
-
-    process_task() {
-      local task_file="$1"
-      local task_id=$(basename "$task_file" .json)
-      local prompt=$(jq -r '.prompt // ""' "$task_file")
-
-      echo "Processing task $task_id via Hermes"
-      local result_dir="$RESULTS_DIR/$task_id"
-      mkdir -p "$result_dir"
-
-      python3 -c "
-import sys, json, os
-sys.path.insert(0, '/workspace/hermes/lib')
-try:
-    from run_agent import AIAgent
-    agent = AIAgent(
-        model=os.environ.get('LLM_MODEL', 'openai/Qwen/Qwen3.5-9B'),
-        base_url=os.environ.get('OPENAI_BASE_URL', 'http://172.17.0.1:11434/v1'),
-        api_key=os.environ.get('OPENAI_API_KEY', 'ollama'),
-        max_iterations=50,
-        quiet_mode=True,
-        save_trajectories=True,
-    )
-    result = agent.chat('''$prompt''')
-    with open('$result_dir/output.txt', 'w') as f:
-        f.write(result or 'No output')
-    print(f'Task $task_id completed')
-except Exception as e:
-    with open('$result_dir/error.txt', 'w') as f:
-        f.write(str(e))
-    print(f'Task $task_id failed: {e}')
-" 2>&1
-
-      mv "$task_file" "$RESULTS_DIR/$task_id.done.json"
-      echo "Task $task_id done"
-    }
-
-    while true; do
-      for task_file in "$QUEUE_DIR"/*.json; do
-        [ -f "$task_file" ] || continue
-        process_task "$task_file"
-      done
-      # inotifywait may not be available in container — fall back to polling
-      if command -v inotifywait &>/dev/null; then
-        inotifywait -t 60 -e create -e moved_to "$QUEUE_DIR" 2>/dev/null || true
-      else
-        sleep 10
-      fi
-    done
-  '';
+  # Entrypoint: queue-watching loop that routes tasks via SGLang OpenAI API
+  # Standalone script avoids Nix quoting issues with bash/python in heredocs
+  hermesEntrypoint = builtins.path { path = ../../pkgs/hermes-agent/entrypoint.sh; name = "hermes-entrypoint.sh"; };
 in
 lib.mkIf isNas {
   # Orchestrator directory structure (persists across nixos-rebuild)

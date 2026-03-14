@@ -59,8 +59,8 @@ lib.mkIf isAgentHost {
     "d /var/lib/orchestrator/cosmo 0755 root root -"
   ] else []);
 
-  # Seed Cosmo identity on workstation only
-  system.activationScripts.agent-runner-seed = lib.mkIf isWorkstation {
+  # Seed agent workspace (settings.json for qwen-code) on all agent hosts
+  system.activationScripts.agent-runner-seed = {
     text = ''
       seed_file() {
         local dest="$1"
@@ -71,16 +71,17 @@ lib.mkIf isAgentHost {
         fi
       }
 
+      # Qwen Code settings for ACP reasoning containers
+      mkdir -p /var/lib/orchestrator/workspace/.qwen
+      echo '${agentSettingsJson}' > /var/lib/orchestrator/workspace/.qwen/settings.json
+      cp ${builtins.path { path = ../../agents/SYSTEM.md; name = "agent-SYSTEM.md"; }} /var/lib/orchestrator/workspace/.qwen/SYSTEM.md
+    '' + (if isWorkstation then ''
+      # Cosmo identity on workstation (Engineer tier)
       mkdir -p /var/lib/orchestrator/cosmo
       seed_file /var/lib/orchestrator/cosmo/IDENTITY.md ${builtins.path { path = ../../cosmo/IDENTITY.md; name = "cosmo-IDENTITY.md"; }}
       seed_file /var/lib/orchestrator/cosmo/SOUL.md ${builtins.path { path = ../../cosmo/SOUL.md; name = "cosmo-SOUL.md"; }}
       seed_file /var/lib/orchestrator/cosmo/USER.md ${builtins.path { path = ../../cosmo/USER.md; name = "cosmo-USER.md"; }}
-
-      # Qwen Code settings for legacy agents
-      mkdir -p /var/lib/orchestrator/workspace/.qwen
-      echo '${agentSettingsJson}' > /var/lib/orchestrator/workspace/.qwen/settings.json
-      cp ${builtins.path { path = ../../agents/SYSTEM.md; name = "agent-SYSTEM.md"; }} /var/lib/orchestrator/workspace/.qwen/SYSTEM.md
-    '';
+    '' else "");
   };
 
   # Agent runner — polls local queue, spawns ACP reasoning containers
