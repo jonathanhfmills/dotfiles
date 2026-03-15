@@ -1,19 +1,68 @@
-# Agent Infrastructure: Brain / Engineer / Grunt
+# The Complexity Engine: Mixture of Experts Agent Architecture
 
 ## Overview
 
-Three-tier agent architecture where each tier plays to its strengths. The system is a self-improving Claude Code competitor that learns from every task.
+A self-improving agent fleet where each role is an expert in the mixture. NullClaw grunts load `SOUL.md` files and hit SGLang/vLLM directly — native `qwen3_coder` tool calling in the inference engine means no middleware frameworks needed.
 
-| Role | Agent | Host/Identity | What it does |
-|------|-------|---------------|-------------|
+| Role | Agent | Host | What it does |
+|------|-------|------|-------------|
 | **Brain** | Hermes Agent | Wanda (NAS) | Routes tasks, learns patterns, self-improves via Atropos RL + GEPA |
-| **Engineer** | Qwen-Agent | Cosmo (Workstation) | Native ATIC tool calling for Qwen3.5, MCP tools, code execution |
-| **Grunt** | NullClaw fleet | No identity | Instant execution (<2ms boot, ~1MB RAM) with vetted ClawHub skills |
-| **Skill Gate** | OpenClaw | Default | On-demand skill vetting — sandbox test → pass/fail |
+| **Expert** | NullClaw + SOUL.md | Any | Loads role-specific expert identity, hits model API with native ATIC |
+| **Grunt** | NullClaw fleet | Any | Instant execution (<2ms boot, ~1MB RAM) with vetted ClawHub skills |
+| **Skill Gate** | OpenClaw (FLame Guard) | Wanda | On-demand skill vetting — sandbox test → pass/fail |
+
+## The Pipeline
+
+```
+Nanodispatch → Experiment → Bench → CSPO → Production
+```
+
+1. **Nanodispatch**: Task arrives → UncertaintyManager scores confidence → routes to tier
+2. **Experiment**: NullClaw grunt loads SOUL.md, executes task, captures trajectory
+3. **Bench**: 35B-A3B MoE evaluator scores completion quality (overnight)
+4. **CSPO**: Chemistry of Problems and Solutions — results documented and published
+5. **Production**: Validated LoRA adapters deployed per-business
+
+## Mixture of Experts
+
+Each `agents/*/SOUL.md` = one expert role in the mixture. NullClaw discovers roles via `agents/*/SOUL.md` glob.
+
+| Expert Role | Specialization | Default Tier |
+|-------------|---------------|-------------|
+| **coder** | Code authoring, tests, implementation | 9B GPU |
+| **uncertainty-manager** | Confidence scoring, routing, calibration | 9B (Brain) |
+
+### Adding a New Expert
+
+```bash
+# Write a new agent role - create in cdp-cluster
+cp agents/TEMPLATE.md agents/<role-name>/SOUL.md
+# Edit SOUL.md with role-specific identity
+# Create AGENTS.md with operating contract
+# NullClaw discovers it automatically
+```
+
+## Native ATIC (No Middleware)
+
+Both SGLang and vLLM support `--tool-call-parser qwen3_coder` natively. The model weights already know how to call tools — the inference engine parses the output into OpenAI-compatible `tool_calls`.
+
+```
+NullClaw grunt                    SGLang / vLLM
+    │                                  │
+    ├── loads SOUL.md (expert role)     │
+    ├── sends {messages, tools} ──────►│
+    │                                  ├── model generates tool calls
+    │                                  ├── qwen3_coder parser formats output
+    │◄── receives {tool_calls} ────────┤
+    ├── executes tools locally         │
+    └── returns result                 │
+```
+
+No Qwen-Agent, no Python middleware, no framework overhead. Direct API calls.
 
 ## Atlas (ACP Bridge)
 
-Atlas is the CLI-agnostic connector. It speaks ACP (Agent Client Protocol) — JSON-RPC 2.0 over NDJSON stdio.
+Atlas is the CLI-agnostic connector for cross-training. It speaks ACP (Agent Client Protocol) — JSON-RPC 2.0 over NDJSON stdio.
 
 ```
 ACP_CLI_COMMAND=qwen-code    → Local path (source of truth)
@@ -29,53 +78,45 @@ Atlas enables cross-training: the same task can be attempted by multiple backend
 - `pkgs/acp-bridge/default.nix` — Nix package
 - `pkgs/acp-bridge/docker-image.nix` — Container image
 
-## Two-Path Execution
+## Routing (UncertaintyManager)
 
 ```
 Task arrives at Hermes (Brain/Wanda)
   │
-  ├── Simple → NullClaw Grunt (0.8B or 9B, <2ms boot)
+  ├── UncertaintyManager scores confidence
   │
-  ├── Complex → Qwen-Agent Engineer (9B ATIC + MCP tools)
-  │     │
-  │     qwen-code + Qwen-Agent ATIC = source of truth
-  │     Generates primary training data
+  ├── 85%+ → Nanodispatch → NullClaw grunt (SOUL.md + 0.8B or 9B)
   │
-  └── Local fails at checkpoint → escalate to frontier
-        │
-        claude-code / gemini-cli / codex-cli
-        Each uses its OWN native ATIC + tool calling
-        NOT constrained to Qwen-Agent's framework
-        │
-        Gap = training signal → GSPO trains local models
+  ├── 50-84% → NullClaw + coder SOUL (9B, ATIC + tools)
+  │
+  ├── 20-49% → Brain (Hermes, meta-learning)
+  │
+  └── <20% → Frontier escalation (claude-code/gemini-cli/codex-cli)
+              Logged for training — gap = signal
 ```
-
-Frontier models use their OWN native tool calling. Constraining Claude to Qwen-Agent's tools gives lackluster results. Let each model use what it's best at.
 
 ## Identity Seeding
 
 | Component | Identity | Mutable by Hermes? |
 |-----------|----------|---------------------|
 | Hermes Brain | **Wanda** — `wanda/IDENTITY.md`, `SOUL.md`, `USER.md`, `MEMORY.md` | Yes — MEMORY.md grows |
-| Qwen-Agent Engineer | **Cosmo** — `cosmo/IDENTITY.md`, `SOUL.md`, `USER.md` | No — stable builder |
+| NullClaw Experts | SOUL.md per role — `agents/*/SOUL.md` | Yes — agents evolve their own files |
 | OpenClaw | Default (none) | No — infrastructure |
 | NullClaw Grunts | None | N/A — disposable |
 
 Identity files live in `wanda/` and `cosmo/` directories at the repo root.
 
-## Agent Personalities
+## Infrastructure Naming
 
-Sub-agents are defined in `agents/`:
-
-| Agent | Role | Files |
-|-------|------|-------|
-| **Coder** | Writes code | `agents/coder/AGENTS.md`, `SOUL.md`, `QWEN.md` |
-| **Deployer** | Deploys changes | `agents/deployer/` |
-| **Reader** | Reads/analyzes content | `agents/reader/` |
-| **Reviewer** | Reviews code/content | `agents/reviewer/` |
-| **Writer** | Writes content | `agents/writer/` |
-
-Base system prompt: `agents/SYSTEM.md`
+| Internal Name | Implementation | Purpose |
+|--------------|----------------|---------|
+| **Nanodispatch** | UncertaintyManager + NullClaw | Sub-ms task routing |
+| **cdp-cluster** | NixOS fleet + OpenSandbox | Agent role hosting |
+| **cp-cluster** | ClawHub + NullClaw | Skill deployment |
+| **Model Zoo** | Inference tiers (0.8B/9B/35B/Frontier) | Curated models with ATIC support |
+| **FLame Guard** | OpenClaw vetting gateway | Federated learning security |
+| **GEPA** | DSPy genetic-Pareto optimization | Self-evolution without GPU training |
+| **CSPO** | GitHub Pages publication | Chemistry of Problems and Solutions |
 
 ## MCP Servers
 
@@ -87,19 +128,6 @@ Custom MCP servers provide tool capabilities:
 | **Escalation** | `pkgs/mcp-servers/escalation.py` | 5-tier promotion chain, training data capture |
 | **Memory** | `pkgs/mcp-servers/memory.py` | Agent MEMORY.md read/write, FTS5 search |
 | **ClawHub** | `pkgs/mcp-servers/clawhub.py` | ClawHub → MCP bridge, on-demand skill vetting |
-
-## Workflows
-
-Task routing and escalation config:
-
-| File | Purpose |
-|------|---------|
-| `workflows/dispatch.yaml` | Routes tasks by type to queues |
-| `workflows/escalation.yaml` | 5-tier promotion chain per domain |
-| `workflows/rl-training.yaml` | RL training triggers |
-| `workflows/content-task.yaml` | Content generation workflow |
-| `workflows/research-task.yaml` | Research workflow |
-| `workflows/wp-task.yaml` | WordPress workflow |
 
 ## NixOS Services
 
@@ -118,8 +146,8 @@ The system can modify its own infrastructure at four levels:
 |-------|------|-----------|--------|
 | Weights | Model parameters | Atropos RL + QLoRA | DQN checkpoint/rollback |
 | Prompts | Skills, system prompts | GEPA self-evolution | A/B test old vs new |
-| Code | MCP servers, scripts | Qwen-Agent writes code | Git commit + review |
-| Infrastructure | Nix configs, services | Engineer proposes | Human approves `nixos-rebuild` |
+| Code | MCP servers, scripts | NullClaw + coder SOUL writes code | Git commit + review |
+| Infrastructure | Nix configs, services | Proposed changes | Human approves `nixos-rebuild` |
 
 NixOS makes this safe: every change is declarative, version-controlled, and atomically rollbackable via `nixos-rebuild switch --rollback`.
 

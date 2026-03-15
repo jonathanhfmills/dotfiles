@@ -5,7 +5,7 @@
 | Host | Port | Model | Quantization | Engine | Size | Role |
 |------|------|-------|-------------|--------|------|------|
 | **Wanda GPU** | 11434 | Crow-9B | fp8 | SGLang (ROCm) | ~9GB | Brain — Hermes primary inference |
-| **Cosmo GPU** | 11434 | Qwen3.5-9B-PARO | INT4 ParoQuant | vLLM (CUDA) | ~4.5GB | Engineer — code execution, tool calling |
+| **Cosmo GPU** | 11434 | Qwen3.5-9B-PARO | INT4 ParoQuant | vLLM (CUDA) | ~4.5GB | NullClaw experts — code execution, tool calling |
 | **Cosmo CPU** | 11436 | Qwen3.5-0.8B | INT4 AutoRound | vLLM CPU | ~0.4GB | Classifier — fast tool calls, routing |
 | **Wanda CPU** | 11435 | Qwen3.5-35B-A3B MoE | INT4 | SGLang CPU | ~17.5GB | Scorer — overnight GSPO only |
 
