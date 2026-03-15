@@ -38,7 +38,7 @@ data:
   source: /var/lib/orchestrator/shared/trajectories/scored/
   min_score: 7.0
   stratify_by:
-    - backend   # qwen-agent-atic, nullclaw-grunt, acp-qwen-code, frontier-*
+    - backend   # nullclaw-9b, nullclaw-08b, nullclaw-grunt, acp-qwen-code, frontier-*
     - tier      # classifier, medium, high, expert, frontier
     - category  # coding, code_review, writing, research
 

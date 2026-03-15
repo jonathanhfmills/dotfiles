@@ -44,7 +44,7 @@ Nanodispatch → Experiment → Bench → CSPO → Production
 Task → UncertaintyManager (confidence score)
     |
     ├── 85%+ → Nanodispatch → NullClaw grunt (SOUL.md loaded, <2ms)
-    ├── 50-84% → Engineer tier → Qwen-Agent ATIC (Cosmo, MCP tools)
+    ├── 50-84% → Expert tier → NullClaw + SOUL.md (9B, native ATIC)
     ├── 20-49% → Brain tier → Hermes (Wanda, meta-learning)
     └── <20% → Frontier escalation → Claude/Gemini/Codex (logged for training)
 ```

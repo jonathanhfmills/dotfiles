@@ -1,6 +1,6 @@
 # NixOS Fleet — Self-Improving Agent Infrastructure
 
-Multi-host NixOS configuration managed as a Nix flake. All machines run NixOS 25.11, connect over Tailscale, and are managed from a single repo. The fleet runs a **three-tier agent architecture** (Brain / Engineer / Grunt) that learns from every task and trains nightly.
+Multi-host NixOS configuration managed as a Nix flake. All machines run NixOS 25.11, connect over Tailscale, and are managed from a single repo. The fleet runs **The Complexity Engine** — a mixture-of-experts agent architecture that learns from every task and trains nightly.
 
 ## Table of Contents
 
@@ -31,20 +31,20 @@ Multi-host NixOS configuration managed as a Nix flake. All machines run NixOS 25
                     │  Crow-9B fp8 via SGLang (ROCm)           │
                     └──────────────┬──────────────────────────┘
                                    │
-                          Atlas (ACP Bridge)
-                       CLI-agnostic connector
+                     Nanodispatch (UncertaintyManager)
+                       Confidence scoring + routing
                                    │
               ┌────────────────────┼─────────────────────┐
               │                    │                     │
    ┌──────────▼──────────┐  ┌─────▼───────────┐  ┌─────▼────────────┐
-   │  Qwen-Agent (Eng.)  │  │  NullClaw Fleet  │  │  OpenClaw        │
+   │  NullClaw + 9B      │  │  NullClaw Fleet  │  │  OpenClaw        │
    │  Cosmo (Workstation) │  │  (Grunts)        │  │  (Skill Vetting) │
-   │  PARO-9B + 0.8B AR  │  │  No identity     │  │  Default identity│
-   │  vLLM (CUDA)        │  │  Disposable      │  │  Security gate   │
+   │  PARO-9B + 0.8B AR  │  │  SOUL.md loaded   │  │  FLame Guard     │
+   │  vLLM (CUDA)        │  │  <2ms boot        │  │  Security gate   │
    └─────────────────────┘  └──────────────────┘  └──────────────────┘
 ```
 
-**Two-path execution:** Local stack (qwen-code + Qwen-Agent ATIC) is source of truth. On failure, escalate to frontier models (claude-code, gemini-cli, codex-cli) using their own native tool calling. The gap between local and frontier = training signal. Nightly GSPO trains the local models to close this gap.
+**The Complexity Engine:** `Nanodispatch → Experiment → Bench → CSPO → Production`. NullClaw grunts load agent SOUL.md files and hit SGLang/vLLM directly via native `qwen3_coder` tool calling — no middleware needed. UncertaintyManager routes by confidence score to the right model tier.
 
 ---
 
@@ -53,7 +53,7 @@ Multi-host NixOS configuration managed as a Nix flake. All machines run NixOS 25
 | Host | Tailscale | Role | GPU | Storage | Desktop |
 |------|-----------|------|-----|---------|---------|
 | **desktop** | `100.74.117.36` | Daily driver | Intel iGPU | 1TB NVMe (ext4) | COSMIC |
-| **workstation** (Cosmo) | `100.87.216.16` | Engineer + Training | RTX 3080 10GB | 2x1TB NVMe ZFS mirror | Headless |
+| **workstation** (Cosmo) | `100.87.216.16` | Agent compute + Training | RTX 3080 10GB | 2x1TB NVMe ZFS mirror | Headless |
 | **nas** (Wanda) | `100.95.201.10` | Brain + Orchestrator | AMD 9070 XT 16GB | 2TB NVMe ZFS | Headless |
 | **portable** | DHCP | USB provisioning | None | 1TB USB (ext4) | Minimal i3 |
 | **laptop** | `100.104.109.104` | Mobile dev | Intel Iris Xe | 512GB NVMe ZFS | COSMIC |
@@ -68,7 +68,7 @@ Multi-host NixOS configuration managed as a Nix flake. All machines run NixOS 25
 **Cosmo (Workstation)** — Intel i7-8700K, NVIDIA RTX 3080 10GB, 16GB DDR4
 - 2x Samsung 980 Pro 1TB NVMe (ZFS mirror), 128GB SATA boot
 - hostId: `2f50e4ce`
-- Runs: vLLM (PARO-9B INT4 GPU + 0.8B AutoRound CPU), Qwen-Agent Engineer, OpenSandbox
+- Runs: vLLM (PARO-9B INT4 GPU + 0.8B AutoRound CPU), OpenSandbox, NullClaw fleet
 
 **Desktop** — Intel CPU, Samsung 970 EVO Plus 1TB, ext4
 - hostId: `726f84c0`
@@ -78,18 +78,20 @@ Multi-host NixOS configuration managed as a Nix flake. All machines run NixOS 25
 
 ## Agent Infrastructure
 
-See **[docs/AGENTS.md](docs/AGENTS.md)** for the full Brain / Engineer / Grunt architecture.
+See **[docs/AGENTS.md](docs/AGENTS.md)** for the full Complexity Engine architecture.
 
 **Quick summary:**
 
-| Role | Agent | Host | Identity |
-|------|-------|------|----------|
-| **Brain** | Hermes Agent | Wanda (NAS) | Wanda — orchestrator personality |
-| **Engineer** | Qwen-Agent | Cosmo (Workstation) | Cosmo — builder personality |
-| **Grunt** | NullClaw fleet | Any | None — disposable workers |
-| **Skill Gate** | OpenClaw | Wanda | Default — infrastructure |
+| Role | Agent | Host | Routing |
+|------|-------|------|---------|
+| **Brain** | Hermes Agent | Wanda (NAS) | Orchestration, meta-learning |
+| **Expert** | NullClaw + SOUL.md | Any | Loads role-specific SOUL.md, hits model API directly |
+| **Grunt** | NullClaw fleet | Any | <2ms boot, disposable workers |
+| **Skill Gate** | OpenClaw (FLame Guard) | Wanda | On-demand skill vetting |
 
-**Atlas** (ACP Bridge) connects all agents via JSON-RPC over stdio. `ACP_CLI_COMMAND` selects the backend (qwen-code, claude-code, gemini-cli, codex-cli), enabling cross-training across model families.
+**Mixture of Experts:** Each `agents/*/SOUL.md` = one expert role. NullClaw grunts load the appropriate SOUL.md and hit SGLang/vLLM via native `qwen3_coder` tool calling. No middleware frameworks — the ATIC is in the inference engine.
+
+**Atlas** (ACP Bridge) connects agents via JSON-RPC over stdio. `ACP_CLI_COMMAND` selects the backend (qwen-code, claude-code, gemini-cli, codex-cli), enabling cross-training across model families.
 
 ---
 
@@ -104,7 +106,7 @@ See **[docs/INFERENCE.md](docs/INFERENCE.md)** for model details and quantizatio
 | Cosmo CPU | 11436 | Qwen3.5-0.8B | INT4 AutoRound | vLLM CPU | ~0.4GB |
 | Wanda CPU | 11435 | Qwen3.5-35B-A3B MoE | INT4 | SGLang CPU | ~17.5GB (overnight only) |
 
-All use OpenAI-compatible API with `--api-key ollama`. Tool calling via `qwen3_coder` parser.
+All use OpenAI-compatible API with `--api-key ollama`. All have native tool calling via `--tool-call-parser qwen3_coder`.
 
 **Crow-9B** = Claude Opus 4.6 knowledge distilled into Qwen3.5-9B with heretic uncensorship. Source of truth for training. Medical accuracy over unnecessary safeguards.
 
@@ -164,10 +166,7 @@ modules/
     sglang-classifier.nix              # 0.8B CPU classifier
     vllm-nvidia.nix                    # Workstation GPU — PARO-9B INT4 (CUDA)
     vllm-08b.nix                       # Workstation CPU — 0.8B AutoRound INT4
-    vllm.nix                           # Legacy vLLM ROCm config
-    vllm-nvidia.nix                    # Legacy vLLM CUDA config
-    vllm-cpu.nix                       # Legacy vLLM CPU config
-    llm-worker.nix                     # Legacy 0.8B CPU worker
+    llm-worker.nix                     # NAS 0.8B CPU worker
     orchestrator.nix                   # Hermes Agent orchestrator (NAS)
     orchestrator-openclaw.nix          # OpenClaw fallback orchestrator
     opensandbox.nix                    # OpenSandbox container runtime
@@ -178,19 +177,12 @@ modules/
     syncthing.nix                      # Syncthing per-folder sync
     dnscrypt-proxy.nix                 # Encrypted DNS (DoH, DNSSEC)
     stremio-server.nix                 # Stremio streaming server
-  users/
-    jon.nix                            # Home Manager: git, ssh, bash, vscode
-    jon-private.nix                    # On-device-only user (no sync)
-    cosmic-desktop.nix                 # COSMIC desktop config
-    cosmick.nix                        # Cosmick user config
-    i3-portable.nix                    # Minimal i3 for portable
 
 pkgs/
   sglang-rocm-entrypoint.sh           # SGLang startup for ROCm (RDNA 4)
   vllm-paro-entrypoint.sh             # vLLM + ParoQuant startup for CUDA
   acp-bridge/                          # Atlas — CLI-agnostic ACP connector
   qwen-code/                           # Qwen Code Nix package
-  qwen-agent/                          # Qwen-Agent ATIC + trajectory capture
   hermes-agent/                        # Hermes Agent + ACP adapter
   mcp-servers/                         # MCP servers (dispatch, escalation, memory, clawhub)
   swift-training/                      # GSPO training + quantization scripts
@@ -208,33 +200,22 @@ pkgs/
   aw-*/                                # ActivityWatch watchers
 
 agents/
-  SYSTEM.md                            # Base system prompt for all agents
-  coder/                               # Coder agent personality
-  deployer/                            # Deployer agent personality
-  reader/                              # Reader agent personality
-  reviewer/                            # Reviewer agent personality
-  writer/                              # Writer agent personality
+  SYSTEM.md                            # The Complexity Engine — MoE routing + pipeline
+  TEMPLATE.md                          # Template for creating new agent roles
+  coder/                               # Coder expert — code authoring
+  deployer/                            # Deployer expert — safe deployment
+  reader/                              # Reader expert — research + extraction
+  reviewer/                            # Reviewer expert — code review
+  writer/                              # Writer expert — content creation
+  uncertainty-manager/                 # Confidence scoring + routing
 
 wanda/                                 # Wanda (Brain) identity files
-  IDENTITY.md                          # Who Wanda is
-  SOUL.md                              # Operating philosophy
-  USER.md                              # User context
-  personality.yaml                     # Personality parameters
-
-cosmo/                                 # Cosmo (Engineer) identity files
-  IDENTITY.md                          # Who Cosmo is
-  SOUL.md                              # Operating philosophy
-  USER.md                              # User context
-  personality.yaml                     # Personality parameters
+cosmo/                                 # Cosmo identity files
 
 workflows/
   dispatch.yaml                        # Task routing by type
   escalation.yaml                      # 5-tier promotion chain
   rl-training.yaml                     # RL training triggers
-  content-task.yaml                    # Content generation workflow
-  research-task.yaml                   # Research workflow
-  wp-task.yaml                         # WordPress workflow
-  adk/                                 # Google ADK workflow examples
 
 environments/
   claw-army-env.py                     # Atropos RL environment

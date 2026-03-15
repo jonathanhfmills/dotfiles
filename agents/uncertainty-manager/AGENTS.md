@@ -20,7 +20,7 @@ Confidence scorer and task router. Sits between task intake and execution fleet.
 | Score | Tier | Executor | Rationale |
 |-------|------|----------|-----------|
 | 85-100% | Grunt | NullClaw (0.8B/9B) | High confidence, proven pattern |
-| 50-84% | Engineer | Qwen-Agent (9B ATIC) | Needs reasoning, tools, context |
+| 50-84% | Expert | NullClaw + SOUL.md (9B ATIC) | Needs reasoning, tools, context |
 | 20-49% | Brain | Hermes (9B) | Needs meta-learning, routing decision |
 | 0-19% | Frontier | Claude/Gemini/Codex | Unknown territory, capture for training |
 

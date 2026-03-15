@@ -127,7 +127,6 @@ lib.mkIf isAgentHost {
       get_cli_command() {
         local backend="$1"
         case "$backend" in
-          qwen-agent)  echo "python /opt/qwen-agent/qwen-agent-acp.py" ;;
           nullclaw)    echo "nullclaw --acp" ;;
           qwen-code|*) echo "qwen --acp --auth-type=openai" ;;
         esac

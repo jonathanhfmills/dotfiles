@@ -29,7 +29,7 @@ GSPO Training → Better next iteration
 ```
 
 - **Brain (Hermes/Wanda)**: Bottleneck detection, GEPA routing, Atropos RL training
-- **Engineer (Qwen-Agent/Cosmo)**: Native ATIC tool calling (SGLang, Qwen3.5 canonical)
+- **Experts (NullClaw + SOUL.md)**: Native ATIC tool calling via qwen3_coder (SGLang/vLLM)
 - **Grunts (NullClaw)**: Instant ClawHub execution, per-client LoRA adapters
 - **Google ADK**: Replaces legacy OpenSandbox configuration
 

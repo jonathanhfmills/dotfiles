@@ -146,13 +146,13 @@ Bayesian prompt optimization. ~800 API calls to the local 9B model. 15-30 min. R
   "tool": "tool_name",
   "input": {"arg": "value"},
   "output": "result",
-  "backend": "qwen-agent-atic",
+  "backend": "nullclaw-9b",
   "business": "client-name",
   "timestamp": 1710460800
 }
 ```
 
-Backend values: `qwen-agent-atic`, `nullclaw-grunt`, `acp-qwen-code`, `acp-claude-code`, etc.
+Backend values: `nullclaw-9b`, `nullclaw-08b`, `nullclaw-grunt`, `acp-qwen-code`, `acp-claude-code`, etc.
 
 Trajectories stored in:
 - `/var/lib/vllm/models/trajectories/raw/` — unscored
@@ -194,7 +194,7 @@ Knowledge compounds forever.
 | `pkgs/gspo-generator/generate_completions.py` | GPU: generate K completions |
 | `pkgs/gspo-generator/score_completions.py` | CPU: score with 35B |
 | `pkgs/dspy-optimizer/optimize.py` | MIPRO prompt optimization |
-| `pkgs/qwen-agent/trajectory.py` | Trajectory capture |
+| `pkgs/trajectory-logger/logger.py` | Trajectory capture proxy |
 | `pkgs/trajectory-logger/logger.py` | Trajectory logging service |
 | `modules/services/training-timer.nix` | Nightly cron timer |
 | `modules/services/sglang-evaluator.nix` | 35B-A3B scorer service |

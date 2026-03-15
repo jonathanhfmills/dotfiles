@@ -10,7 +10,7 @@ Usage with Atropos:
         --model Qwen/Qwen3.5-4B --reward-model Qwen/Qwen3.5-35B-A3B
 
 Two-path training signal:
-    - Local trajectories: qwen-code + Qwen-Agent ATIC
+    - Local trajectories: NullClaw + SOUL.md via native qwen3_coder ATIC
     - Frontier trajectories: claude/gemini/codex with native ATIC
     - Gap between them IS the training signal
 """
@@ -43,7 +43,7 @@ class TrajectoryEntry:
     tool: str
     input: dict
     output: str
-    backend: str  # qwen-agent-atic, nullclaw-grunt, acp-qwen-code, frontier-*
+    backend: str  # nullclaw-9b, nullclaw-08b, nullclaw-grunt, acp-qwen-code, frontier-*
     timestamp: float = field(default_factory=time.time)
     model: str = ""
     tier: str = ""  # classifier, medium, high, scorer, expert, frontier

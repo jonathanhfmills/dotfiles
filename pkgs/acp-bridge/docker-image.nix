@@ -16,18 +16,6 @@ let
     fi
   '';
 
-  # Script to install qwen-agent + agent-sandbox on first run (cached in /home/agent/.local)
-  qwenAgentBootstrap = pkgs.writeShellScriptBin "qwen-agent-bootstrap" ''
-    if ! ${pythonEnv}/bin/python -c "import qwen_agent" 2>/dev/null; then
-      echo "[qwen-agent-bootstrap] Installing qwen-agent + agent-sandbox..."
-      ${pythonEnv}/bin/pip install --user --quiet "qwen-agent[mcp]>=0.0.34" "agent-sandbox>=0.0.18" 2>&1 || true
-    fi
-  '';
-
-  # Qwen-Agent ACP adapter script
-  qwenAgentAcp = pkgs.writeTextDir "opt/qwen-agent/qwen-agent-acp.py"
-    (builtins.readFile ../../pkgs/qwen-agent/qwen-agent-acp.py);
-
   # Custom MCP servers — bundled into a single derivation
   mcpServers = pkgs.runCommand "mcp-servers" {} ''
     mkdir -p $out/opt/mcp-servers
@@ -65,13 +53,11 @@ pkgs.dockerTools.buildLayeredImage {
     curl
     jq
 
-    # Python runtime + bootstraps (pip installs on first run)
+    # Python runtime + bootstrap (pip installs on first run)
     pythonEnv
     adkBootstrap
-    qwenAgentBootstrap
 
-    # Qwen-Agent ACP adapter + MCP servers
-    qwenAgentAcp
+    # MCP servers
     mcpServers
 
     # C++ runtime (libstdc++.so.6) — needed by litellm's tokenizers dependency

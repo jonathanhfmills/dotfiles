@@ -41,7 +41,7 @@ GSPO Training → Better next iteration
 | **nixos.schemafinal.nix** | NixOS module for finalized schema/config | `pkgs/qwen-code/default.nix` |
 | **FLame Guard** | Federated Learning security — filters poisoned model updates | OpenClaw vetting gateway |
 | **Model Zoo** | Curated LLM list for distilling, checks ATIC support per CLI | Our inference tiers (0.8B/9B/35B/Frontier) |
-| **O1 Agent (alpha)** | Early Qwen-Agent — abstract interface to tool execution | Qwen-Agent ATIC |
+| **O1 Agent (alpha)** | Early Qwen-Agent — abstract interface to tool execution | Native `qwen3_coder` parser in SGLang/vLLM |
 | **UncertaintyManager** | Agent role for handling uncertainty/confidence | Could be our evaluator/scorer |
 | **GEPA** | Self-evaluation routing (Genetic-Pareto Prompt Evolution) | Hermes self-evolution |
 | **CP** | Confidence Propagation — post-processing for detection refinement | Not checkpoint; output refinement |
