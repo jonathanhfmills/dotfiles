@@ -1,0 +1,74 @@
+name: rl-training
+description: "QLoRA training pipeline with DQN checkpoint/rollback"
+
+# Triggered when enough high-quality trajectories accumulate.
+# Runs on workstation (RTX 3080) — Unsloth does NOT support AMD/ROCm.
+# MoE evaluator (35B-A3B on NAS CPU) scores trajectories.
+# DQN-style checkpoint/rollback prevents regressions.
+
+trigger:
+  condition: "trajectories/scored/*.json count >= 50 AND min_score >= 7.0"
+  schedule: "0 2 * * 0"  # Sunday 2 AM fallback
+
+training:
+  method: qlora
+  framework: unsloth
+  host: workstation  # RTX 3080 only — Unsloth requires CUDA
+  lora_rank: 16
+  lora_alpha: 32
+  batch_size: 1  # RTX 3080 10GB constraint
+  gradient_accumulation_steps: 4
+  learning_rate: 2.0e-4
+  max_seq_length: 4096
+  num_epochs: 3
+  warmup_ratio: 0.1
+  checkpoint_dir: /var/lib/vllm/models/checkpoints/
+  rollback_on_regression: true
+  eval_holdout: 0.1  # 10% of trajectories reserved for evaluation
+
+targets:
+  - model: Qwen/Qwen3.5-4B
+    adapter_path: /var/lib/vllm/models/adapters/qwen3.5-4b-claw.safetensors
+    description: "Workstation model — code, logic, execution"
+  - model: Qwen/Qwen3.5-9B
+    adapter_path: /var/lib/vllm/models/adapters/qwen3.5-9b-claw.safetensors
+    description: "NAS model — complex reasoning, orchestration"
+
+data:
+  source: /var/lib/orchestrator/shared/trajectories/scored/
+  min_score: 7.0
+  stratify_by:
+    - backend   # qwen-agent-atic, nullclaw-grunt, acp-qwen-code, frontier-*
+    - tier      # classifier, medium, high, expert, frontier
+    - category  # coding, code_review, writing, research
+
+# DQN checkpoint/rollback loop:
+#
+# 1. Checkpoint current model weights
+# 2. Train QLoRA on scored trajectories (score >= 7.0)
+# 3. Evaluate new adapter on held-out test set
+# 4. Score improved → save checkpoint, deploy adapter
+# 5. Score degraded → rollback to checkpoint, try different:
+#    - hyperparams (lr, rank, alpha)
+#    - training data subset
+#    - trajectory filtering threshold
+#
+# On failure detection:
+#   - Restore last checkpoint
+#   - Log failure reason + hyperparams
+#   - Hermes (Brain) learns from training failures via MEMORY.md
+#   - Next training run tries different approach automatically
+
+deployment:
+  method: syncthing  # Adapters sync from workstation to NAS
+  hot_reload: true   # SGLang LoRA hot-swap if supported
+  fallback: restart   # Quick SGLang restart (~6min model load)
+  deploy_hours: "02:00-04:00"  # Low-traffic window
+
+# Per-business domain adapters:
+# trajectories/business-a/ → adapters/business-a.safetensors
+# SGLang supports LoRA hot-swap — switch adapters per request
+domains:
+  default:
+    trajectories: /var/lib/orchestrator/shared/trajectories/scored/
+    adapter_suffix: claw

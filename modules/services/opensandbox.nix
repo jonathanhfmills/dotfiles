@@ -35,6 +35,9 @@ in
   # Docker runtime required by OpenSandbox
   virtualisation.docker.enable = true;
 
+  # Standardize all OCI containers on Docker (OpenSandbox requires Docker anyway)
+  virtualisation.oci-containers.backend = "docker";
+
   # Add jon to docker group
   users.users.jon.extraGroups = [ "docker" ];
 
@@ -79,6 +82,9 @@ in
 
       # ACP reasoning image (Nix-built — qwen-code + bridge)
       docker load < ${pkgs.acp-reasoning-image} || true
+
+      # AIO Sandbox — MCP tool hub (browser, file, shell, markitdown)
+      docker pull ghcr.io/agent-infra/sandbox:latest || true
 
       # Sandbox images for child agents
       docker pull opensandbox/code-interpreter:v1.0.1 || true
