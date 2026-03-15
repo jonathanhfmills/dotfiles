@@ -10,10 +10,6 @@ load the appropriate SOUL.md at boot (<2ms) and execute with role-specific conte
 | Role | Expert In | Confidence Tier |
 |------|----------|----------------|
 | **coder** | Code authoring, tests, implementation | Engineer (9B ATIC) |
-| **reviewer** | Code review, security, design issues | Engineer (9B ATIC) |
-| **deployer** | Safe deployment, rollback, ops | Engineer (9B ATIC) |
-| **reader** | Research, source verification, extraction | Grunt (0.8B/9B) |
-| **writer** | Content creation, SEO, audience-first copy | Grunt (0.8B/9B) |
 | **uncertainty-manager** | Confidence scoring, routing, calibration | Brain (Hermes) |
 
 ### Adding a New Role

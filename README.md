@@ -203,10 +203,6 @@ agents/
   SYSTEM.md                            # The Complexity Engine — MoE routing + pipeline
   TEMPLATE.md                          # Template for creating new agent roles
   coder/                               # Coder expert — code authoring
-  deployer/                            # Deployer expert — safe deployment
-  reader/                              # Reader expert — research + extraction
-  reviewer/                            # Reviewer expert — code review
-  writer/                              # Writer expert — content creation
   uncertainty-manager/                 # Confidence scoring + routing
 
 wanda/                                 # Wanda (Brain) identity files

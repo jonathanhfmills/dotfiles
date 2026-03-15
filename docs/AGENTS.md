@@ -30,10 +30,6 @@ Each `agents/*/SOUL.md` = one expert role in the mixture. NullClaw discovers rol
 | Expert Role | Specialization | Default Tier |
 |-------------|---------------|-------------|
 | **coder** | Code authoring, tests, implementation | 9B GPU |
-| **reviewer** | Code review, security, design issues | 9B GPU |
-| **deployer** | Safe deployment, rollback, ops | 9B GPU |
-| **reader** | Research, source verification, extraction | 0.8B/9B |
-| **writer** | Content creation, SEO, audience-first copy | 0.8B/9B |
 | **uncertainty-manager** | Confidence scoring, routing, calibration | 9B (Brain) |
 
 ### Adding a New Expert
