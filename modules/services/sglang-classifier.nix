@@ -1,7 +1,7 @@
-# Workstation vLLM Classifier — i7-8700K CPU
-# Qwen3.5-0.8B @ 4-bit: ~0.5GB weights, 8K ctx
-# Ultra-cheap classification and formatting tier — NullClaw Grunts hit this
-# Leaves the RTX 3080 free for real 4B inference
+# Workstation 0.8B CPU Worker — i7-8700K CPU
+# Qwen3.5-0.8B @ 4-bit: ~0.5GB weights, 4K ctx
+# Local tool calls (<50ms), escalates to 9B GPU for reasoning
+# Leaves the RTX 3080 free for 9B inference
 # Uses vLLM (not SGLang) — simpler CPU support, no sgl-kernel dependency
 #
 # Note: File named sglang-classifier.nix for import compatibility.
@@ -9,7 +9,7 @@
 
 {
   virtualisation.oci-containers.containers.sglang-classifier = {
-    image = "vllm/vllm-cpu:latest";
+    image = "public.ecr.aws/q9t5s3a7/vllm-cpu-release-repo:latest";
     extraOptions = [
       "--ipc=host"
       "--network=host"
@@ -21,19 +21,17 @@
       "/var/lib/vllm/models:/models"
     ];
     cmd = [
-      "--model" "Qwen/Qwen3.5-0.8B"
-      "--quantization" "bitsandbytes"
-      "--max-model-len" "8192"
+      "Qwen/Qwen3.5-0.8B"
+      "--max-model-len" "4096"
       "--trust-remote-code"
-      "--device" "cpu"
       "--api-key" "ollama"
-      "--host" "0.0.0.0"
-      "--port" "11435"
+      "--host" "127.0.0.1"
+      "--port" "11436"
     ];
   };
 
   # Allow time for first-run model download
   systemd.services.docker-sglang-classifier.serviceConfig.TimeoutStartSec = lib.mkForce 900;
 
-  networking.firewall.allowedTCPPorts = [ 11435 ];
+  # No firewall port — localhost only (127.0.0.1)
 }

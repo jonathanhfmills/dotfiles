@@ -11,7 +11,7 @@
 
 {
   virtualisation.oci-containers.containers.sglang-evaluator = {
-    image = "vllm/vllm-cpu:latest";
+    image = "public.ecr.aws/q9t5s3a7/vllm-cpu-release-repo:latest";
     extraOptions = [
       "--ipc=host"
       "--network=host"
@@ -23,11 +23,9 @@
       "/var/lib/vllm/models:/models"
     ];
     cmd = [
-      "--model" "Qwen/Qwen3.5-35B-A3B"
-      "--quantization" "bitsandbytes"
+      "Qwen/Qwen3.5-35B-A3B"
       "--max-model-len" "16384"
       "--trust-remote-code"
-      "--device" "cpu"
       "--api-key" "ollama"
       "--host" "0.0.0.0"
       "--port" "11435"
@@ -40,6 +38,9 @@
     AllowedCPUs = "12-19";
     TimeoutStartSec = lib.mkForce 1800;  # 35B model takes longer to load
   };
+
+  # NOT auto-started — training timer starts/stops it overnight
+  systemd.services.docker-sglang-evaluator.wantedBy = lib.mkForce [];
 
   networking.firewall.allowedTCPPorts = [ 11435 ];
 }
