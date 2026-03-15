@@ -1,7 +1,7 @@
 # Workstation SGLang — RTX 3080 (10GB VRAM, CUDA)
-# Qwen3.5-4B @ 4-bit: ~2.5GB weights, plenty of KV cache room, 64K ctx
-# Full CUDA support: graphs, fused kernels, RadixAttention — workhorse tier
-# SGLang chosen over vLLM here because sgl-kernel builds natively on CUDA
+# Crow-9B: Opus 4.6 distillation into Qwen3.5-9B, fp8 quantized at load (~9GB VRAM)
+# Same model as NAS — consistent quality, one LoRA to train/deploy
+# Trajectories logged to /var/lib/vllm/models/trajectories/raw/ for nightly GSPO
 { pkgs, lib, ... }:
 
 {
@@ -22,9 +22,9 @@
       "/var/lib/vllm/models:/models"
     ];
     cmd = [
-      "--model-path" "Qwen/Qwen3.5-4B"
-      "--quantization" "bitsandbytes"
-      "--context-length" "65536"
+      "--model-path" "crownelius/Crow-9B-Opus-4.6-Distill-Heretic_Qwen3.5"
+      "--quantization" "fp8"
+      "--context-length" "32768"
       "--mem-fraction-static" "0.85"
       "--trust-remote-code"
       "--tool-call-parser" "qwen3_coder"
@@ -35,10 +35,12 @@
     ];
   };
 
-  # Ensure model cache directory exists
+  # Ensure model cache and trajectory directories exist
   systemd.tmpfiles.rules = [
     "d /var/lib/vllm 0755 root root -"
     "d /var/lib/vllm/models 0755 root root -"
+    "d /var/lib/vllm/models/trajectories 0755 root root -"
+    "d /var/lib/vllm/models/trajectories/raw 0755 root root -"
   ];
 
   # Allow time for first-run model download
