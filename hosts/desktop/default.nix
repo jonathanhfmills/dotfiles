@@ -59,6 +59,9 @@
     pulse.enable = true;
   };
 
+  # GoXLR — udev rules, XDG autostart, goxlr-daemon + goxlr-client.
+  services.goxlr-utility.enable = true;
+
   # CUPS printing.
   services.printing.enable = true;
 
