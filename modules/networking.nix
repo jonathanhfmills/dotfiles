@@ -3,6 +3,7 @@
 {
   networking.networkmanager.enable = true;
   services.tailscale.enable = true;
+  services.tailscale.extraSetFlags = [ "--operator=jon" ];
   environment.systemPackages = [ pkgs.trayscale ];
 
   # WiFi PSK from agenix (decrypted at runtime)
