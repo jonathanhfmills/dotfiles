@@ -26,6 +26,8 @@
       "Qwen/Qwen3.5-35B-A3B"
       "--max-model-len" "16384"
       "--trust-remote-code"
+      "--enable-auto-tool-choice"
+      "--tool-call-parser" "qwen3_coder"
       "--api-key" "ollama"
       "--host" "0.0.0.0"
       "--port" "11435"

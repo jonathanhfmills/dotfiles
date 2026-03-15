@@ -24,6 +24,8 @@
       "Qwen/Qwen3.5-0.8B"
       "--max-model-len" "4096"
       "--trust-remote-code"
+      "--enable-auto-tool-choice"
+      "--tool-call-parser" "qwen3_coder"
       "--api-key" "ollama"
       "--host" "127.0.0.1"
       "--port" "11436"
