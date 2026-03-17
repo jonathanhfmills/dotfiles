@@ -4,7 +4,6 @@ let
   caddyfile = pkgs.writeText "stremio-caddyfile" ''
     stremio.hellfireae.com {
       import cloudflare-tls
-      bind 100.95.201.10
       reverse_proxy 127.0.0.1:11470
     }
   '';
@@ -41,6 +40,7 @@ in
       CASTING_DISABLED = "1";
     };
 
+    path = [ pkgs.procps ];
     serviceConfig = {
       ExecStart = "${pkgs.nodejs_20}/bin/node ${stremio-server}/share/stremio-server/server.js";
       DynamicUser = true;

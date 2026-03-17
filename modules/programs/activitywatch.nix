@@ -14,7 +14,6 @@ let
   caddyfile = pkgs.writeText "activitywatch-caddyfile" ''
     activity.hellfireae.com {
       import cloudflare-tls
-      bind 100.87.216.16
       reverse_proxy 127.0.0.1:5600
     }
   '';

@@ -429,7 +429,6 @@ AUTHEOF
         cat > /var/www/html/wanda/caddyfile << CADDYEOF
 wanda.hellfireae.com {
   import cloudflare-tls
-  bind 100.95.201.10
 
   @login path /login
   redir @login "/#token=$OPENCLAW_GATEWAY_TOKEN"
