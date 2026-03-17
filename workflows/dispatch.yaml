@@ -5,47 +5,60 @@ description: "Lobster routing — routes tasks by label to the correct queue and
 # Syncthing handles cross-machine delivery. The agent-runner on each host polls its queue.
 
 routes:
-  # Coding tasks → workstation (Qwen 3.5 4B, RTX 3080 vLLM)
+  # Coding tasks → workstation (LangGraph auto: 4B → 9B local chain)
   - match: "code/*"
     queue: queue/workstation/
     lead: cosmo
     agents: [coder, reviewer, deployer]
-    model: Qwen/Qwen3.5-4B
-    description: "Code changes, bug fixes, features — routed to Cosmo's team"
+    backend: langgraph
+    execution_mode: auto
+    description: "Code changes — local auto model selection"
 
-  # Content tasks → NAS (Qwen 3.5 9B, 9070 XT vLLM)
+  # Content tasks → NAS (LangGraph auto: 4B → 9B local chain)
   - match: "content/*"
     queue: queue/nas/
     lead: writer
     agents: [writer]
-    model: Qwen/Qwen3.5-9B
-    description: "Blog posts, landing pages, copy — routed to writer"
+    backend: langgraph
+    execution_mode: auto
+    description: "Content — local auto model selection"
 
-  # Research tasks → NAS (Qwen 3.5 9B, 9070 XT vLLM)
+  # Research tasks → NAS (LangGraph auto: 4B → 9B local chain)
   - match: "research/*"
     queue: queue/nas/
     lead: reader
     agents: [reader]
-    model: Qwen/Qwen3.5-9B
-    description: "Source reading, summaries, fact-checking — routed to reader"
+    backend: langgraph
+    execution_mode: auto
+    description: "Research — local auto model selection"
 
-  # Review tasks → workstation (Qwen 3.5 4B vLLM)
+  # Review tasks → workstation (LangGraph auto)
   - match: "review/*"
     queue: queue/workstation/
     lead: cosmo
     agents: [reviewer]
-    model: Qwen/Qwen3.5-4B
-    description: "Code review requests — routed to Cosmo's reviewer"
+    backend: langgraph
+    execution_mode: auto
+    description: "Code review — local auto model selection"
 
-  # Deploy tasks → workstation (Qwen 3.5 4B vLLM)
+  # Deploy tasks → workstation (LangGraph auto)
   - match: "deploy/*"
     queue: queue/workstation/
     lead: cosmo
     agents: [deployer]
-    model: Qwen/Qwen3.5-4B
-    description: "Deployment requests — routed to Cosmo's deployer"
+    backend: langgraph
+    execution_mode: auto
+    description: "Deployment — local auto model selection"
+
+  # Future routes (plumbed but not active until budget allows):
+  # - match: "premium/*"
+  #   execution_mode: claude-code   # Forced Claude CLI
+  # - match: "seo/*"
+  #   execution_mode: gemini        # Forced Gemini CLI
 
 # Default: unmatched tasks stay in queue/nas/ for Wanda to triage
 default:
   queue: queue/nas/
+  backend: langgraph
+  execution_mode: auto
   description: "Unmatched tasks — Wanda triages manually"

@@ -88,7 +88,7 @@ in
       docker pull ghcr.io/agent-infra/sandbox:latest || true
 
       # Sandbox images for child agents
-      docker pull opensandbox/code-interpreter:v1.0.1 || true
+      docker pull opensandbox/code-interpreter:v1.0.2 || true
       docker pull opensandbox/playwright:latest || true
       docker pull opensandbox/chrome:latest || true
       docker pull opensandbox/desktop:latest || true
