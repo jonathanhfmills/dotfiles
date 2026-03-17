@@ -34,6 +34,7 @@ in
 {
   # Docker runtime required by OpenSandbox
   virtualisation.docker.enable = true;
+  virtualisation.docker.storageDriver = "zfs";
 
   # Standardize all OCI containers on Docker (OpenSandbox requires Docker anyway)
   virtualisation.oci-containers.backend = "docker";
