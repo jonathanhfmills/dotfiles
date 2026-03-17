@@ -122,8 +122,7 @@ SHIMEOF
 fi
 
 echo "Starting SGLang server..."
-# Crow-9B: Opus 4.6 distillation into Qwen3.5-9B (crownelius/Crow-9B-Opus-4.6-Distill-Heretic_Qwen3.5)
-# bf16 safetensors — SGLang quantizes to fp8 at load time (~9GB VRAM on 16GB 9070 XT)
+# Qwen3.5-9B-FP8 — pre-quantized fp8 checkpoint (~10GB VRAM on 16GB 9070 XT)
 LORA_ARGS=""
 ADAPTER_DIR="/models/adapters"
 if [ -d "$ADAPTER_DIR" ] && ls "$ADAPTER_DIR"/*/adapter_config.json &>/dev/null; then
@@ -141,12 +140,13 @@ else
 fi
 
 exec python -m sglang.launch_server \
-  --model-path crownelius/Crow-9B-Opus-4.6-Distill-Heretic_Qwen3.5 \
+  --model-path lovedheart/Qwen3.5-9B-FP8 \
   --attention-backend triton \
   --quantization fp8 \
-  --context-length 32768 \
+  --context-length 131072 \
+  --kv-cache-dtype fp8_e5m2 \
   --disable-cuda-graph \
-  --mem-fraction-static 0.85 \
+  --mem-fraction-static 0.90 \
   --trust-remote-code \
   --tool-call-parser qwen3_coder \
   --api-key ollama \

@@ -22,7 +22,7 @@
       "/var/lib/vllm/models:/models"
     ];
     cmd = [
-      "--model-path" "crownelius/Crow-9B-Opus-4.6-Distill-Heretic_Qwen3.5"
+      "--model-path" "Qwen/Qwen3.5-9B"
       "--quantization" "fp8"
       "--context-length" "32768"
       "--mem-fraction-static" "0.85"

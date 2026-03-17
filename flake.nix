@@ -129,8 +129,8 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/nullclaw.nix
-        ./modules/services/sglang-nvidia.nix
-        ./modules/services/sglang-classifier.nix
+        ./modules/services/vllm-nvidia.nix
+        ./modules/services/vllm-08b.nix
         ./modules/services/trajectory-logger.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
