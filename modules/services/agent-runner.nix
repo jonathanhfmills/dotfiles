@@ -181,7 +181,9 @@ lib.mkIf isAgentHost {
                   {\"action\": \"allow\", \"target\": \"172.17.0.1:11435\"},
                   {\"action\": \"allow\", \"target\": \"172.17.0.1:11436\"},
                   {\"action\": \"allow\", \"target\": \"172.17.0.1:8080\"},
-                  {\"action\": \"allow\", \"target\": \"openrouter.ai:443\"}
+                  {\"action\": \"allow\", \"target\": \"openrouter.ai:443\"},
+                  {\"action\": \"allow\", \"target\": \"pypi.org:443\"},
+                  {\"action\": \"allow\", \"target\": \"files.pythonhosted.org:443\"}
                 ]
               },
               \"volumes\": [

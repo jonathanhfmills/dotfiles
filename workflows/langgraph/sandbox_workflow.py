@@ -191,34 +191,13 @@ uncertainty_manager = UncertaintyManager(
 
 
 async def create_sandbox(state: SandboxState) -> dict:
-    """Spawn a child sandbox via OpenSandbox API."""
-    import urllib.request
-
+    """Initialize workspace (we already run inside a sandbox)."""
     t0 = time.monotonic()
-    task = state["task"]
-    domain = state.get("sandbox_domain", os.environ.get("SANDBOX_DOMAIN", "172.17.0.1:8080"))
-    image = task.get("sandbox_image", "opensandbox/code-interpreter:v1.0.2")
-
-    body = json.dumps({
-        "image": {"uri": image},
-        "timeout": task.get("timeout", 600),
-        "resourceLimits": {"cpu": "1000m", "memory": "2Gi"},
-    }).encode()
-
-    req = urllib.request.Request(
-        f"http://{domain}/v1/sandboxes",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req) as resp:
-        result = json.loads(resp.read())
-
-    sandbox_id = result.get("id", "")
+    os.makedirs("/workspace", exist_ok=True)
     duration_ms = int((time.monotonic() - t0) * 1000)
 
     return {
-        "sandbox_id": sandbox_id,
+        "sandbox_id": "local",
         "trajectory": state.get("trajectory", []) + [{
             "node": "create", "model": "none", "duration_ms": duration_ms,
         }],
@@ -226,27 +205,17 @@ async def create_sandbox(state: SandboxState) -> dict:
 
 
 async def prepare_sandbox(state: SandboxState) -> dict:
-    """Write task files into the sandbox workspace."""
-    import urllib.request
-
+    """Write task files into the workspace."""
     t0 = time.monotonic()
     task = state["task"]
-    domain = state.get("sandbox_domain", os.environ.get("SANDBOX_DOMAIN", "172.17.0.1:8080"))
-    sandbox_id = state["sandbox_id"]
 
     for file_spec in task.get("files", []):
         path = file_spec["path"]
         content = file_spec["content"]
-        body = json.dumps({"content": content}).encode()
-        req = urllib.request.Request(
-            f"http://{domain}/v1/sandboxes/{sandbox_id}/files{path}",
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="PUT",
-        )
         try:
-            with urllib.request.urlopen(req) as resp:
-                resp.read()
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w") as f:
+                f.write(content)
         except Exception as e:
             print(f"[prepare] Warning: failed to write {path}: {e}")
 
@@ -260,12 +229,8 @@ async def prepare_sandbox(state: SandboxState) -> dict:
 
 async def run_command(state: SandboxState) -> dict:
     """Execute the task command inside the sandbox."""
-    import urllib.request
-
     t0 = time.monotonic()
     task = state["task"]
-    domain = state.get("sandbox_domain", os.environ.get("SANDBOX_DOMAIN", "172.17.0.1:8080"))
-    sandbox_id = state["sandbox_id"]
     mode = state.get("execution_mode", "auto")
 
     model_key = get_model_for_node("run", mode, state)
@@ -281,23 +246,20 @@ async def run_command(state: SandboxState) -> dict:
     elif model_key == "gemini-cli":
         command = f'npm i -g @google/gemini-cli@latest && gemini "{command}"'
 
-    body = json.dumps({"command": command}).encode()
-    req = urllib.request.Request(
-        f"http://{domain}/v1/sandboxes/{sandbox_id}/commands",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
     run_output = ""
     last_error = ""
     try:
-        with urllib.request.urlopen(req, timeout=300) as resp:
-            result = json.loads(resp.read())
-            run_output = result.get("stdout", "") + result.get("stderr", "")
-            exit_code = result.get("exitCode", result.get("exit_code", -1))
-            if exit_code != 0:
-                last_error = f"exit code {exit_code}: {result.get('stderr', '')}"
+        proc = await asyncio.create_subprocess_shell(
+            command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
+        run_output = (stdout or b"").decode() + (stderr or b"").decode()
+        if proc.returncode != 0:
+            last_error = f"exit code {proc.returncode}: {(stderr or b'').decode()}"
+    except asyncio.TimeoutError:
+        last_error = "command timed out after 300s"
     except Exception as e:
         last_error = str(e)
 
@@ -399,23 +361,8 @@ async def inspect_results(state: SandboxState) -> dict:
 
 
 async def cleanup_sandbox(state: SandboxState) -> dict:
-    """Terminate sandbox and free resources."""
-    import urllib.request
-
-    domain = state.get("sandbox_domain", os.environ.get("SANDBOX_DOMAIN", "172.17.0.1:8080"))
-    sandbox_id = state.get("sandbox_id", "")
-
-    if sandbox_id:
-        try:
-            req = urllib.request.Request(
-                f"http://{domain}/v1/sandboxes/{sandbox_id}",
-                method="DELETE",
-            )
-            with urllib.request.urlopen(req) as resp:
-                resp.read()
-        except Exception as e:
-            print(f"[cleanup] Warning: {e}")
-
+    """Cleanup workspace."""
+    # Nothing to clean — sandbox lifecycle managed by agent-runner
     return {}
 
 
@@ -491,7 +438,10 @@ async def main():
     }
 
     app = compile_graph()
-    config = {"configurable": {"thread_id": task.get("id", "default")}}
+    config = {
+        "configurable": {"thread_id": task.get("id", "default")},
+        "recursion_limit": 50,
+    }
 
     final_state = await app.ainvoke(initial_state, config=config)
 
