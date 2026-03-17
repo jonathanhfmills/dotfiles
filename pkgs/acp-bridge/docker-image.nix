@@ -1,18 +1,23 @@
 { pkgs, acp-bridge, qwen-code }:
 
 let
-  # Python with pip for google-adk installation at container startup
-  # ADK has 44+ deps including Google Cloud SDK — not practical to package natively
+  # Python with LangGraph stack baked in (sandbox egress blocks PyPI)
+  # google-adk still installed at runtime via adk-bootstrap (44+ deps including Google Cloud SDK)
   pythonEnv = pkgs.python312.withPackages (ps: with ps; [
     pip
     setuptools
+    langgraph
+    langchain-openai
+    langchain-anthropic
   ]);
 
   # Script to install google-adk + litellm on first run (cached in /home/agent/.local)
   adkBootstrap = pkgs.writeShellScriptBin "adk-bootstrap" ''
     if ! ${pythonEnv}/bin/python -c "import google.adk" 2>/dev/null; then
       echo "[adk-bootstrap] Installing google-adk + litellm..."
-      ${pythonEnv}/bin/pip install --user --quiet google-adk litellm langgraph langchain-openai langchain-anthropic opensandbox 2>&1 || true
+      ${pythonEnv}/bin/pip install --user --quiet google-adk litellm opensandbox 2>&1 \
+        || ${pythonEnv}/bin/pip install --break-system-packages --quiet google-adk litellm opensandbox 2>&1 \
+        || echo "[adk-bootstrap] Warning: pip install failed (network may be restricted)"
     fi
   '';
 
