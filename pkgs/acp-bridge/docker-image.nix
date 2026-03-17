@@ -22,6 +22,7 @@ let
     cp ${../../pkgs/mcp-servers/dispatch.py} $out/opt/mcp-servers/dispatch.py
     cp ${../../pkgs/mcp-servers/escalation.py} $out/opt/mcp-servers/escalation.py
     cp ${../../pkgs/mcp-servers/memory.py} $out/opt/mcp-servers/memory.py
+    cp ${../../pkgs/mcp-servers/sandbox.py} $out/opt/mcp-servers/sandbox.py
   '';
 
   # /etc/passwd + /etc/group + home dir — required by Node.js os.userInfo()
