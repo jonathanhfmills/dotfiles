@@ -1,0 +1,7 @@
+name: um-policy-training
+description: "Train UncertaintyManager model-selection policy via DQN in sandbox"
+backend: langgraph
+script: workflows/langgraph/um_policy_training.py
+trigger:
+  condition: "trajectories/scored/*.json count >= 100"
+  schedule: "0 3 * * 0"  # Sunday 3 AM, after QLoRA training at 2 AM

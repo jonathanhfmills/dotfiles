@@ -12,8 +12,15 @@ let
   adkBootstrap = pkgs.writeShellScriptBin "adk-bootstrap" ''
     if ! ${pythonEnv}/bin/python -c "import google.adk" 2>/dev/null; then
       echo "[adk-bootstrap] Installing google-adk + litellm..."
-      ${pythonEnv}/bin/pip install --user --quiet google-adk litellm 2>&1 || true
+      ${pythonEnv}/bin/pip install --user --quiet google-adk litellm langgraph langchain-openai langchain-anthropic opensandbox 2>&1 || true
     fi
+  '';
+
+  # LangGraph workflows — bundled into container
+  langgraphWorkflows = pkgs.runCommand "langgraph-workflows" {} ''
+    mkdir -p $out/opt/workflows/langgraph
+    cp ${../../workflows/langgraph/sandbox_workflow.py} $out/opt/workflows/langgraph/sandbox_workflow.py
+    cp ${../../workflows/langgraph/um_policy_training.py} $out/opt/workflows/langgraph/um_policy_training.py
   '';
 
   # Custom MCP servers — bundled into a single derivation
@@ -63,6 +70,9 @@ pkgs.dockerTools.buildLayeredImage {
 
     # MCP servers
     mcpServers
+
+    # LangGraph workflows
+    langgraphWorkflows
 
     # C++ runtime (libstdc++.so.6) — needed by litellm's tokenizers dependency
     pkgs.stdenv.cc.cc.lib
