@@ -1,0 +1,51 @@
+name: sandbox-task
+description: "Spawn → Write → Execute → Read → Cleanup pipeline for sandbox-backed tasks"
+
+steps:
+  - name: spawn
+    description: "Create a child sandbox of the requested type"
+    tool: spawn_sandbox
+    params:
+      type: "{{ task.sandbox_type | default('code-interpreter') }}"
+      timeout: "{{ task.timeout | default(600) }}"
+    on_failure: escalate
+
+  - name: write_files
+    description: "Write task files into the sandbox workspace"
+    tool: write_sandbox_file
+    params:
+      sandbox_id: "{{ steps.spawn.sandbox_id }}"
+      path: "/workspace/{{ item.path }}"
+      content: "{{ item.content }}"
+    loop: "{{ task.files }}"
+    on_failure: retry(3)
+    on_retry_exhausted: cleanup
+
+  - name: execute
+    description: "Run the task command inside the sandbox"
+    tool: exec_in_sandbox
+    params:
+      sandbox_id: "{{ steps.spawn.sandbox_id }}"
+      command: "{{ task.command }}"
+    on_failure: retry(3)
+    on_retry_exhausted: cleanup
+
+  - name: read_results
+    description: "Read output files from the sandbox"
+    tool: read_sandbox_file
+    params:
+      sandbox_id: "{{ steps.spawn.sandbox_id }}"
+      path: "{{ task.output_path | default('/workspace/output') }}"
+    on_failure: retry(3)
+    on_retry_exhausted: cleanup
+
+  - name: cleanup
+    description: "Terminate sandbox and free resources"
+    tool: kill_sandbox
+    params:
+      sandbox_id: "{{ steps.spawn.sandbox_id }}"
+    always_run: true
+
+escalation:
+  agent: cosmo
+  description: "Sandbox task fallback — escalate to Cosmo for manual intervention"

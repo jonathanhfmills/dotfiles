@@ -103,6 +103,32 @@ Task → UncertaintyManager (confidence score)
 
 Frontier escalation is the most expensive path. Every frontier call is logged as a training opportunity — the gap between your output and frontier output IS the learning signal. Minimize escalation by improving on each iteration.
 
+## Sandbox Capabilities
+
+Agents can spawn child sandboxes via the `sandbox` MCP server for isolated execution environments. Each agent role has access to specific sandbox types:
+
+| Role | Allowed Sandboxes | Use Case |
+|------|-------------------|----------|
+| **coder** | code-interpreter, vscode, aio | Run tests, build projects, full IDE |
+| **reviewer** | code-interpreter | Verification-only execution |
+| **reader** | playwright, chrome | Web research, headless browsing |
+| **writer** | aio | Preview rendering, screenshots |
+| **deployer** | desktop, chrome | Visual verification, GUI testing |
+| **cosmo** | all types | Orchestrator — full access |
+
+### Sandbox Types
+
+| Type | Ports | Purpose |
+|------|-------|---------|
+| `code-interpreter` | — | Python/Java/Go/TS execution |
+| `playwright` | — | Headless browser, scraping |
+| `chrome` | 5901 (VNC), 9222 (DevTools) | Visual browsing |
+| `desktop` | 5901 (VNC), 6080 (noVNC) | Full GUI desktop |
+| `vscode` | 8080 (code-server) | IDE environment |
+| `aio` | 8080 (MCP hub) | All-in-one (browser+file+shell) |
+
+Sandboxes are ephemeral — max TTL 1800s, deny-by-default networking, no access to OpenSandbox API (no inception). Use `spawn_sandbox` → `exec_in_sandbox` → `kill_sandbox`.
+
 ## Infrastructure
 
 | Component | Internal Name | Implementation |

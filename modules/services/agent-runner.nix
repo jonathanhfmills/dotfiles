@@ -170,7 +170,8 @@ lib.mkIf isAgentHost {
               \"egress\": [
                 {\"action\": \"allow\", \"target\": \"172.17.0.1:11434\"},
                 {\"action\": \"allow\", \"target\": \"172.17.0.1:11435\"},
-                {\"action\": \"allow\", \"target\": \"openrouter.ai:443\"}
+                {\"action\": \"allow\", \"target\": \"openrouter.ai:443\"},
+                {\"action\": \"allow\", \"target\": \"172.17.0.1:8080\"}
               ]
             },
             \"volumes\": [
