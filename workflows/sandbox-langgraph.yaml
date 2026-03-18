@@ -1,3 +1,23 @@
 name: sandbox-langgraph
+description: "LangGraph StateGraph: create → prepare → run → decide → inspect → cleanup"
 backend: langgraph
 script: workflows/langgraph/sandbox_workflow.py
+
+# The run node supports three execution paths:
+# 1. ADK expert agent — set task.agent to match an agents/*/SOUL.md (e.g., "python", "cybersecurity")
+#    Spawns a google-adk Agent seeded with the expert's SOUL.md and the current model tier.
+# 2. Frontier CLI — set execution_mode to "claude-code" or "gemini" (future, needs API keys)
+# 3. Shell command — default, runs task.command via subprocess
+
+# Expert agents available (any agents/*/SOUL.md):
+#   coder, reviewer, deployer, writer, reader, debugger, test, architect,
+#   uncertainty-manager, python, cybersecurity, data-science, machine-learning,
+#   bioinformatics, quantum-physics, classical-physics, medical-science,
+#   biology-genetics, finance-economics, cryptocurrency, engineering,
+#   frontend, backend, database, cloud-infra, nix-programming,
+#   wordpress-marketing, seo-ppc, social-media-marketing, flutter-frameworks,
+#   framer-tools, dicomm-web-apps, law-legal, product-pm
+
+escalation:
+  chain: [qwen-08b, qwen-4b, qwen-9b]
+  description: "Local 0.8B → 4B → 9B, no API costs"
