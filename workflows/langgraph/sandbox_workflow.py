@@ -9,10 +9,15 @@ Execution modes:
   gemini:         Gemini CLI end-to-end in sandbox (future).
   mixed:          Qwen cheap nodes + frontier quality nodes (future).
 
+Dynamic expert agents: When task.agent matches an agents/*/SOUL.md, the run
+node spawns an ADK Agent with that identity and the selected model tier.
+The fleet's 41 experts are available on demand — no pre-provisioning needed.
+
 Every escalation generates CSPO training data for the RL loop.
 """
 
 import asyncio
+import glob as glob_mod
 import json
 import os
 import time
@@ -88,6 +93,100 @@ async def run_with_gemini_cli(sandbox_exec, command: str) -> str:
     await sandbox_exec("npm i -g @google/gemini-cli@latest")
     result = await sandbox_exec(f'gemini "{command}"')
     return result
+
+
+# ---------------------------------------------------------------------------
+# Dynamic expert agents via google-adk
+# ---------------------------------------------------------------------------
+
+# Agent SOUL.md directory (mounted into container via workspace volume)
+AGENTS_DIR = os.environ.get("AGENTS_DIR", "/workspace/agent/agents")
+
+# LiteLLM model names for ADK (maps to vLLM/SGLang endpoints)
+ADK_MODELS = {
+    "qwen-08b": "openai/Qwen/Qwen3.5-0.8B",
+    "qwen-4b": "openai/Qwen/Qwen3.5-4B",
+    "qwen-9b": "openai/Qwen/Qwen3.5-9B",
+}
+
+
+def _find_soul_md(agent_name: str) -> str | None:
+    """Find SOUL.md for an agent by name."""
+    soul_path = os.path.join(AGENTS_DIR, agent_name, "SOUL.md")
+    if os.path.exists(soul_path):
+        with open(soul_path) as f:
+            return f.read()
+    return None
+
+
+def _list_available_experts() -> list[str]:
+    """List all available expert agents (those with SOUL.md)."""
+    experts = []
+    if not os.path.isdir(AGENTS_DIR):
+        return experts
+    for entry in os.listdir(AGENTS_DIR):
+        if os.path.exists(os.path.join(AGENTS_DIR, entry, "SOUL.md")):
+            experts.append(entry)
+    return sorted(experts)
+
+
+async def run_adk_expert(agent_name: str, model_key: str, prompt: str) -> str:
+    """Spawn an ADK Agent with the given SOUL.md identity and run a task.
+
+    Uses google.adk to create an agent on the fly, seeded with the expert's
+    SOUL.md as its instruction. The model is selected from the local chain
+    based on the current escalation tier.
+    """
+    soul_md = _find_soul_md(agent_name)
+    if not soul_md:
+        return f"[adk] No SOUL.md found for agent '{agent_name}' in {AGENTS_DIR}"
+
+    adk_model_name = ADK_MODELS.get(model_key)
+    if not adk_model_name:
+        return f"[adk] No ADK model mapping for '{model_key}'"
+
+    try:
+        from google.adk.agents import Agent
+        from google.adk.models.lite_llm import LiteLlm
+        from google.adk.runners import InMemoryRunner
+        from google.genai import types
+
+        model = LiteLlm(model=adk_model_name)
+        agent = Agent(
+            name=agent_name,
+            model=model,
+            description=f"Expert: {agent_name}",
+            instruction=soul_md,
+        )
+
+        runner = InMemoryRunner(agent=agent, app_name=f"expert_{agent_name}")
+        session = await runner.session_service.create_session(
+            app_name=f"expert_{agent_name}",
+            user_id="langgraph",
+        )
+
+        content = types.Content(
+            role="user",
+            parts=[types.Part.from_text(text=prompt)],
+        )
+
+        result = ""
+        async for event in runner.run_async(
+            user_id="langgraph",
+            session_id=session.id,
+            new_message=content,
+        ):
+            if event.is_final_response() and event.content:
+                for part in event.content.parts:
+                    if part.text:
+                        result += part.text
+
+        return result or "[adk] Expert returned empty response"
+
+    except ImportError:
+        return "[adk] google-adk not installed — run adk-bootstrap first"
+    except Exception as e:
+        return f"[adk] Expert '{agent_name}' failed: {e}"
 
 
 # ---------------------------------------------------------------------------
@@ -228,40 +327,55 @@ async def prepare_sandbox(state: SandboxState) -> dict:
 
 
 async def run_command(state: SandboxState) -> dict:
-    """Execute the task command inside the sandbox."""
+    """Execute the task — via ADK expert agent or shell command.
+
+    If task.agent is set and matches an agents/*/SOUL.md, spawns an ADK
+    expert with that identity and the current model tier. Otherwise falls
+    back to shell execution. This lets the graph dynamically create
+    specialized agents on demand from the fleet's 41 experts.
+    """
     t0 = time.monotonic()
     task = state["task"]
     mode = state.get("execution_mode", "auto")
 
     model_key = get_model_for_node("run", mode, state)
     command = task.get("command", "echo 'no command'")
+    agent_name = task.get("agent")
+    prompt = task.get("prompt", command)
 
     # Use fallback command on retry
     if state.get("attempt", 0) > 0 and task.get("fallback_command"):
         command = task["fallback_command"]
 
-    # Future: frontier CLI dispatch
-    if model_key == "claude-code":
-        command = f'npm i -g @anthropic-ai/claude-code@latest && claude "{command}"'
-    elif model_key == "gemini-cli":
-        command = f'npm i -g @google/gemini-cli@latest && gemini "{command}"'
-
     run_output = ""
     last_error = ""
-    try:
-        proc = await asyncio.create_subprocess_shell(
-            command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
-        run_output = (stdout or b"").decode() + (stderr or b"").decode()
-        if proc.returncode != 0:
-            last_error = f"exit code {proc.returncode}: {(stderr or b'').decode()}"
-    except asyncio.TimeoutError:
-        last_error = "command timed out after 300s"
-    except Exception as e:
-        last_error = str(e)
+
+    # Path 1: ADK expert agent — spawn from SOUL.md
+    if agent_name and _find_soul_md(agent_name):
+        print(f"[run] Spawning ADK expert '{agent_name}' with model {model_key}")
+        try:
+            run_output = await asyncio.wait_for(
+                run_adk_expert(agent_name, model_key, prompt),
+                timeout=300,
+            )
+            if run_output.startswith("[adk]") and "failed" in run_output:
+                last_error = run_output
+        except asyncio.TimeoutError:
+            last_error = f"ADK expert '{agent_name}' timed out after 300s"
+        except Exception as e:
+            last_error = f"ADK expert '{agent_name}' error: {e}"
+
+    # Path 2: Frontier CLI (future)
+    elif model_key == "claude-code":
+        command = f'npm i -g @anthropic-ai/claude-code@latest && claude "{command}"'
+        run_output, last_error = await _shell_exec(command)
+    elif model_key == "gemini-cli":
+        command = f'npm i -g @google/gemini-cli@latest && gemini "{command}"'
+        run_output, last_error = await _shell_exec(command)
+
+    # Path 3: Direct shell execution
+    else:
+        run_output, last_error = await _shell_exec(command)
 
     duration_ms = int((time.monotonic() - t0) * 1000)
     models_used = state.get("models_used", [])
@@ -275,9 +389,30 @@ async def run_command(state: SandboxState) -> dict:
         "models_used": models_used,
         "trajectory": state.get("trajectory", []) + [{
             "node": "run", "model": model_key, "duration_ms": duration_ms,
+            "agent": agent_name,
             "error": last_error or None,
         }],
     }
+
+
+async def _shell_exec(command: str, timeout: int = 300) -> tuple[str, str]:
+    """Run a shell command and return (output, error)."""
+    try:
+        proc = await asyncio.create_subprocess_shell(
+            command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        output = (stdout or b"").decode() + (stderr or b"").decode()
+        error = ""
+        if proc.returncode != 0:
+            error = f"exit code {proc.returncode}: {(stderr or b'').decode()}"
+        return output, error
+    except asyncio.TimeoutError:
+        return "", f"command timed out after {timeout}s"
+    except Exception as e:
+        return "", str(e)
 
 
 async def decide_next(state: SandboxState) -> Literal["inspect", "retry", "escalate"]:
@@ -343,10 +478,12 @@ async def inspect_results(state: SandboxState) -> dict:
         },
         "trajectory": state.get("trajectory", []),
         "metadata": {
-            "agent": os.environ.get("AGENT_NAME", "sandbox"),
+            "agent": task.get("agent", os.environ.get("AGENT_NAME", "sandbox")),
             "backend": "langgraph",
             "tier": state.get("current_model", "unknown"),
             "category": task.get("category", "coding"),
+            "expert_used": task.get("agent"),
+            "available_experts": _list_available_experts() if task.get("agent") else [],
         },
     }
 
