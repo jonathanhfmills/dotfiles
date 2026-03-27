@@ -1,4 +1,4 @@
-{ pkgs, acp-bridge, qwen-code }:
+{ pkgs, acp-bridge, qwen-code, hermes-agent }:
 
 let
   # Python with pip for google-adk installation at container startup
@@ -54,7 +54,10 @@ pkgs.dockerTools.buildLayeredImage {
     curl
     jq
 
-    # Python runtime + bootstrap (pip installs on first run)
+    # Hermes Agent — baked in (hermes, hermes-agent, hermes-acp binaries)
+    hermes-agent
+
+    # Python runtime + bootstrap (pip installs google-adk on first run)
     pythonEnv
     adkBootstrap
 

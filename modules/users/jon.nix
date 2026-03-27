@@ -21,7 +21,10 @@ in
   # 1Password SSH agent for the entire desktop session (not just bash).
   home.sessionVariables.SSH_AUTH_SOCK = "/home/jon/.1password/agent.sock";
 
-  home.packages = [ pkgs.aw-watcher-bash ];
+  home.packages = [
+    pkgs.aw-watcher-bash
+    pkgs.nodePackages.intelephense  # php-lsp plugin dependency
+  ];
 
   fonts.fontconfig.enable = true;
 
@@ -177,6 +180,7 @@ in
 
   home.file.".claude/settings.json".text = builtins.toJSON {
     skipDangerousModePermissionPrompt = true;
+    autoDreamEnabled = true;
     hooks = {
       PostToolUse = [
         {
@@ -218,51 +222,15 @@ in
     output.format = "json";
   });
 
-  # Qwen Code — global context loaded for all sessions.
+  # Qwen Code — minimal host context. Full fleet identity lives in ~/dotfiles (gitagent monorepo):
+  # SOUL.md, RULES.md, DUTIES.md, agents/, skills/, knowledge/
   home.file.".qwen/QWEN.md".text = ''
     # Fleet Context — ${hostname}
 
     You are running on **${hostname}**, part of Jon's NixOS fleet.
+    Run `sudo tailscale status` for live fleet IPs and connectivity.
 
-    ## Host Inventory
-
-    | Host | Tailscale IP | GPU | Model | Role |
-    |------|-------------|-----|-------|------|
-    | desktop | 100.74.117.36 | — | (remote) | Developer workstation |
-    | workstation (Cosmo) | 100.87.216.16 | RTX 3080 10GB | Qwen3.5-4B (vLLM CUDA) | Agent compute |
-    | nas (Wanda) | 100.95.201.10 | AMD 9070 XT 16GB | Qwen3.5-9B (vLLM ROCm) + 0.8B (CPU) | Orchestrator + agents |
-    | laptop | — | — | (remote) | Developer portable |
-
-    ## Escalation Stack
-
-    0.8B (CPU) → 4B (RTX 3080) → 9B (9070 XT) → 397B-A17B (OpenRouter) → Claude Opus 4.6 (break-glass)
-
-    Solutions from higher tiers are captured for distillation back to local weights via unsloth.
-
-    ## NixOS Conventions
-
-    - Nix flake at `~/dotfiles` manages all hosts
-    - Disko for declarative disk layouts
-    - SSH key-only auth via 1Password (`jon@nixos-fleet`)
-    - LTS kernel on ZFS hosts, latest otherwise
-    - `systemd.settings.Manager` not `systemd.extraConfig` (deprecated)
-
-    ## NixOS Gotchas
-
-    - .NET self-contained apps: use `dontFixup = true` + `buildFHSEnv` — `autoPatchelfHook` corrupts runtime
-    - GTK3 tinysparql pulls system `libsqlite3.so` overriding SQLCipher — fix with `LD_PRELOAD`
-
-    ## Git Workflow
-
-    - Feature branches, PRs to main
-    - Commit messages: imperative, concise
-    - Never force-push to main
-
-    ## Self-Learning
-
-    After completing a task, check your MEMORY.md. If you learned something non-obvious
-    (a gotcha, a pattern that worked, a tool quirk), append it under the right heading.
-    Keep entries concise — one line per lesson.
+    Full context: `~/dotfiles` — gitagent monorepo with SOUL.md, RULES.md, agents/, skills/, knowledge/
   '';
 
   home.file.".continue/config.json".text = builtins.toJSON {
@@ -304,6 +272,24 @@ in
     plugins = [
     ];
   };
+
+  # Skills — copy /nix skill from dotfiles to user scope on every rebuild.
+  # The dotfiles repo is the gitagent monorepo; skills/nix/ is the source of truth.
+  home.activation.skillsSetup = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    mkdir -p "$HOME/.claude/skills/nix/references"
+    cp ~/dotfiles/skills/nix/SKILL.md "$HOME/.claude/skills/nix/SKILL.md" 2>/dev/null || true
+    cp ~/dotfiles/skills/nix/references/*.md "$HOME/.claude/skills/nix/references/" 2>/dev/null || true
+  '';
+
+  # Claude Code plugins — fix execute bits and NixOS shebang on every activation.
+  # Marketplace syncs and plugin updates reset permissions and restore #!/bin/bash
+  # which breaks on NixOS (no /bin/bash). Both are patched here idempotently.
+  home.activation.claudePluginPermissions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    find "$HOME/.claude/plugins" -name "*.sh" 2>/dev/null | while read -r f; do
+      chmod +x "$f"
+      sed -i '1s|^#!/bin/bash$|#!/usr/bin/env bash|' "$f"
+    done || true
+  '';
 
   programs.direnv = {
     enable = true;

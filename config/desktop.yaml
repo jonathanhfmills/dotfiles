@@ -1,0 +1,5 @@
+host: desktop
+role: developer
+inference:
+  # Resolve wanda's IP at runtime: sudo tailscale status | grep wanda
+  remote_nas: "http://wanda:11434/v1"

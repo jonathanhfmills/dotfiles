@@ -1,0 +1,10 @@
+spec_version: "0.1.0"
+name: nix-builder
+version: "1.0.0"
+description: >
+  NixOS rebuild sub-agent. Runs nixos-rebuild, parses activation failures,
+  remediates file conflicts. Tests on laptop before workstation or nas.
+tags:
+  - nix
+  - rebuild
+  - sub-agent

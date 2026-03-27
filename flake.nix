@@ -29,9 +29,14 @@
     nullclaw = {
       url = "github:nullclaw/nullclaw";
     };
+
+    hermes-agent = {
+      url = "github:NousResearch/hermes-agent";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, disko, agenix, claude-code, nullclaw, ... }:
+  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, disko, agenix, claude-code, nullclaw, hermes-agent, ... }:
   let
     localOverlay = final: prev: {
       aw-watcher-window-wayland = final.callPackage ./pkgs/aw-watcher-window-wayland {};
@@ -52,6 +57,7 @@
       acp-reasoning-image = final.callPackage ./pkgs/acp-bridge/docker-image.nix {
         acp-bridge = final.acp-bridge;
         qwen-code = final.qwen-code;
+        hermes-agent = hermes-agent.packages.${final.stdenv.hostPlatform.system}.default;
       };
     };
     overlayModule = { nixpkgs.overlays = [ localOverlay ]; };

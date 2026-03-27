@@ -78,9 +78,9 @@ lib.mkIf isAgentHost {
     '' + (if isWorkstation then ''
       # Cosmo identity on workstation (Engineer tier)
       mkdir -p /var/lib/orchestrator/cosmo
-      seed_file /var/lib/orchestrator/cosmo/IDENTITY.md ${builtins.path { path = ../../cosmo/IDENTITY.md; name = "cosmo-IDENTITY.md"; }}
-      seed_file /var/lib/orchestrator/cosmo/SOUL.md ${builtins.path { path = ../../cosmo/SOUL.md; name = "cosmo-SOUL.md"; }}
-      seed_file /var/lib/orchestrator/cosmo/USER.md ${builtins.path { path = ../../cosmo/USER.md; name = "cosmo-USER.md"; }}
+      seed_file /var/lib/orchestrator/cosmo/IDENTITY.md ${builtins.path { path = ../../agents/cosmo/IDENTITY.md; name = "cosmo-IDENTITY.md"; }}
+      seed_file /var/lib/orchestrator/cosmo/SOUL.md ${builtins.path { path = ../../agents/cosmo/SOUL.md; name = "cosmo-SOUL.md"; }}
+      seed_file /var/lib/orchestrator/cosmo/USER.md ${builtins.path { path = ../../agents/cosmo/USER.md; name = "cosmo-USER.md"; }}
     '' else "");
   };
 
