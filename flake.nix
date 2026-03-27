@@ -48,7 +48,6 @@
         opensandbox-sdk = final.opensandbox-sdk;
       };
       qwen-code = final.callPackage ./pkgs/qwen-code {};
-      aix = final.callPackage ./pkgs/aix {};
       acp-bridge = final.callPackage ./pkgs/acp-bridge {};
       acp-reasoning-image = final.callPackage ./pkgs/acp-bridge/docker-image.nix {
         acp-bridge = final.acp-bridge;

@@ -103,10 +103,10 @@ lib.mkIf isNas {
   # Seed Wanda's identity + MCP scripts (only if not already present — preserves growth)
   system.activationScripts.orchestrator-seed =
     let
-      wanda-identity = builtins.path { path = ../../wanda/IDENTITY.md; name = "wanda-IDENTITY.md"; };
-      wanda-soul = builtins.path { path = ../../wanda/SOUL.md; name = "wanda-SOUL.md"; };
-      wanda-user = builtins.path { path = ../../wanda/USER.md; name = "wanda-USER.md"; };
-      wanda-personality = builtins.path { path = ../../wanda/personality.yaml; name = "wanda-personality.yaml"; };
+      wanda-identity = builtins.path { path = ../../agents/wanda/IDENTITY.md; name = "wanda-IDENTITY.md"; };
+      wanda-soul = builtins.path { path = ../../agents/wanda/SOUL.md; name = "wanda-SOUL.md"; };
+      wanda-user = builtins.path { path = ../../agents/wanda/USER.md; name = "wanda-USER.md"; };
+      wanda-personality = builtins.path { path = ../../agents/wanda/personality.yaml; name = "wanda-personality.yaml"; };
       wf-dispatch = builtins.path { path = ../../workflows/dispatch.yaml; name = "dispatch.yaml"; };
       wf-escalation = builtins.path { path = ../../workflows/escalation.yaml; name = "escalation.yaml"; };
       wf-content = builtins.path { path = ../../workflows/content-task.yaml; name = "content-task.yaml"; };

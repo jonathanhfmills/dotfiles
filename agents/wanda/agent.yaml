@@ -1,0 +1,11 @@
+spec_version: "0.1.0"
+name: wanda
+version: "1.0.0"
+description: >
+  Hermes Brain — fleet-wide orchestrator running on the NAS.
+  Routes tasks via Lobster workflows, manages agent queues, self-improves via Atropos RL.
+tags:
+  - orchestrator
+  - nas
+  - hermes
+  - brain

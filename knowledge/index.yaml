@@ -1,0 +1,7 @@
+documents:
+  - path: fleet-topology.md
+    description: Fleet host inventory, Tailscale IPs, hardware, and roles
+    always_load: true
+  - path: inference-endpoints.md
+    description: Inference endpoints, models, engines, and operational commands
+    always_load: true

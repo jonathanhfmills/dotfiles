@@ -1,0 +1,16 @@
+spec_version: "0.1.0"
+name: fleet
+version: "1.0.0"
+description: >
+  Jon's NixOS fleet — Hermes orchestrator, NullClaw experts, and /nix sub-agents.
+  The dotfiles repo is the agent: every commit is a memory, every rollback is a revert.
+skills:
+  - nix
+dependencies:
+  - name: dashclaw-agent
+    source: https://github.com/ucsandman/dashclaw-agent.git
+    mount: agents/dashclaw
+tags:
+  - nixos
+  - fleet
+  - self-improving

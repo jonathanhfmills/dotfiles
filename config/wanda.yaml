@@ -1,0 +1,7 @@
+host: nas
+role: brain
+inference:
+  local: "http://localhost:11434/v1"    # SGLang ROCm — Crow-9B
+  evaluator: "http://localhost:11435/v1" # SGLang CPU — 35B-A3B scorer
+queue: queue/nas
+agent_dir: /var/lib/orchestrator/wanda

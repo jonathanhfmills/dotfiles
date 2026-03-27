@@ -24,7 +24,6 @@ in
   home.packages = [
     pkgs.aw-watcher-bash
     pkgs.nodePackages.intelephense  # php-lsp plugin dependency
-    pkgs.aix                        # AI config package manager (skills + MCP across Claude/Qwen/Gemini)
   ];
 
   fonts.fontconfig.enable = true;
@@ -310,13 +309,12 @@ in
     ];
   };
 
-  # aix — declarative skills + MCP setup from jonathanhfmills/aix-skills.
-  # Bootstraps on fresh installs; idempotent on subsequent rebuilds.
-  home.activation.aixSetup = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    [ -f "$HOME/.config/aix/config.yaml" ] || ${pkgs.aix}/bin/aix init 2>/dev/null || true
-    ${pkgs.aix}/bin/aix repo add https://github.com/jonathanhfmills/aix-skills 2>/dev/null || true
-    ${pkgs.aix}/bin/aix repo update aix-skills 2>/dev/null || true
-    ${pkgs.aix}/bin/aix skill install nix --force 2>/dev/null || true
+  # Skills — copy /nix skill from dotfiles to user scope on every rebuild.
+  # The dotfiles repo is the gitagent monorepo; skills/nix/ is the source of truth.
+  home.activation.skillsSetup = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    mkdir -p "$HOME/.claude/skills/nix/references"
+    cp ~/dotfiles/skills/nix/SKILL.md "$HOME/.claude/skills/nix/SKILL.md" 2>/dev/null || true
+    cp ~/dotfiles/skills/nix/references/*.md "$HOME/.claude/skills/nix/references/" 2>/dev/null || true
   '';
 
   # Claude Code plugins — fix execute bits and NixOS shebang on every activation.

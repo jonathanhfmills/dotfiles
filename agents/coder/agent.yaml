@@ -1,0 +1,10 @@
+spec_version: "0.1.0"
+name: coder
+version: "1.0.0"
+description: >
+  NullClaw executor — primary code author. Writes code, runs tests, submits for review.
+  Operates in Google ADK OpenSandbox on NAS and workstation.
+tags:
+  - executor
+  - nullclaw
+  - coder
