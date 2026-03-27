@@ -20,8 +20,6 @@ let
       { action = "allow"; target = "172.17.0.1:11434"; }   # SGLang 9B (GPU)
       { action = "allow"; target = "172.17.0.1:11435"; }   # SGLang evaluator (CPU)
       { action = "allow"; target = "openrouter.ai:443"; }  # frontier escalation
-      { action = "allow"; target = "pypi.org:443"; }       # pip install (hermes-agent)
-      { action = "allow"; target = "files.pythonhosted.org:443"; }  # pip downloads
     ];
   };
 
