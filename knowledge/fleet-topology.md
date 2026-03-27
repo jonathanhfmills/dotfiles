@@ -1,14 +1,22 @@
 # Fleet Topology
 
+## Live Status
+
+For current IPs and connectivity, always run:
+
+```bash
+sudo tailscale status
+```
+
 ## Hosts
 
-| Host | Tailscale IP | Hardware | Role |
-|------|-------------|----------|------|
-| **desktop** | `100.74.117.36` | Intel iGPU | Daily driver |
-| **workstation** (Cosmo) | `100.87.216.16` | RTX 3080 10GB, 8700K CPU | Agent compute + training |
-| **nas** (Wanda) | `100.95.201.10` | AMD 9070 XT 16GB, ZFS NAS | Brain + orchestrator |
-| **laptop** | `100.104.109.104` | Intel Iris Xe | Mobile dev |
-| **portable** | dynamic | — | Field device |
+| Host | Hardware | Role |
+|------|----------|------|
+| **desktop** | Intel iGPU | Daily driver |
+| **workstation** (Cosmo) | RTX 3080 10GB, 8700K CPU | Agent compute + training |
+| **nas** (Wanda) | AMD 9070 XT 16GB, ZFS NAS | Brain + orchestrator |
+| **laptop** | Intel Iris Xe | Mobile dev |
+| **portable** | — | Field device |
 
 ## Syncthing
 

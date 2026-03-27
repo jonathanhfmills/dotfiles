@@ -5,14 +5,7 @@ Fleet identity lives in `SOUL.md`, constraints in `RULES.md`, agent hierarchy in
 
 ## Fleet
 
-See `knowledge/fleet-topology.md` for the full host inventory.
-
-| Host | Tailscale IP | Role |
-|------|-------------|------|
-| **desktop** | `100.74.117.36` | Daily driver |
-| **workstation** (Cosmo) | `100.87.216.16` | Agent compute + training |
-| **nas** (Wanda) | `100.95.201.10` | Brain + orchestrator |
-| **laptop** | `100.104.109.104` | Mobile dev |
+Run `sudo tailscale status` for live IPs and connectivity. See `knowledge/fleet-topology.md` for host roles and hardware.
 
 ## Inference
 
