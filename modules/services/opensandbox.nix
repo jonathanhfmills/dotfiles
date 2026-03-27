@@ -33,6 +33,8 @@ let
 in
 {
   # Docker runtime required by OpenSandbox
+  # storageDriver must be set explicitly on ZFS hosts — Docker refuses to start
+  # if /var/lib/docker contains metadata for multiple drivers (zfs + overlay2).
   virtualisation.docker.enable = true;
   virtualisation.docker.storageDriver = "zfs";
 
