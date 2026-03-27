@@ -26,6 +26,6 @@ Cosmo → Wanda (trajectories, LoRA adapters). Both machines sync `/var/lib/vllm
 
 | File | Contents |
 |------|----------|
-| `docs/INFERENCE.md` | Model map, engines, quantization pipeline, LoRA hot-swap |
-| `docs/TRAINING.md` | GSPO pipeline, Atropos RL, GEPA, trajectory format |
-| `docs/AGENTS.md` | MoE architecture, NullClaw, routing tiers, MCP servers |
+| `knowledge/inference-endpoints.md` | Inference endpoints, operational commands |
+| `agents/` | Agent identity files (SOUL.md, RULES.md, DUTIES.md per role) |
+| `skills/nix/` | /nix skill — NixOS configuration patterns and anti-patterns |

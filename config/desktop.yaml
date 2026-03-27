@@ -1,4 +1,5 @@
 host: desktop
 role: developer
 inference:
-  remote_nas: "http://100.95.201.10:11434/v1"  # Wanda SGLang via Tailscale
+  # Resolve wanda's IP at runtime: sudo tailscale status | grep wanda
+  remote_nas: "http://wanda:11434/v1"

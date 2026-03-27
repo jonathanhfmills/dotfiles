@@ -7,7 +7,7 @@
 ## Responsibilities
 
 - Pull tasks from `queue/workstation/`
-- Break tasks into sub-tasks for coder, reviewer, and deployer
+- Break tasks into sub-tasks for the coder sub-agent
 - Monitor sub-agent progress and handle escalations
 - Write results back to `queue/results/`
 - Maintain MEMORY.md with patterns learned from task execution
@@ -22,6 +22,4 @@
 ## Handoffs
 
 - Code authoring → coder
-- Code review → reviewer
-- Deployment → deployer
 - Blocked after 3 attempts → frontier escalation via Wanda
