@@ -21,7 +21,11 @@ in
   # 1Password SSH agent for the entire desktop session (not just bash).
   home.sessionVariables.SSH_AUTH_SOCK = "/home/jon/.1password/agent.sock";
 
-  home.packages = [ pkgs.aw-watcher-bash ];
+  home.packages = [
+    pkgs.aw-watcher-bash
+    pkgs.nodePackages.intelephense  # php-lsp plugin dependency
+    pkgs.aix                        # AI config package manager (skills + MCP across Claude/Qwen/Gemini)
+  ];
 
   fonts.fontconfig.enable = true;
 
@@ -177,6 +181,7 @@ in
 
   home.file.".claude/settings.json".text = builtins.toJSON {
     skipDangerousModePermissionPrompt = true;
+    autoDreamEnabled = true;
     hooks = {
       PostToolUse = [
         {
@@ -304,6 +309,16 @@ in
     plugins = [
     ];
   };
+
+  # Claude Code plugins — fix execute bits and NixOS shebang on every activation.
+  # Marketplace syncs and plugin updates reset permissions and restore #!/bin/bash
+  # which breaks on NixOS (no /bin/bash). Both are patched here idempotently.
+  home.activation.claudePluginPermissions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    find "$HOME/.claude/plugins" -name "*.sh" 2>/dev/null | while read -r f; do
+      chmod +x "$f"
+      sed -i '1s|^#!/bin/bash$|#!/usr/bin/env bash|' "$f"
+    done || true
+  '';
 
   programs.direnv = {
     enable = true;

@@ -21,25 +21,23 @@
 
 All endpoints: OpenAI-compatible API, `--api-key ollama`.
 
-## Key Commands
+## Operational Commands
 
 ```bash
-# Deploy config to a host
-sudo nixos-rebuild switch --flake ~/dotfiles#<host>
-# hosts: desktop, workstation, nas, laptop, portable
-
 # Tail service logs
-journalctl -fu sglang       # Wanda: Crow-9B inference
-journalctl -fu vllm         # Cosmo: PARO-9B inference
+journalctl -fu sglang          # Wanda: Crow-9B inference
+journalctl -fu vllm            # Cosmo: PARO-9B inference
 journalctl -fu training-timer  # Nightly GSPO pipeline
 
 # Nightly training (runs automatically at midnight on Wanda)
 bash pkgs/swift-training/train-gspo.sh
 
 # Weekly re-quantize (Cosmo, after LoRA merge)
-bash pkgs/swift-training/requantize-paro.sh    # 9B ParoQuant
-bash pkgs/swift-training/quantize-08b-autoround.sh  # 0.8B AutoRound
+bash pkgs/swift-training/requantize-paro.sh             # 9B ParoQuant
+bash pkgs/swift-training/quantize-08b-autoround.sh      # 0.8B AutoRound
 ```
+
+For NixOS configuration changes, use the `/nix` skill.
 
 ## Docs Index
 
