@@ -310,6 +310,15 @@ in
     ];
   };
 
+  # aix — declarative skills + MCP setup from jonathanhfmills/aix-skills.
+  # Bootstraps on fresh installs; idempotent on subsequent rebuilds.
+  home.activation.aixSetup = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    [ -f "$HOME/.config/aix/config.yaml" ] || ${pkgs.aix}/bin/aix init 2>/dev/null || true
+    ${pkgs.aix}/bin/aix repo add https://github.com/jonathanhfmills/aix-skills 2>/dev/null || true
+    ${pkgs.aix}/bin/aix repo update aix-skills 2>/dev/null || true
+    ${pkgs.aix}/bin/aix skill install nix --force 2>/dev/null || true
+  '';
+
   # Claude Code plugins — fix execute bits and NixOS shebang on every activation.
   # Marketplace syncs and plugin updates reset permissions and restore #!/bin/bash
   # which breaks on NixOS (no /bin/bash). Both are patched here idempotently.
