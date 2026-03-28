@@ -32,17 +32,12 @@ let
   '';
 in
 {
-  # Docker runtime required by OpenSandbox
   # storageDriver must be set explicitly on ZFS hosts — Docker refuses to start
   # if /var/lib/docker contains metadata for multiple drivers (zfs + overlay2).
-  virtualisation.docker.enable = true;
   virtualisation.docker.storageDriver = "zfs";
 
   # Standardize all OCI containers on Docker (OpenSandbox requires Docker anyway)
   virtualisation.oci-containers.backend = "docker";
-
-  # Add jon to docker group
-  users.users.jon.extraGroups = [ "docker" ];
 
   systemd.services.opensandbox-server = {
     description = "OpenSandbox server";
