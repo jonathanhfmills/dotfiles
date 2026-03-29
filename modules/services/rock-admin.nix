@@ -14,8 +14,7 @@ let
   # startup indefinitely when the file is absent.
   rockConfig = pkgs.writeText "rock-wanda.yml" ''
     ray:
-        runtime_env:
-            working_dir: ${rockPkgs}
+        runtime_env: {}
         namespace: rock-sandbox-local
 
     warmup:
@@ -77,14 +76,14 @@ in
     after = [ "network-online.target" "docker.service" ];
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
-    path = [ pkgs.python312 pkgs.python312Packages.pip ];
+    path = [ pkgs.python312 pkgs.python312Packages.pip pkgs.docker ];
     environment = {
       ROCK_STORAGE_BACKEND = "sqlite";
       ROCK_SQLITE_PATH = "/var/lib/rock/rock.db";
-      # uv: rocklet is installed inside each sandbox container via uv at env creation.
-      # Faster than pip, recommended for bare environments (no pre-installed deps).
-      # gem-llm stays inside the container — never needed on the NixOS host.
-      ROCK_WORKER_ENV_TYPE = "uv";
+      # pip: rocklet is pulled inside each sandbox container at env creation time.
+      # uv mode requires project_root to contain pyproject.toml (editable install);
+      # our pip --target layout lacks that, so pip mode is correct here.
+      ROCK_WORKER_ENV_TYPE = "pip";
       # Custom config: removes missing pip requirements file + disables warmup pull.
       ROCK_CONFIG = "${rockConfig}";
       # Ray bundles compiled .so extensions that link against libstdc++.so.6.
