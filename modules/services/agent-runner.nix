@@ -170,6 +170,7 @@ lib.mkIf isAgentHost {
                 \"SGLANG_MODEL\": \"${sglangModel}\",
                 \"OPENROUTER_API_KEY\": \"$OPENROUTER_API_KEY\",
                 \"ANTHROPIC_API_KEY\": \"''${ANTHROPIC_API_KEY:-}\",
+                \"ROCK_ENVHUB_BASE_URL\": \"http://172.17.0.1:8081\",
                 \"IFLOW_apiKey\": \"ollama\",
                 \"IFLOW_baseUrl\": \"${sglangDockerUrl}/v1\",
                 \"IFLOW_modelName\": \"${sglangModel}\",
@@ -184,6 +185,7 @@ lib.mkIf isAgentHost {
                   {\"action\": \"allow\", \"target\": \"172.17.0.1:11435\"},
                   {\"action\": \"allow\", \"target\": \"172.17.0.1:11436\"},
                   {\"action\": \"allow\", \"target\": \"172.17.0.1:8080\"},
+                  {\"action\": \"allow\", \"target\": \"172.17.0.1:8081\"},
                   {\"action\": \"allow\", \"target\": \"openrouter.ai:443\"},
                   {\"action\": \"allow\", \"target\": \"pypi.org:443\"},
                   {\"action\": \"allow\", \"target\": \"files.pythonhosted.org:443\"}

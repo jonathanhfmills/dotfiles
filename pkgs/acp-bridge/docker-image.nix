@@ -15,8 +15,8 @@ let
   adkBootstrap = pkgs.writeShellScriptBin "adk-bootstrap" ''
     if ! ${pythonEnv}/bin/python -c "import google.adk" 2>/dev/null; then
       echo "[adk-bootstrap] Installing google-adk + litellm..."
-      ${pythonEnv}/bin/pip install --user --quiet google-adk litellm opensandbox 2>&1 \
-        || ${pythonEnv}/bin/pip install --break-system-packages --quiet google-adk litellm opensandbox 2>&1 \
+      ${pythonEnv}/bin/pip install --user --quiet google-adk litellm opensandbox rl-rock 2>&1 \
+        || ${pythonEnv}/bin/pip install --break-system-packages --quiet google-adk litellm opensandbox rl-rock 2>&1 \
         || echo "[adk-bootstrap] Warning: pip install failed (network may be restricted)"
     fi
   '';

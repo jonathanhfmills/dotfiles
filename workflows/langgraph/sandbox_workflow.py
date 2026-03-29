@@ -373,10 +373,17 @@ async def run_command(state: SandboxState) -> dict:
         command = f'npm i -g @google/gemini-cli@latest && gemini "{command}"'
         run_output, last_error = await _shell_exec(command)
 
-    # Path 2.5: iFlow CLI — Qwen3.5's native agent interface (in-distribution)
+    # Path 2.5: ROCK sandbox — isolated container with non-root remote_user
+    # Creates a fresh python:3.11 container via ROCK Admin, installs rocklet via
+    # pip inside it, creates an unprivileged 'rock' user, uploads the workspace,
+    # and runs the command. Provides stronger isolation than bare subprocess.
+    elif task.get("backend") == "rock":
+        run_output, last_error = await _run_in_rock_sandbox(command, state)
+
+    # Path 3: iFlow CLI — Qwen3.5's native agent interface (in-distribution)
     # Spawns a child code-interpreter sandbox via OpenSandbox SDK, exactly as
     # Alibaba's reference implementation. The model knows this interface from training.
-    elif task.get("backend") == "iflow":
+    elif task.get("backend") == "iflow":  # noqa: E501
         from opensandbox import Sandbox
         from opensandbox.config import ConnectionConfig
         from datetime import timedelta
@@ -402,7 +409,7 @@ async def run_command(state: SandboxState) -> dict:
                 run_output += "\n" + "\n".join(m.text for m in exec_result.logs.stderr)
             await iflow_sb.kill()
 
-    # Path 3: Direct shell execution
+    # Path 4: Direct shell execution
     else:
         run_output, last_error = await _shell_exec(command)
 
@@ -442,6 +449,81 @@ async def _shell_exec(command: str, timeout: int = 300) -> tuple[str, str]:
         return "", f"command timed out after {timeout}s"
     except Exception as e:
         return "", str(e)
+
+
+async def _run_in_rock_sandbox(command: str, state: dict, timeout: int = 600) -> tuple[str, str]:
+    """Execute a command in an isolated ROCK sandbox with a non-root remote user.
+
+    Lifecycle:
+      1. Create a fresh python:3.11 ROCK sandbox (rocklet installs via pip inside)
+      2. Create unprivileged 'rock' user inside the container
+      3. Upload /workspace into the sandbox and chown to 'rock'
+      4. Open a bash session as 'rock' and run the command
+      5. Read back output, stop the sandbox
+
+    ROCK_ENVHUB_BASE_URL must point to the ROCK Admin server (default localhost:8081).
+    """
+    try:
+        from rock.sdk.sandbox.client import Sandbox
+        from rock.sdk.sandbox.config import SandboxConfig
+        from rock.actions.sandbox.request import (
+            ChownRequest,
+            CreateBashSessionRequest,
+            ExecuteBashSessionRequest,
+        )
+    except ImportError:
+        return "", "rl-rock not installed — run: pip install rl-rock"
+
+    sandbox = Sandbox(SandboxConfig())
+    try:
+        await sandbox.start()
+
+        # Create unprivileged execution user
+        await sandbox.remote_user.create_remote_user("rock")
+
+        # Upload task workspace into sandbox and transfer ownership
+        workspace = "/workspace"
+        if os.path.isdir(workspace):
+            upload = await sandbox.file_system.upload_dir(
+                source_dir=workspace,
+                target_dir="/workspace",
+                extract_timeout=60,
+            )
+            if upload.exit_code != 0:
+                return "", f"upload_dir failed: {upload.failure_reason}"
+
+            await sandbox.file_system.chown(
+                ChownRequest(paths=["/workspace"], remote_user="rock", recursive=True)
+            )
+
+        # Run command as non-root user in a persistent bash session
+        await sandbox.create_session(
+            CreateBashSessionRequest(remote_user="rock", session="main")
+        )
+        result = await asyncio.wait_for(
+            sandbox.run_in_session(
+                ExecuteBashSessionRequest(session="main", command=command)
+            ),
+            timeout=timeout,
+        )
+
+        output = getattr(result, "output", "") or ""
+        error = ""
+        exit_code = getattr(result, "exit_code", 0)
+        if exit_code != 0:
+            error = f"exit code {exit_code}: {output}"
+
+        return output, error
+
+    except asyncio.TimeoutError:
+        return "", f"ROCK sandbox command timed out after {timeout}s"
+    except Exception as e:
+        return "", f"ROCK sandbox error: {e}"
+    finally:
+        try:
+            await sandbox.stop()
+        except Exception:
+            pass
 
 
 async def decide_next(state: SandboxState) -> Literal["inspect", "retry", "escalate"]:
