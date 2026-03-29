@@ -281,8 +281,8 @@ in
     pkgs.triggerhappy
   ];
 
-  # Pin SGLang (9B GPU instance) to P-cores for inference performance.
-  systemd.services.docker-sglang.serviceConfig = {
+  # Pin vLLM (9B GPU instance) to P-cores for inference performance.
+  systemd.services.docker-vllm.serviceConfig = {
     CPUAffinity = "0-11";
     AllowedCPUs = "0-11";
   };

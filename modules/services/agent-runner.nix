@@ -15,8 +15,8 @@ let
   # Which queue this host polls
   queueDir = if isNas then "queue/nas" else "queue/workstation";
 
-  # Both agent hosts use local SGLang
-  sglangModel = if isNas then "Qwen/Qwen3.5-9B" else "Qwen/Qwen3.5-4B";
+  # Both hosts now serve 9B: nas=vLLM ROCm, workstation=SGLang CUDA
+  sglangModel = "Qwen/Qwen3.5-9B";
   sglangDockerUrl = "http://172.17.0.1:11434";
 
   # Qwen Code settings for legacy agents
@@ -170,6 +170,9 @@ lib.mkIf isAgentHost {
                 \"SGLANG_MODEL\": \"${sglangModel}\",
                 \"OPENROUTER_API_KEY\": \"$OPENROUTER_API_KEY\",
                 \"ANTHROPIC_API_KEY\": \"''${ANTHROPIC_API_KEY:-}\",
+                \"IFLOW_apiKey\": \"ollama\",
+                \"IFLOW_baseUrl\": \"${sglangDockerUrl}/v1\",
+                \"IFLOW_modelName\": \"${sglangModel}\",
                 \"TASK_FILE\": \"/workspace/results/task.json\",
                 \"RESULTS_DIR\": \"/workspace/results\",
                 \"HOME\": \"/workspace/agent\"
