@@ -81,6 +81,9 @@ in
     environment = {
       ROCK_STORAGE_BACKEND = "sqlite";
       ROCK_SQLITE_PATH = "/var/lib/rock/rock.db";
+      # pip: rocklet is pulled inside each sandbox container at env creation time.
+      # This avoids needing gem-llm on the host (it's an internal Alibaba package).
+      ROCK_WORKER_ENV_TYPE = "pip";
       # Custom config: removes missing pip requirements file + disables warmup pull.
       ROCK_CONFIG = "${rockConfig}";
       # Ray bundles compiled .so extensions that link against libstdc++.so.6.

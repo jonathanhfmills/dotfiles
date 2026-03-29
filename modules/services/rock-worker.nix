@@ -45,7 +45,7 @@ in
     path = [ pkgs.python312 pkgs.python312Packages.pip ];
     environment = {
       ROCK_ADMIN_URL = adminUrl;
-      ROCK_WORKER_ENV_TYPE = "docker";
+      ROCK_WORKER_ENV_TYPE = "pip";
       LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
     };
     serviceConfig = {
