@@ -10,14 +10,22 @@ let
   rockPkgs = "/var/lib/rock/packages";
   marker = "/var/lib/rock/.worker-installed";
   startScript = pkgs.writeShellScript "rock-worker-start" ''
+    set -e
     export PYTHONPATH="${rockPkgs}:''${PYTHONPATH:-}"
     export PATH="${rockPkgs}/bin:$PATH"
     if [ ! -f "${marker}" ]; then
       echo "Installing ROCK worker..."
-      ${pkgs.python3}/bin/pip install --target="${rockPkgs}" "rl-rock[worker,rocklet]"
+      # rocklet extra requires gem-llm (internal Alibaba, not on PyPI) — install base only
+      pip install --use-deprecated=legacy-resolver --target="${rockPkgs}" \
+        "rl-rock" \
+        "nacos-sdk-python==2.0.2" \
+        pytz bashlex psutil
+      rm -f "${rockPkgs}/uuid.py" "${rockPkgs}/UUID.py"
+      rm -rf "${rockPkgs}"/uuid-*.dist-info
       touch "${marker}"
     fi
-    exec rock worker start
+    # rocklet is the worker binary — 'rock worker start' subcommand does not exist
+    exec rocklet
   '';
 in
 {
@@ -28,13 +36,17 @@ in
 
   systemd.services.rock-worker = {
     description = "ROCK Worker — RL environment executor (${hostname})";
+    # rocklet requires gem-llm (internal Alibaba package, not on PyPI) — disabled.
+    # Ray actors on the admin node handle sandbox execution directly.
+    enable = false;
     after = [ "network-online.target" "docker.service" ];
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
-    path = [ pkgs.python3 ];
+    path = [ pkgs.python312 pkgs.python312Packages.pip ];
     environment = {
       ROCK_ADMIN_URL = adminUrl;
       ROCK_WORKER_ENV_TYPE = "docker";
+      LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
     };
     serviceConfig = {
       Type = "simple";

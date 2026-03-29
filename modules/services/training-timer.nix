@@ -44,8 +44,8 @@ lib.mkIf isNas {
 
   systemd.services.gspo-training = {
     description = "GSPO Training — nightly distillation from 35B teacher";
-    after = [ "docker-sglang.service" ];
-    requires = [ "docker-sglang.service" ];
+    after = [ "docker-vllm.service" ];
+    requires = [ "docker-vllm.service" ];
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${pkgs.bash}/bin/bash ${trainingScript}";
