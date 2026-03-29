@@ -378,7 +378,7 @@ async def run_command(state: SandboxState) -> dict:
     # pip inside it, creates an unprivileged 'rock' user, uploads the workspace,
     # and runs the command. Provides stronger isolation than bare subprocess.
     elif task.get("backend") == "rock":
-        run_output, last_error = await _run_in_rock_sandbox(command, state)
+        run_output, last_error = await _run_in_rock_sandbox(command, state, task=task)
 
     # Path 3: iFlow CLI — Qwen3.5's native agent interface (in-distribution)
     # Spawns a child code-interpreter sandbox via OpenSandbox SDK, exactly as
@@ -451,28 +451,41 @@ async def _shell_exec(command: str, timeout: int = 300) -> tuple[str, str]:
         return "", str(e)
 
 
-async def _run_in_rock_sandbox(command: str, state: dict, timeout: int = 600) -> tuple[str, str]:
+async def _run_in_rock_sandbox(command: str, state: dict, task: dict | None = None, timeout: int = 600) -> tuple[str, str]:
     """Execute a command in an isolated ROCK sandbox with a non-root remote user.
 
     Lifecycle:
       1. Create a fresh python:3.11 ROCK sandbox (rocklet installs via pip inside)
       2. Create unprivileged 'rock' user inside the container
       3. Upload /workspace into the sandbox and chown to 'rock'
-      4. Open a bash session as 'rock' and run the command
-      5. Read back output, stop the sandbox
+      4. Provision RuntimeEnv (python/node/shell) with optional pip packages
+      5. Open a bash session as 'rock', run via arun (nohup mode)
+      6. Read back output via read_file_by_line_range if output is large
+
+    Task fields:
+      runtime: "python" (default) | "node" | "shell"
+      pip: list[str] — packages to pre-install into the Python RuntimeEnv
+      runtime_version: "3.11" | "3.12" | "default" (python) / "22.18.0" | "default" (node)
 
     ROCK_ENVHUB_BASE_URL must point to the ROCK Admin server (default localhost:8081).
     """
     try:
         from rock.sdk.sandbox.client import Sandbox
         from rock.sdk.sandbox.config import SandboxConfig
+        from rock.sdk.sandbox.runtime_env import RuntimeEnv, PythonRuntimeEnvConfig, NodeRuntimeEnvConfig
         from rock.actions.sandbox.request import (
             ChownRequest,
             CreateBashSessionRequest,
-            ExecuteBashSessionRequest,
         )
     except ImportError:
         return "", "rl-rock not installed — run: pip install rl-rock"
+
+    task = task or {}
+    runtime = task.get("runtime", "python")
+    pip_pkgs = task.get("pip") or []
+    rt_version = task.get("runtime_version", "default")
+    # nohup output cap: 128 KB inline; larger outputs are read via read_file_by_line_range
+    OUTPUT_CAP = 131072
 
     sandbox = Sandbox(SandboxConfig())
     try:
@@ -496,23 +509,52 @@ async def _run_in_rock_sandbox(command: str, state: dict, timeout: int = 600) ->
                 ChownRequest(paths=["/workspace"], remote_user="rock", recursive=True)
             )
 
-        # Run command as non-root user in a persistent bash session
+        # Provision RuntimeEnv — managed bin dir, optional pre-installed packages
+        env = None
+        if runtime == "node":
+            env = await RuntimeEnv.create(sandbox, NodeRuntimeEnvConfig(version=rt_version))
+        elif runtime == "python":
+            env = await RuntimeEnv.create(sandbox, PythonRuntimeEnvConfig(
+                version=rt_version,
+                pip=pip_pkgs or None,
+            ))
+        # runtime == "shell": no RuntimeEnv, run command bare
+
+        # Open bash session as non-root user
         await sandbox.create_session(
             CreateBashSessionRequest(remote_user="rock", session="main")
         )
-        result = await asyncio.wait_for(
-            sandbox.run_in_session(
-                ExecuteBashSessionRequest(session="main", command=command)
+
+        # Execute via arun (nohup mode) — decouples execution from output streaming
+        cmd = env.wrapped_cmd(command) if env else command
+        resp = await asyncio.wait_for(
+            sandbox.arun(
+                cmd=cmd,
+                mode="nohup",
+                session="main",
+                response_limited_bytes_in_nohup=OUTPUT_CAP,
             ),
             timeout=timeout,
         )
 
-        output = getattr(result, "output", "") or ""
-        error = ""
-        exit_code = getattr(result, "exit_code", 0)
-        if exit_code != 0:
-            error = f"exit code {exit_code}: {output}"
+        output = getattr(resp, "output", "") or ""
+        exit_code = getattr(resp, "exit_code", 0)
 
+        # If output was capped, fetch remainder from the nohup output file
+        output_file = getattr(resp, "output_file", None)
+        if output_file and len(output) >= OUTPUT_CAP:
+            try:
+                remainder = await sandbox.read_file_by_line_range(
+                    output_file,
+                    start_line=output.count("\n") + 1,
+                    lines_per_request=5000,
+                )
+                output += "\n[...truncated, continuing from file...]\n"
+                output += getattr(remainder, "content", "")
+            except Exception:
+                output += "\n[output truncated at 128 KB]"
+
+        error = f"exit code {exit_code}: {output}" if exit_code != 0 else ""
         return output, error
 
     except asyncio.TimeoutError:
