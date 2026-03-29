@@ -451,26 +451,48 @@ async def _shell_exec(command: str, timeout: int = 300) -> tuple[str, str]:
         return "", str(e)
 
 
-async def _run_in_rock_sandbox(command: str, state: dict, task: dict | None = None, timeout: int = 600) -> tuple[str, str]:
-    """Execute a command in an isolated ROCK sandbox with a non-root remote user.
+def parse_swebench_result(output: str) -> bool:
+    """Parse SWE-Bench test output — returns True if the task resolved (PASSED)."""
+    import re
+    match = re.search(
+        r"SWEBench results starts here\s*(.*?)\s*SWEBench results ends here",
+        output,
+        re.DOTALL,
+    )
+    if not match:
+        return False
+    return match.group(1).strip() == "PASSED"
 
-    Lifecycle:
-      1. Create a fresh python:3.11 ROCK sandbox (rocklet installs via pip inside)
-      2. Create unprivileged 'rock' user inside the container
-      3. Upload /workspace into the sandbox and chown to 'rock'
+
+async def _run_in_rock_sandbox(command: str, state: dict, task: dict | None = None, timeout: int = 600) -> tuple[str, str]:
+    """Execute a command in an isolated ROCK sandbox.
+
+    Two execution paths depending on task fields:
+
+    Agent path (task.agent_config set):
+      Uses sandbox.agent.install(config) + sandbox.agent.run(instruction) —
+      the official ROCK Agent API. Suitable for iFlow, NullClaw, or any agent
+      YAML config. The agent handles its own session and runtime setup.
+
+    Command path (default):
+      1. Create sandbox (task.image or python:3.11 default)
+      2. Create unprivileged 'rock' remote user
+      3. Upload /workspace into sandbox, chown to 'rock'
       4. Provision RuntimeEnv (python/node/shell) with optional pip packages
-      5. Open a bash session as 'rock', run via arun (nohup mode)
-      6. Read back output via read_file_by_line_range if output is large
+      5. Open bash session as 'rock', run via arun(RunMode.NOHUP, wait_timeout)
+      6. Fetch remainder via read_file_by_line_range if output > 128 KB
 
     Task fields:
+      agent_config: str — path to agent YAML config (triggers agent path)
+      image: str — Docker image URI (default: python:3.11)
       runtime: "python" (default) | "node" | "shell"
       pip: list[str] — packages to pre-install into the Python RuntimeEnv
-      runtime_version: "3.11" | "3.12" | "default" (python) / "22.18.0" | "default" (node)
+      runtime_version: "3.11"|"3.12"|"default" (python) / "22.18.0"|"default" (node)
 
     ROCK_ENVHUB_BASE_URL must point to the ROCK Admin server (default localhost:8081).
     """
     try:
-        from rock.sdk.sandbox.client import Sandbox
+        from rock.sdk.sandbox.client import Sandbox, RunMode
         from rock.sdk.sandbox.config import SandboxConfig
         from rock.sdk.sandbox.runtime_env import RuntimeEnv, PythonRuntimeEnvConfig, NodeRuntimeEnvConfig
         from rock.actions.sandbox.request import (
@@ -481,15 +503,27 @@ async def _run_in_rock_sandbox(command: str, state: dict, task: dict | None = No
         return "", "rl-rock not installed — run: pip install rl-rock"
 
     task = task or {}
+    agent_config = task.get("agent_config")
+    image = task.get("image")
     runtime = task.get("runtime", "python")
     pip_pkgs = task.get("pip") or []
     rt_version = task.get("runtime_version", "default")
-    # nohup output cap: 128 KB inline; larger outputs are read via read_file_by_line_range
+    # nohup output cap: 128 KB inline; larger outputs read via read_file_by_line_range
     OUTPUT_CAP = 131072
 
-    sandbox = Sandbox(SandboxConfig())
+    cfg = SandboxConfig(image=image) if image else SandboxConfig()
+    sandbox = Sandbox(cfg)
     try:
         await sandbox.start()
+
+        # --- Agent path: delegate entirely to sandbox.agent ---
+        if agent_config:
+            await sandbox.agent.install(config=agent_config)
+            result = await sandbox.agent.run(command)
+            output = getattr(result, "output", str(result)) or ""
+            return output, ""
+
+        # --- Command path ---
 
         # Create unprivileged execution user
         await sandbox.remote_user.create_remote_user("rock")
@@ -504,7 +538,6 @@ async def _run_in_rock_sandbox(command: str, state: dict, task: dict | None = No
             )
             if upload.exit_code != 0:
                 return "", f"upload_dir failed: {upload.failure_reason}"
-
             await sandbox.file_system.chown(
                 ChownRequest(paths=["/workspace"], remote_user="rock", recursive=True)
             )
@@ -525,22 +558,21 @@ async def _run_in_rock_sandbox(command: str, state: dict, task: dict | None = No
             CreateBashSessionRequest(remote_user="rock", session="main")
         )
 
-        # Execute via arun (nohup mode) — decouples execution from output streaming
+        # Execute via arun — RunMode.NOHUP decouples execution from streaming;
+        # wait_timeout replaces the outer asyncio.wait_for wrapper
         cmd = env.wrapped_cmd(command) if env else command
-        resp = await asyncio.wait_for(
-            sandbox.arun(
-                cmd=cmd,
-                mode="nohup",
-                session="main",
-                response_limited_bytes_in_nohup=OUTPUT_CAP,
-            ),
-            timeout=timeout,
+        resp = await sandbox.arun(
+            cmd=cmd,
+            mode=RunMode.NOHUP,
+            session="main",
+            wait_timeout=timeout,
+            response_limited_bytes_in_nohup=OUTPUT_CAP,
         )
 
         output = getattr(resp, "output", "") or ""
         exit_code = getattr(resp, "exit_code", 0)
 
-        # If output was capped, fetch remainder from the nohup output file
+        # Fetch remainder from nohup output file if response was capped
         output_file = getattr(resp, "output_file", None)
         if output_file and len(output) >= OUTPUT_CAP:
             try:
@@ -557,8 +589,6 @@ async def _run_in_rock_sandbox(command: str, state: dict, task: dict | None = No
         error = f"exit code {exit_code}: {output}" if exit_code != 0 else ""
         return output, error
 
-    except asyncio.TimeoutError:
-        return "", f"ROCK sandbox command timed out after {timeout}s"
     except Exception as e:
         return "", f"ROCK sandbox error: {e}"
     finally:
