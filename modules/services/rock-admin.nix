@@ -81,9 +81,10 @@ in
     environment = {
       ROCK_STORAGE_BACKEND = "sqlite";
       ROCK_SQLITE_PATH = "/var/lib/rock/rock.db";
-      # pip: rocklet is pulled inside each sandbox container at env creation time.
-      # This avoids needing gem-llm on the host (it's an internal Alibaba package).
-      ROCK_WORKER_ENV_TYPE = "pip";
+      # uv: rocklet is installed inside each sandbox container via uv at env creation.
+      # Faster than pip, recommended for bare environments (no pre-installed deps).
+      # gem-llm stays inside the container — never needed on the NixOS host.
+      ROCK_WORKER_ENV_TYPE = "uv";
       # Custom config: removes missing pip requirements file + disables warmup pull.
       ROCK_CONFIG = "${rockConfig}";
       # Ray bundles compiled .so extensions that link against libstdc++.so.6.
