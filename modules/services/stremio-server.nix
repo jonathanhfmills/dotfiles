@@ -7,50 +7,17 @@ let
       reverse_proxy 127.0.0.1:11470
     }
   '';
-
-  stremio-server = pkgs.stdenv.mkDerivation {
-    pname = "stremio-server";
-    version = "4.20.16";
-
-    src = pkgs.fetchurl {
-      url = "https://dl.strem.io/server/v4.20.16/desktop/server.js";
-      sha256 = "0a3fr2gqyz25vxj9mswjqdchgf3sd3kjjs33phyhwpvnb3q8gs48";
-    };
-
-    dontUnpack = true;
-
-    installPhase = ''
-      mkdir -p $out/share/stremio-server
-      cp $src $out/share/stremio-server/server.js
-    '';
-  };
 in
 {
-  systemd.services.stremio-server = {
-    description = "Stremio Streaming Server";
-    after = [ "network-online.target" "tailscaled.service" ];
-    wants = [ "network-online.target" ];
-    wantedBy = [ "multi-user.target" ];
-
+  virtualisation.oci-containers.containers.stremio-server = {
+    image = "stremio/server:latest";
+    ports = [ "11470:11470" ];
+    volumes = [ "/var/lib/stremio-server:/root/.stremio-server" ];
+    extraOptions = [ "--device=/dev/dri" ];
     environment = {
-      FFMPEG_BIN = "${pkgs.ffmpeg.override { withVaapi = true; }}/bin/ffmpeg";
-      FFPROBE_BIN = "${pkgs.ffmpeg.override { withVaapi = true; }}/bin/ffprobe";
-      APP_PATH = "/var/lib/stremio-server";
       NO_CORS = "1";
       CASTING_DISABLED = "1";
-    };
-
-    path = [ pkgs.procps ];
-    serviceConfig = {
-      ExecStart = "${pkgs.nodejs_20}/bin/node ${stremio-server}/share/stremio-server/server.js";
-      DynamicUser = true;
-      StateDirectory = "stremio-server";
-
-      # Hardening
-      ProtectSystem = "strict";
-      ProtectHome = true;
-      PrivateTmp = true;
-      NoNewPrivileges = true;
+      LIBVA_DRIVER_NAME = "iHD";
     };
   };
 
