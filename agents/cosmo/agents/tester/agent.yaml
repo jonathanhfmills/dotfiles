@@ -1,0 +1,12 @@
+spec_version: "0.1.0"
+name: tester
+version: "2.0.0"
+description: >
+  QA Engineer — writes unit, integration, and E2E tests.
+  Stateless NullClaw worker. FIRST principles, >80% coverage target.
+  Never modifies production code.
+tags:
+  - tester
+  - qa
+  - nullclaw
+  - stateless
