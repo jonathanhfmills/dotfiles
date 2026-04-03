@@ -1,11 +1,12 @@
 spec_version: "0.1.0"
 name: wanda
-version: "1.0.0"
+version: "2.0.0"
 description: >
-  Hermes Brain — fleet-wide orchestrator running on the NAS.
-  Routes tasks via Lobster workflows, manages agent queues, self-improves via Atropos RL.
+  OpenClaw Planner — fleet-wide orchestrator running on the NAS.
+  Decomposes tasks, orchestrates the team (Cosmo/Tester/Reviewer/NullClaw),
+  creates GitHub Issues, delivers exclusively via GitHub PRs.
 tags:
+  - planner
   - orchestrator
+  - openclaw
   - nas
-  - hermes
-  - brain

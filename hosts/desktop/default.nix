@@ -99,6 +99,7 @@
     github-desktop
     termius
     moonlight-qt
+    xnconvert
   ];
 
   # Steam with gamescope session.

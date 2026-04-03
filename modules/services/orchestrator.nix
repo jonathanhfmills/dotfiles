@@ -13,7 +13,6 @@ let
   isNas = hostname == "nas";
 
   # Network policy: filesystem (queue writes) + SGLang + evaluator + frontier
-  # NO opensandbox API access — Wanda never spawns sandboxes directly
   networkPolicy = builtins.toJSON {
     defaultAction = "deny";
     egress = [
@@ -182,12 +181,10 @@ SEED
 
   # Hermes Agent — Wanda runs inside an OpenSandbox container (air-gapped)
   # Network: filesystem queue writes + SGLang inference + frontier APIs
-  # NO opensandbox API access — agent-runner handles sandbox spawning
   systemd.services.orchestrator = {
     description = "Wanda — Hermes Brain (NAS, air-gapped)";
-    after = [ "opensandbox-server.service" "opensandbox-pull-images.service" "network-online.target" ];
-    requires = [ "opensandbox-server.service" ];
-    wants = [ "network-online.target" "opensandbox-pull-images.service" ];
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "simple";

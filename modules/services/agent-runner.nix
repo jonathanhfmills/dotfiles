@@ -87,9 +87,8 @@ lib.mkIf isAgentHost {
   # Agent runner — polls local queue, spawns ACP reasoning containers
   systemd.services.agent-runner = {
     description = "Agent Runner — ACP reasoning executor (${hostname}, polls ${queueDir})";
-    after = [ "opensandbox-server.service" "opensandbox-pull-images.service" "network-online.target" ];
-    requires = [ "opensandbox-server.service" ];
-    wants = [ "network-online.target" "opensandbox-pull-images.service" ];
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "simple";
