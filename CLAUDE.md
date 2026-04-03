@@ -17,15 +17,13 @@ For any NixOS change, use the `/nix` skill. Full instructions: `skills/nix/SKILL
 
 ## Agents
 
-| Agent | Location | Scope |
-|-------|----------|-------|
-| Hermes Brain | `agents/wanda/` | NAS |
-| Engineer | `agents/cosmo/` | Workstation |
-| NullClaw Coder | `agents/coder/` | NAS + Workstation |
-| Confidence Scorer | `agents/uncertainty-manager/` | NAS |
-| NixOS Configurator | `agents/nix-configurator/` | All dev hosts |
-| NixOS Builder | `agents/nix-builder/` | All dev hosts |
-| DashClaw Expert | `agents/dashclaw/` | All (gitagent dependency) |
+| Agent | Location | Role |
+|-------|----------|------|
+| Wanda (OpenClaw) | `agents/wanda/` | Planner — orchestrates, decomposes, creates GH issues/PRs |
+| Cosmo | `agents/cosmo/` | Coder/Engineer — TDD, SOLID, implementation |
+| Researcher | `agents/cosmo/agents/researcher/` | Analysis — code exploration, dependency mapping |
+| Reviewer | `agents/cosmo/agents/reviewer/` | Audit — security, quality, performance |
+| Tester | `agents/cosmo/agents/tester/` | QA — unit/integration/E2E, FIRST principles |
 
 ## Memory
 

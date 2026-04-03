@@ -90,6 +90,7 @@
     github-desktop
     termius
     moonlight-qt
+    xnconvert
   ];
 
   # Fingerprint authentication for sudo.

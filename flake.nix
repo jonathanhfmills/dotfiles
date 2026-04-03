@@ -48,11 +48,8 @@
       tmuxPlugins = prev.tmuxPlugins // {
         aw-watcher-tmux = final.callPackage ./pkgs/aw-watcher-tmux {};
       };
-      opensandbox-sdk = final.callPackage ./pkgs/opensandbox-sdk {};
-      opensandbox-code-interpreter = final.callPackage ./pkgs/opensandbox-code-interpreter {
-        opensandbox-sdk = final.opensandbox-sdk;
-      };
       qwen-code = final.callPackage ./pkgs/qwen-code {};
+      openclaw = final.callPackage ./pkgs/openclaw {};
       acp-bridge = final.callPackage ./pkgs/acp-bridge {};
       acp-reasoning-image = final.callPackage ./pkgs/acp-bridge/docker-image.nix {
         acp-bridge = final.acp-bridge;
@@ -145,7 +142,6 @@
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
         ./modules/services/syncthing.nix
-        ./modules/services/opensandbox.nix
         ./modules/services/agent-runner.nix
         ./modules/programs/qwen-code.nix
         ./modules/programs/activitywatch.nix
@@ -183,7 +179,6 @@
         ./modules/services/stremio-server.nix
         ./modules/programs/qwen-code.nix
         ./modules/services/syncthing.nix
-        ./modules/services/opensandbox.nix
         ./modules/services/orchestrator.nix
         ./modules/services/agent-runner.nix
         ./modules/programs/activitywatch.nix

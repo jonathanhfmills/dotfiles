@@ -374,42 +374,10 @@ async def run_command(state: SandboxState) -> dict:
         run_output, last_error = await _shell_exec(command)
 
     # Path 2.5: ROCK sandbox — isolated container with non-root remote_user
-    # Creates a fresh python:3.11 container via ROCK Admin, installs rocklet via
-    # pip inside it, creates an unprivileged 'rock' user, uploads the workspace,
-    # and runs the command. Provides stronger isolation than bare subprocess.
     elif task.get("backend") == "rock":
         run_output, last_error = await _run_in_rock_sandbox(command, state, task=task)
 
-    # Path 3: iFlow CLI — Qwen3.5's native agent interface (in-distribution)
-    # Spawns a child code-interpreter sandbox via OpenSandbox SDK, exactly as
-    # Alibaba's reference implementation. The model knows this interface from training.
-    elif task.get("backend") == "iflow":  # noqa: E501
-        from opensandbox import Sandbox
-        from opensandbox.config import ConnectionConfig
-        from datetime import timedelta
-        sandbox_domain = os.environ.get("SANDBOX_DOMAIN", "172.17.0.1:8080")
-        cfg = ConnectionConfig(domain=sandbox_domain, request_timeout=timedelta(seconds=300))
-        iflow_sb = await Sandbox.create(
-            "opensandbox/code-interpreter:v1.0.2",
-            connection_config=cfg,
-            env={
-                "IFLOW_apiKey":    os.environ.get("IFLOW_apiKey", "ollama"),
-                "IFLOW_baseUrl":   os.environ.get("IFLOW_baseUrl", "http://172.17.0.1:11434/v1"),
-                "IFLOW_modelName": os.environ.get("IFLOW_modelName", "Qwen/Qwen3.5-9B"),
-            },
-        )
-        async with iflow_sb:
-            await iflow_sb.commands.run("npm install -g @iflow-ai/iflow-cli@latest")
-            iflow_prompt = task.get("prompt", command)
-            exec_result = await iflow_sb.commands.run(f'iflow "{iflow_prompt}" --yolo')
-            run_output = "\n".join(m.text for m in exec_result.logs.stdout)
-            if exec_result.error:
-                last_error = f"{exec_result.error.name}: {exec_result.error.value}"
-            elif exec_result.logs.stderr:
-                run_output += "\n" + "\n".join(m.text for m in exec_result.logs.stderr)
-            await iflow_sb.kill()
-
-    # Path 4: Direct shell execution
+    # Path 3: Direct shell execution
     else:
         run_output, last_error = await _shell_exec(command)
 

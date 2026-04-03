@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MCP Server: Sandbox — spawn and manage child sandboxes via OpenSandbox API.
+"""MCP Server: Sandbox — spawn and manage child sandboxes via ROCK SDK.
 
 Exposes MCP tools over stdio (JSON-RPC 2.0):
   - spawn_sandbox(type, timeout) → create a child sandbox
@@ -8,55 +8,44 @@ Exposes MCP tools over stdio (JSON-RPC 2.0):
   - write_sandbox_file(sandbox_id, path, content) → write a file into sandbox
   - get_sandbox_endpoints(sandbox_id) → get exposed ports
   - kill_sandbox(sandbox_id) → terminate and cleanup
+
+ROCK_ENVHUB_BASE_URL must point to the ROCK Admin server (default localhost:8081).
 """
+import asyncio
 import json
 import os
 import sys
 import threading
 import time
-import urllib.request
-import urllib.error
 
-OPENSANDBOX_URL = os.environ.get("OPENSANDBOX_URL", "http://172.17.0.1:8080")
 AGENT_NAME = os.environ.get("AGENT_NAME", "unknown")
 
-# Sandbox type → image + resource limits + exposed ports
+# Sandbox type → image + runtime config
 SANDBOX_TYPES = {
     "code-interpreter": {
-        "image": "opensandbox/code-interpreter:v1.0.2",
-        "cpu": "500m",
-        "memory": "1Gi",
-        "ports": [],
+        "image": "python:3.11",
+        "runtime": "python",
+        "pip": ["ipython", "numpy", "pandas"],
     },
     "playwright": {
-        "image": "opensandbox/playwright:latest",
-        "cpu": "500m",
-        "memory": "1Gi",
-        "ports": [],
+        "image": "mcr.microsoft.com/playwright/python:v1.43.0-jammy",
+        "runtime": "python",
+        "pip": ["playwright"],
     },
-    "chrome": {
-        "image": "opensandbox/chrome:latest",
-        "cpu": "1000m",
-        "memory": "2Gi",
-        "ports": [5901, 9222],
-    },
-    "desktop": {
-        "image": "opensandbox/desktop:latest",
-        "cpu": "1000m",
-        "memory": "2Gi",
-        "ports": [5901, 6080],
+    "node": {
+        "image": "node:20-slim",
+        "runtime": "node",
+        "pip": [],
     },
     "vscode": {
-        "image": "opensandbox/vscode:latest",
-        "cpu": "500m",
-        "memory": "1Gi",
-        "ports": [8080],
+        "image": "python:3.11",
+        "runtime": "python",
+        "pip": [],
     },
     "aio": {
-        "image": "ghcr.io/agent-infra/sandbox:latest",
-        "cpu": "1000m",
-        "memory": "2Gi",
-        "ports": [8080],
+        "image": "python:3.11",
+        "runtime": "python",
+        "pip": [],
     },
 }
 
@@ -64,35 +53,19 @@ SANDBOX_TYPES = {
 AGENT_ALLOWLIST = {
     "coder": ["code-interpreter", "vscode", "aio"],
     "reviewer": ["code-interpreter"],
-    "reader": ["playwright", "chrome"],
-    "writer": ["aio"],
-    "deployer": ["desktop", "chrome"],
-    "cosmo": ["code-interpreter", "vscode", "aio", "playwright", "chrome", "desktop"],
+    "tester": ["code-interpreter", "aio"],
+    "researcher": ["code-interpreter", "playwright"],
+    "cosmo": list(SANDBOX_TYPES.keys()),
+    "wanda": list(SANDBOX_TYPES.keys()),
 }
 
 # Default max TTL for child sandboxes (seconds)
 DEFAULT_TTL = 600
 MAX_TTL = 1800
 
-# Track active sandboxes for TTL reaping
-_active_sandboxes: dict[str, float] = {}  # sandbox_id → expiry timestamp
+# Track active sandboxes for TTL reaping: sandbox_id → (Sandbox, expiry_timestamp)
+_active_sandboxes: dict[str, tuple] = {}
 _reaper_started = False
-
-
-def _api_call(method: str, path: str, body: dict | None = None) -> dict:
-    """Make an HTTP request to the OpenSandbox API."""
-    url = f"{OPENSANDBOX_URL}{path}"
-    data = json.dumps(body).encode() if body else None
-    req = urllib.request.Request(url, data=data, method=method)
-    req.add_header("Content-Type", "application/json")
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read().decode())
-    except urllib.error.HTTPError as e:
-        body_text = e.read().decode() if e.fp else ""
-        return {"error": f"HTTP {e.code}: {body_text}"}
-    except urllib.error.URLError as e:
-        return {"error": f"Connection failed: {e.reason}"}
 
 
 def _start_reaper():
@@ -106,17 +79,27 @@ def _start_reaper():
         while True:
             time.sleep(30)
             now = time.time()
-            expired = [sid for sid, exp in _active_sandboxes.items() if now >= exp]
+            expired = [sid for sid, (_, exp) in _active_sandboxes.items() if now >= exp]
             for sid in expired:
-                _api_call("DELETE", f"/v1/sandboxes/{sid}")
-                _active_sandboxes.pop(sid, None)
+                sandbox, _ = _active_sandboxes.pop(sid, (None, None))
+                if sandbox:
+                    try:
+                        asyncio.run(sandbox.stop())
+                    except Exception:
+                        pass
 
     t = threading.Thread(target=reaper, daemon=True)
     t.start()
 
 
 def spawn_sandbox(type: str, timeout: int | None = None) -> dict:
-    """Create a child sandbox of the given type."""
+    """Create a child sandbox of the given type via ROCK SDK."""
+    try:
+        from rock.sdk.sandbox.client import Sandbox
+        from rock.sdk.sandbox.config import SandboxConfig
+    except ImportError:
+        return {"error": "rl-rock not installed — run: pip install rl-rock"}
+
     if type not in SANDBOX_TYPES:
         return {"error": f"Unknown sandbox type: {type}. Available: {list(SANDBOX_TYPES.keys())}"}
 
@@ -127,93 +110,161 @@ def spawn_sandbox(type: str, timeout: int | None = None) -> dict:
     spec = SANDBOX_TYPES[type]
     ttl = min(timeout or DEFAULT_TTL, MAX_TTL)
 
-    result = _api_call("POST", "/v1/sandboxes", {
-        "image": {"uri": spec["image"]},
-        "timeout": ttl,
-        "resourceLimits": {"cpu": spec["cpu"], "memory": spec["memory"]},
-        "networkPolicy": {
-            "defaultAction": "deny",
-            "egress": [],
-        },
-    })
+    async def _create():
+        cfg = SandboxConfig(image=spec["image"]) if spec.get("image") else SandboxConfig()
+        sandbox = Sandbox(cfg)
+        await sandbox.start()
+        await sandbox.remote_user.create_remote_user("rock")
+        return sandbox
 
-    if "error" in result:
-        return result
+    try:
+        sandbox = asyncio.run(_create())
+    except Exception as e:
+        return {"error": f"Failed to create ROCK sandbox: {e}"}
 
-    sandbox_id = result.get("id")
-    if not sandbox_id:
-        return {"error": "No sandbox ID returned", "response": result}
-
-    _active_sandboxes[sandbox_id] = time.time() + ttl
+    sandbox_id = str(id(sandbox))
+    _active_sandboxes[sandbox_id] = (sandbox, time.time() + ttl)
     _start_reaper()
 
     return {
         "sandbox_id": sandbox_id,
         "type": type,
-        "image": spec["image"],
+        "image": spec.get("image", "default"),
         "ttl": ttl,
-        "ports": spec["ports"],
     }
 
 
 def exec_in_sandbox(sandbox_id: str, command: str) -> dict:
-    """Run a command inside a sandbox."""
-    if sandbox_id not in _active_sandboxes:
+    """Run a command inside a ROCK sandbox."""
+    try:
+        from rock.sdk.sandbox.client import RunMode
+        from rock.actions.sandbox.request import CreateBashSessionRequest
+    except ImportError:
+        return {"error": "rl-rock not installed — run: pip install rl-rock"}
+
+    entry = _active_sandboxes.get(sandbox_id)
+    if not entry:
         return {"error": f"Unknown sandbox: {sandbox_id}"}
 
-    result = _api_call("POST", f"/v1/sandboxes/{sandbox_id}/exec", {
-        "command": ["sh", "-c", command],
-    })
-    return result
+    sandbox, _ = entry
+    OUTPUT_CAP = 131072
+
+    async def _exec():
+        await sandbox.create_session(
+            CreateBashSessionRequest(remote_user="rock", session="exec")
+        )
+        resp = await sandbox.arun(
+            cmd=command,
+            mode=RunMode.NOHUP,
+            session="exec",
+            wait_timeout=300,
+            response_limited_bytes_in_nohup=OUTPUT_CAP,
+        )
+        output = getattr(resp, "output", "") or ""
+        exit_code = getattr(resp, "exit_code", 0)
+
+        # Fetch remainder if output was capped
+        output_file = getattr(resp, "output_file", None)
+        if output_file and len(output) >= OUTPUT_CAP:
+            try:
+                remainder = await sandbox.read_file_by_line_range(
+                    output_file,
+                    start_line=output.count("\n") + 1,
+                    lines_per_request=5000,
+                )
+                output += "\n[...truncated...]\n" + getattr(remainder, "content", "")
+            except Exception:
+                output += "\n[output truncated at 128 KB]"
+
+        return {"output": output, "exit_code": exit_code}
+
+    try:
+        return asyncio.run(_exec())
+    except Exception as e:
+        return {"error": f"exec failed: {e}"}
 
 
 def read_sandbox_file(sandbox_id: str, path: str) -> dict:
-    """Read a file from sandbox filesystem."""
-    if sandbox_id not in _active_sandboxes:
+    """Read a file from sandbox filesystem via ROCK file_system API."""
+    entry = _active_sandboxes.get(sandbox_id)
+    if not entry:
         return {"error": f"Unknown sandbox: {sandbox_id}"}
 
-    result = _api_call("GET", f"/v1/sandboxes/{sandbox_id}/files?path={path}")
-    return result
+    sandbox, _ = entry
+
+    async def _read():
+        result = await sandbox.file_system.read_file_by_line_range(
+            path,
+            start_line=1,
+            lines_per_request=5000,
+        )
+        return {"path": path, "content": getattr(result, "content", "")}
+
+    try:
+        return asyncio.run(_read())
+    except Exception as e:
+        return {"error": f"read failed: {e}"}
 
 
 def write_sandbox_file(sandbox_id: str, path: str, content: str) -> dict:
-    """Write a file into sandbox."""
-    if sandbox_id not in _active_sandboxes:
+    """Write a file into sandbox via ROCK file_system.upload_dir."""
+    entry = _active_sandboxes.get(sandbox_id)
+    if not entry:
         return {"error": f"Unknown sandbox: {sandbox_id}"}
 
-    result = _api_call("POST", f"/v1/sandboxes/{sandbox_id}/files", {
-        "path": path,
-        "content": content,
-    })
-    return result
+    sandbox, _ = entry
+
+    async def _write():
+        import tempfile, os as _os
+        with tempfile.TemporaryDirectory() as tmp:
+            # Write content to a temp file matching the target basename
+            basename = _os.path.basename(path)
+            local_path = _os.path.join(tmp, basename)
+            with open(local_path, "w") as f:
+                f.write(content)
+            target_dir = _os.path.dirname(path) or "/"
+            upload = await sandbox.file_system.upload_dir(
+                source_dir=tmp,
+                target_dir=target_dir,
+                extract_timeout=30,
+            )
+            if upload.exit_code != 0:
+                return {"error": f"upload failed: {upload.failure_reason}"}
+        return {"path": path, "status": "written"}
+
+    try:
+        return asyncio.run(_write())
+    except Exception as e:
+        return {"error": f"write failed: {e}"}
 
 
 def get_sandbox_endpoints(sandbox_id: str) -> dict:
-    """Get exposed ports and endpoints for a sandbox."""
-    if sandbox_id not in _active_sandboxes:
+    """Get exposed ports and connection info for a sandbox."""
+    entry = _active_sandboxes.get(sandbox_id)
+    if not entry:
         return {"error": f"Unknown sandbox: {sandbox_id}"}
 
-    result = _api_call("GET", f"/v1/sandboxes/{sandbox_id}")
-    if "error" in result:
-        return result
-
+    sandbox, expiry = entry
+    ports = getattr(sandbox, "exposed_ports", []) or []
     return {
         "sandbox_id": sandbox_id,
-        "status": result.get("status", {}),
-        "ports": result.get("ports", []),
+        "status": "running",
+        "expires_in": max(0, int(expiry - time.time())),
+        "ports": ports,
     }
 
 
 def kill_sandbox(sandbox_id: str) -> dict:
     """Terminate and cleanup a sandbox."""
-    if sandbox_id not in _active_sandboxes:
+    entry = _active_sandboxes.pop(sandbox_id, None)
+    if not entry:
         return {"error": f"Unknown sandbox: {sandbox_id}"}
 
-    result = _api_call("DELETE", f"/v1/sandboxes/{sandbox_id}")
-    _active_sandboxes.pop(sandbox_id, None)
-
-    if "error" in result:
-        return result
+    sandbox, _ = entry
+    try:
+        asyncio.run(sandbox.stop())
+    except Exception as e:
+        return {"error": f"stop failed: {e}"}
 
     return {"sandbox_id": sandbox_id, "status": "terminated"}
 
@@ -222,7 +273,7 @@ def kill_sandbox(sandbox_id: str) -> dict:
 TOOLS = [
     {
         "name": "spawn_sandbox",
-        "description": "Create a child sandbox (code-interpreter, playwright, chrome, desktop, vscode, aio)",
+        "description": "Create a child sandbox (code-interpreter, playwright, node, vscode, aio)",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -278,7 +329,7 @@ TOOLS = [
     },
     {
         "name": "get_sandbox_endpoints",
-        "description": "Get exposed ports and connection info for a sandbox (VNC, DevTools, etc.)",
+        "description": "Get exposed ports and connection info for a sandbox",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -314,7 +365,7 @@ def handle_request(request: dict) -> dict:
             "result": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {"listChanged": False}},
-                "serverInfo": {"name": "sandbox", "version": "0.1.0"},
+                "serverInfo": {"name": "sandbox", "version": "0.2.0"},
             },
         }
     elif method == "tools/list":
@@ -323,25 +374,23 @@ def handle_request(request: dict) -> dict:
         tool_name = params.get("name", "")
         args = params.get("arguments", {})
 
-        if tool_name == "spawn_sandbox":
-            result = spawn_sandbox(**args)
-        elif tool_name == "exec_in_sandbox":
-            result = exec_in_sandbox(**args)
-        elif tool_name == "read_sandbox_file":
-            result = read_sandbox_file(**args)
-        elif tool_name == "write_sandbox_file":
-            result = write_sandbox_file(**args)
-        elif tool_name == "get_sandbox_endpoints":
-            result = get_sandbox_endpoints(**args)
-        elif tool_name == "kill_sandbox":
-            result = kill_sandbox(**args)
-        else:
+        dispatch = {
+            "spawn_sandbox": spawn_sandbox,
+            "exec_in_sandbox": exec_in_sandbox,
+            "read_sandbox_file": read_sandbox_file,
+            "write_sandbox_file": write_sandbox_file,
+            "get_sandbox_endpoints": get_sandbox_endpoints,
+            "kill_sandbox": kill_sandbox,
+        }
+
+        if tool_name not in dispatch:
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
                 "error": {"code": -32601, "message": f"Unknown tool: {tool_name}"},
             }
 
+        result = dispatch[tool_name](**args)
         return {
             "jsonrpc": "2.0",
             "id": req_id,

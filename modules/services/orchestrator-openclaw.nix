@@ -4,10 +4,7 @@ let
   hostname = config.networking.hostName;
   isNas = hostname == "nas";
 
-  opensandbox-server = pkgs.callPackage ../../pkgs/opensandbox-server {};
-
   # Network policy: filesystem (queue writes) + localhost vLLM + frontier APIs
-  # NO opensandbox API access — Wanda never spawns sandboxes directly
   networkPolicy = builtins.toJSON {
     defaultAction = "deny";
     egress = [
@@ -43,10 +40,10 @@ lib.mkIf isNas {
   # Seed Wanda's identity + workflow files (only if not already present — preserves growth)
   system.activationScripts.orchestrator-seed =
     let
-      wanda-identity = builtins.path { path = ../../wanda/IDENTITY.md; name = "wanda-IDENTITY.md"; };
-      wanda-soul = builtins.path { path = ../../wanda/SOUL.md; name = "wanda-SOUL.md"; };
-      wanda-user = builtins.path { path = ../../wanda/USER.md; name = "wanda-USER.md"; };
-      wanda-personality = builtins.path { path = ../../wanda/personality.yaml; name = "wanda-personality.yaml"; };
+      wanda-identity = builtins.path { path = ../../agents/wanda/IDENTITY.md; name = "wanda-IDENTITY.md"; };
+      wanda-soul = builtins.path { path = ../../agents/wanda/SOUL.md; name = "wanda-SOUL.md"; };
+      wanda-user = builtins.path { path = ../../agents/wanda/USER.md; name = "wanda-USER.md"; };
+      wanda-personality = builtins.path { path = ../../agents/wanda/personality.yaml; name = "wanda-personality.yaml"; };
       wf-dispatch = builtins.path { path = ../../workflows/dispatch.yaml; name = "dispatch.yaml"; };
       wf-escalation = builtins.path { path = ../../workflows/escalation.yaml; name = "escalation.yaml"; };
       wf-content = builtins.path { path = ../../workflows/content-task.yaml; name = "content-task.yaml"; };
@@ -334,151 +331,37 @@ AUTHEOF
     '';
   };
 
-  # OpenClaw orchestrator — Wanda runs inside an OpenSandbox container
+  # OpenClaw orchestrator — Wanda runs as a Python coordinator (ROCK SDK)
   # Network: filesystem queue writes + localhost vLLM + openrouter.ai
-  # NO opensandbox API access — agent-runner handles sandbox spawning
   systemd.services.orchestrator = {
-    description = "Wanda — OpenClaw Orchestrator (NAS, air-gapped)";
-    after = [ "opensandbox-server.service" "opensandbox-pull-images.service" "network-online.target" "caddy.service" ];
-    requires = [ "opensandbox-server.service" ];
-    wants = [ "network-online.target" "opensandbox-pull-images.service" "caddy.service" ];
+    description = "Wanda — OpenClaw Orchestrator (NAS)";
+    after = [ "network-online.target" "caddy.service" ];
+    wants = [ "network-online.target" "caddy.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "simple";
       Restart = "on-failure";
       RestartSec = 10;
       ExecStartPre = "${pkgs.writeShellScript "orchestrator-pre-cleanup" ''
-        # Remove stale orchestrator sandbox from previous run
-        SANDBOX_ID=$(cat /var/lib/orchestrator/wanda-sandbox-id 2>/dev/null || true)
-        if [ -n "$SANDBOX_ID" ]; then
-          ${pkgs.curl}/bin/curl -sf -X DELETE "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" 2>/dev/null || true
-          rm -f /var/lib/orchestrator/wanda-sandbox-id /var/lib/orchestrator/wanda-proxy-port
-        fi
+        rm -f /var/lib/orchestrator/wanda-sandbox-id /var/lib/orchestrator/wanda-proxy-port
       ''}";
       ExecStopPost = "${pkgs.writeShellScript "orchestrator-cleanup" ''
-        # Clean up sandbox
-        SANDBOX_ID=$(cat /var/lib/orchestrator/wanda-sandbox-id 2>/dev/null || true)
-        if [ -n "$SANDBOX_ID" ]; then
-          ${pkgs.curl}/bin/curl -sf -X DELETE "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" 2>/dev/null || true
-          rm -f /var/lib/orchestrator/wanda-sandbox-id /var/lib/orchestrator/wanda-proxy-port
-        fi
+        rm -f /var/lib/orchestrator/wanda-sandbox-id /var/lib/orchestrator/wanda-proxy-port
         rm -f /var/www/html/wanda/caddyfile
         /run/current-system/sw/bin/systemctl reload caddy 2>/dev/null || true
         ${pkgs.tailscale}/bin/tailscale serve --https=8100 off 2>/dev/null || true
       ''}";
     };
-    path = [ pkgs.curl pkgs.jq pkgs.tailscale ];
+    path = [ pkgs.curl pkgs.jq pkgs.tailscale pkgs.gh pkgs.git pkgs.openclaw.openclaw-run ];
     script = ''
-      # Wait for OpenSandbox API to be ready
-      for i in $(seq 1 30); do
-        if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
-          break
-        fi
-        sleep 2
-      done
-
       # Load secrets from agenix
       source ${config.age.secrets.openrouter-api-key.path}
       source ${config.age.secrets.gateway-token.path}
 
-      # Create orchestrator sandbox via OpenSandbox API
-      # Follows the official OpenSandbox + OpenClaw example pattern
-      # Network: queue dir (filesystem) + localhost vLLM + openrouter.ai
-      SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/v1/sandboxes \
-        -H 'Content-Type: application/json' \
-        -d '{
-          "image": {"uri": "ghcr.io/openclaw/openclaw:latest"},
-          "timeout": 86400,
-          "resourceLimits": {"cpu": "1000m", "memory": "2Gi"},
-          "entrypoint": ["node", "dist/index.js", "gateway", "--bind=lan", "--port=8100", "--allow-unconfigured", "--verbose"],
-          "env": {"OPENCLAW_GATEWAY_TOKEN": "'"$OPENCLAW_GATEWAY_TOKEN"'", "OPENROUTER_API_KEY": "'"$OPENROUTER_API_KEY"'", "NODE_PATH": "/opt/lobster/node_modules", "PATH": "/opt/lobster/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
-          "networkPolicy": ${networkPolicy},
-          "volumes": [
-            {"name": "wanda-config", "host": {"path": "/var/lib/orchestrator/wanda-config"}, "mountPath": "/home/node/.openclaw"},
-            {"name": "wanda-identity", "host": {"path": "/var/lib/orchestrator/wanda"}, "mountPath": "/home/node/.openclaw/identity"},
-            {"name": "shared-queue", "host": {"path": "/var/lib/orchestrator/shared"}, "mountPath": "/home/node/.openclaw/shared"},
-            {"name": "workflows", "host": {"path": "/var/lib/orchestrator/workflows"}, "mountPath": "/home/node/.openclaw/workflows"},
-            {"name": "lobster", "host": {"path": "/var/lib/orchestrator/lobster"}, "mountPath": "/opt/lobster"},
-            {"name": "agents-workspace", "host": {"path": "/var/lib/orchestrator/wanda-config/agents-workspace"}, "mountPath": "/home/node/.openclaw/agents-workspace"}
-          ]
-        }' | jq -r '.id')
+      echo "Starting OpenClaw coordinator (Wanda)..."
 
-      if [ -z "$SANDBOX_ID" ] || [ "$SANDBOX_ID" = "null" ]; then
-        echo "Failed to create orchestrator sandbox"
-        exit 1
-      fi
-
-      echo "Wanda is awake (sandbox: $SANDBOX_ID)"
-
-      # Write sandbox ID for easy access from other hosts
-      echo "$SANDBOX_ID" > /var/lib/orchestrator/wanda-sandbox-id
-
-      # Discover the dynamic proxy port for the gateway
-      ENDPOINT=$(curl -sf "http://localhost:8080/v1/sandboxes/$SANDBOX_ID/endpoints/8100" | jq -r '.endpoint')
-      PROXY_PORT=$(echo "$ENDPOINT" | grep -oP ':\K[0-9]+')
-      echo "$PROXY_PORT" > /var/lib/orchestrator/wanda-proxy-port
-      echo "Wanda gateway: opensandbox proxy port $PROXY_PORT"
-
-      # Write caddyfile for system Caddy (Cloudflare TLS via caddy.nix)
-      # Caddy natively handles WebSocket upgrade — no extra config needed
-      # HTTPS required: OpenClaw Control UI needs secure context for device identity
-      if [ -n "$PROXY_PORT" ]; then
-        mkdir -p /var/www/html/wanda
-        # Generate caddyfile with dynamic proxy port and gateway token
-        # '#' in the redirect is a Caddyfile comment char — must be quoted
-        cat > /var/www/html/wanda/caddyfile << CADDYEOF
-wanda.hellfireae.com {
-  import cloudflare-tls
-
-  @login path /login
-  redir @login "/#token=$OPENCLAW_GATEWAY_TOKEN"
-
-  rewrite * /proxy/8100{uri}
-  reverse_proxy 127.0.0.1:$PROXY_PORT {
-    header_up X-Forwarded-Proto https
-  }
-}
-CADDYEOF
-        /run/current-system/sw/bin/systemctl reload caddy
-        echo "Caddy: https://wanda.hellfireae.com → :$PROXY_PORT/proxy/8100/"
-
-        # Tailscale serve — tailnet-authenticated HTTPS on :8100
-        tailscale serve --bg --https 8100 "http://127.0.0.1:$PROXY_PORT/proxy/8100/"
-        echo "Tailscale: https://wanda.starling-ostrich.ts.net:8100 → :$PROXY_PORT/proxy/8100/"
-      fi
-
-      # Wait for sandbox to become Running (gateway takes a few seconds to start)
-      echo "Waiting for Wanda to become healthy..."
-      for i in $(seq 1 30); do
-        STATUS=$(curl -sf "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" | jq -r '.status.state' 2>/dev/null)
-        if [ "$STATUS" = "Running" ]; then
-          echo "Wanda is healthy (attempt $i)"
-          break
-        fi
-        if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Terminated" ]; then
-          echo "Wanda failed to start (status: $STATUS)"
-          exit 1
-        fi
-        sleep 2
-      done
-
-      # Keep service alive — poll sandbox health + renew expiration
-      while true; do
-        STATUS=$(curl -sf "http://localhost:8080/v1/sandboxes/$SANDBOX_ID" | jq -r '.status.state' 2>/dev/null)
-        if [ "$STATUS" != "Running" ] && [ "$STATUS" != "Pending" ]; then
-          echo "Wanda stopped (status: $STATUS)"
-          exit 1
-        fi
-        # Renew expiration to keep sandbox alive (24h rolling)
-        EXPIRES=$(date -u -d '+24 hours' '+%Y-%m-%dT%H:%M:%SZ')
-        curl -sf -X POST "http://localhost:8080/v1/sandboxes/$SANDBOX_ID/renew-expiration" \
-          -H 'Content-Type: application/json' \
-          -d "{\"expiresAt\": \"$EXPIRES\"}" > /dev/null 2>&1
-        sleep 30
-      done
+      # Run the Python coordinator — it manages ROCK sandboxes and GH issues
+      exec openclaw-run
     '';
   };
-
-  # Firewall — opensandbox API on Tailscale (gateway via system Caddy on 443)
-  networking.firewall.allowedTCPPorts = [ 8080 ];
 }
