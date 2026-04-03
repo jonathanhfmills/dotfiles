@@ -1,0 +1,12 @@
+spec_version: "0.1.0"
+name: reviewer
+version: "2.0.0"
+description: >
+  Code Reviewer — security, quality, performance, and maintainability auditor.
+  Stateless NullClaw worker. Produces structured findings reports.
+  Never writes code — reports findings for Cosmo to fix.
+tags:
+  - reviewer
+  - nullclaw
+  - stateless
+  - security
