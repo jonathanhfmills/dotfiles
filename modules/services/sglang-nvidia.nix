@@ -25,6 +25,7 @@
       "--model-path" "Qwen/Qwen3.5-9B"
       "--quantization" "fp8"
       "--context-length" "32768"
+      "--kv-cache-dtype" "fp8_e4m3fn"
       "--mem-fraction-static" "0.85"
       "--trust-remote-code"
       "--tool-call-parser" "qwen3_coder"

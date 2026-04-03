@@ -181,6 +181,7 @@ in
   home.file.".claude/settings.json".text = builtins.toJSON {
     skipDangerousModePermissionPrompt = true;
     autoDreamEnabled = true;
+    effortLevel = "medium";
     hooks = {
       PostToolUse = [
         {

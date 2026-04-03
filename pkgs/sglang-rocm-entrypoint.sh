@@ -144,7 +144,7 @@ exec python -m sglang.launch_server \
   --attention-backend triton \
   --quantization fp8 \
   --context-length 131072 \
-  --kv-cache-dtype fp8_e5m2 \
+  --kv-cache-dtype fp8_e4m3fn \
   --disable-cuda-graph \
   --mem-fraction-static 0.90 \
   --trust-remote-code \

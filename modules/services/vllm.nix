@@ -2,7 +2,7 @@
 # Qwen3.5-9B @ 4-bit: ~5GB weights, ~10GB KV cache headroom, 32K ctx x 2 parallel
 # Docker: rocm/vllm-dev navi image with ROCm 7.2 for RDNA 4 (gfx1201) support
 # vLLM upgraded at startup (--no-deps) for Qwen3.5 architecture support
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 {
   virtualisation.oci-containers.containers.vllm = {
@@ -71,7 +71,7 @@
   ];
 
   # Allow time for vLLM upgrade + first-run model download (~18GB)
-  systemd.services.docker-vllm.serviceConfig.TimeoutStartSec = 1800;
+  systemd.services.docker-vllm.serviceConfig.TimeoutStartSec = lib.mkForce 1800;
 
   networking.firewall.allowedTCPPorts = [ 11434 ];
 }

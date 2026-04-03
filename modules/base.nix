@@ -48,6 +48,10 @@
   # Allow unfree packages.
   nixpkgs.config.allowUnfree = true;
 
+  # Docker — available on all hosts.
+  virtualisation.docker.enable = true;
+  users.users.jon.extraGroups = [ "docker" ];
+
   # Base CLI packages.
   environment.systemPackages = with pkgs; [
     git

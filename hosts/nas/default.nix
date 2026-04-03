@@ -28,6 +28,13 @@ in
   services.zfs.autoScrub.enable = true;
   services.zfs.trim.enable = true;
 
+  # nix-ld: dynamic linker shim enabling FHS-compiled binaries (e.g. Ray's gcs_server).
+  # Ray ships precompiled C++ binaries that expect /lib64/ld-linux-x86-64.so.2.
+  programs.nix-ld = {
+    enable = true;
+    libraries = with pkgs; [ stdenv.cc.cc.lib ];
+  };
+
   # Power management.
   services.thermald.enable = true;
   powerManagement.cpuFreqGovernor = "powersave";
@@ -281,8 +288,8 @@ in
     pkgs.triggerhappy
   ];
 
-  # Pin SGLang (9B GPU instance) to P-cores for inference performance.
-  systemd.services.docker-sglang.serviceConfig = {
+  # Pin vLLM (9B GPU instance) to P-cores for inference performance.
+  systemd.services.docker-vllm.serviceConfig = {
     CPUAffinity = "0-11";
     AllowedCPUs = "0-11";
   };

@@ -112,6 +112,16 @@
             options.atime = "off";
             options."com.sun:auto-snapshot" = "true";
           };
+          rock = {
+            type = "zfs_fs";
+            mountpoint = "/var/lib/rock";
+            options.mountpoint = "legacy";
+            options.recordsize = "16K";  # matches SQLite page_size=16384; one ZFS record per SQLite page
+            options.logbias = "throughput";
+            options.atime = "off";
+            options.compression = "lz4";
+            options."com.sun:auto-snapshot" = "false";  # RL state is ephemeral; snapshots waste space
+          };
         };
       };
     };

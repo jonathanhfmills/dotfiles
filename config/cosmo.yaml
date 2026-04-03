@@ -1,7 +1,7 @@
 host: workstation
 role: engineer
 inference:
-  local: "http://localhost:11434/v1"    # vLLM CUDA — Qwen3.5-9B-PARO
+  local: "http://localhost:11434/v1"    # SGLang CUDA — Qwen3.5-9B
   classifier: "http://localhost:11436/v1" # vLLM CPU — 0.8B
 queue: queue/workstation
 agent_dir: /var/lib/orchestrator/cosmo

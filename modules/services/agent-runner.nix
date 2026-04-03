@@ -15,8 +15,8 @@ let
   # Which queue this host polls
   queueDir = if isNas then "queue/nas" else "queue/workstation";
 
-  # Both agent hosts use local SGLang
-  sglangModel = if isNas then "Qwen/Qwen3.5-9B" else "Qwen/Qwen3.5-4B";
+  # Both hosts now serve 9B: nas=vLLM ROCm, workstation=SGLang CUDA
+  sglangModel = "Qwen/Qwen3.5-9B";
   sglangDockerUrl = "http://172.17.0.1:11434";
 
   # Qwen Code settings for legacy agents
@@ -127,8 +127,9 @@ lib.mkIf isAgentHost {
       get_cli_command() {
         local backend="$1"
         case "$backend" in
+          qwen-code)   echo "qwen --acp --auth-type=openai" ;;
           nullclaw)    echo "nullclaw --acp" ;;
-          qwen-code|*) echo "qwen --acp --auth-type=openai" ;;
+          langgraph|*) echo "__langgraph__" ;;
         esac
       }
 
@@ -137,7 +138,7 @@ lib.mkIf isAgentHost {
       process_task() {
         local task_file="$1"
         local task_id=$(basename "$task_file" .json)
-        local backend=$(jq -r '.backend // "qwen-code"' "$task_file")
+        local backend=$(jq -r '.backend // "langgraph"' "$task_file")
         local cli_command=$(get_cli_command "$backend")
 
         echo "Processing task $task_id (backend: $backend, cli: $cli_command)"
@@ -146,39 +147,90 @@ lib.mkIf isAgentHost {
         mkdir -p "$result_dir"
         cp "$task_file" "$result_dir/task.json"
 
-        # Spawn ACP reasoning container
-        local SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/v1/sandboxes \
-          -H 'Content-Type: application/json' \
-          -d "{
-            \"image\": {\"uri\": \"acp-reasoning:latest\"},
-            \"entrypoint\": [\"${pkgs.acp-bridge}/bin/acp-bridge\"],
-            \"timeout\": 1800,
-            \"resourceLimits\": {\"cpu\": \"1000m\", \"memory\": \"2Gi\"},
-            \"env\": {
-              \"ACP_CLI_COMMAND\": \"$cli_command\",
-              \"QWEN_API_KEY\": \"ollama\",
-              \"OPENAI_API_KEY\": \"ollama\",
-              \"OPENAI_BASE_URL\": \"${sglangDockerUrl}/v1\",
-              \"SGLANG_MODEL\": \"${sglangModel}\",
-              \"OPENROUTER_API_KEY\": \"$OPENROUTER_API_KEY\",
-              \"WORKSPACE\": \"/workspace\",
-              \"TASK_FILE\": \"/workspace/results/task.json\",
-              \"HOME\": \"/workspace/agent\"
-            },
-            \"networkPolicy\": {
-              \"defaultAction\": \"deny\",
-              \"egress\": [
-                {\"action\": \"allow\", \"target\": \"172.17.0.1:11434\"},
-                {\"action\": \"allow\", \"target\": \"172.17.0.1:11435\"},
-                {\"action\": \"allow\", \"target\": \"openrouter.ai:443\"},
-                {\"action\": \"allow\", \"target\": \"172.17.0.1:8080\"}
+        local execution_mode=$(jq -r '.execution_mode // "auto"' "$task_file")
+        local workflow=$(jq -r '.workflow // "sandbox_workflow"' "$task_file")
+
+        # Spawn container — LangGraph engine or legacy ACP bridge
+        local SANDBOX_ID
+        if [ "$cli_command" = "__langgraph__" ]; then
+          # LangGraph: run workflow script directly
+          SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/v1/sandboxes \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"image\": {\"uri\": \"acp-reasoning:latest\"},
+              \"entrypoint\": [\"sh\", \"-c\", \"adk-bootstrap && python3 /opt/workflows/langgraph/$workflow.py\"],
+              \"timeout\": 1800,
+              \"resourceLimits\": {\"cpu\": \"1000m\", \"memory\": \"2Gi\"},
+              \"env\": {
+                \"EXECUTION_MODE\": \"$execution_mode\",
+                \"SANDBOX_DOMAIN\": \"172.17.0.1:8080\",
+                \"QWEN_API_KEY\": \"ollama\",
+                \"OPENAI_API_KEY\": \"ollama\",
+                \"OPENAI_BASE_URL\": \"${sglangDockerUrl}/v1\",
+                \"SGLANG_MODEL\": \"${sglangModel}\",
+                \"OPENROUTER_API_KEY\": \"$OPENROUTER_API_KEY\",
+                \"ANTHROPIC_API_KEY\": \"''${ANTHROPIC_API_KEY:-}\",
+                \"ROCK_ENVHUB_BASE_URL\": \"http://172.17.0.1:8081\",
+                \"IFLOW_apiKey\": \"ollama\",
+                \"IFLOW_baseUrl\": \"${sglangDockerUrl}/v1\",
+                \"IFLOW_modelName\": \"${sglangModel}\",
+                \"TASK_FILE\": \"/workspace/results/task.json\",
+                \"RESULTS_DIR\": \"/workspace/results\",
+                \"HOME\": \"/workspace/agent\"
+              },
+              \"networkPolicy\": {
+                \"defaultAction\": \"deny\",
+                \"egress\": [
+                  {\"action\": \"allow\", \"target\": \"172.17.0.1:11434\"},
+                  {\"action\": \"allow\", \"target\": \"172.17.0.1:11435\"},
+                  {\"action\": \"allow\", \"target\": \"172.17.0.1:11436\"},
+                  {\"action\": \"allow\", \"target\": \"172.17.0.1:8080\"},
+                  {\"action\": \"allow\", \"target\": \"172.17.0.1:8081\"},
+                  {\"action\": \"allow\", \"target\": \"openrouter.ai:443\"},
+                  {\"action\": \"allow\", \"target\": \"pypi.org:443\"},
+                  {\"action\": \"allow\", \"target\": \"files.pythonhosted.org:443\"}
+                ]
+              },
+              \"volumes\": [
+                {\"name\": \"workspace\", \"host\": {\"path\": \"$WORKSPACE\"}, \"mountPath\": \"/workspace/agent\"},
+                {\"name\": \"results\", \"host\": {\"path\": \"$result_dir\"}, \"mountPath\": \"/workspace/results\"}
               ]
-            },
-            \"volumes\": [
-              {\"name\": \"workspace\", \"host\": {\"path\": \"$WORKSPACE\"}, \"mountPath\": \"/workspace/agent\"},
-              {\"name\": \"results\", \"host\": {\"path\": \"$result_dir\"}, \"mountPath\": \"/workspace/results\"}
-            ]
-          }" | jq -r '.id' 2>/dev/null)
+            }" | jq -r '.id' 2>/dev/null)
+        else
+          # Legacy ACP bridge path
+          SANDBOX_ID=$(curl -sf -X POST http://localhost:8080/v1/sandboxes \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"image\": {\"uri\": \"acp-reasoning:latest\"},
+              \"entrypoint\": [\"${pkgs.acp-bridge}/bin/acp-bridge\"],
+              \"timeout\": 1800,
+              \"resourceLimits\": {\"cpu\": \"1000m\", \"memory\": \"2Gi\"},
+              \"env\": {
+                \"ACP_CLI_COMMAND\": \"$cli_command\",
+                \"QWEN_API_KEY\": \"ollama\",
+                \"OPENAI_API_KEY\": \"ollama\",
+                \"OPENAI_BASE_URL\": \"${sglangDockerUrl}/v1\",
+                \"SGLANG_MODEL\": \"${sglangModel}\",
+                \"OPENROUTER_API_KEY\": \"$OPENROUTER_API_KEY\",
+                \"WORKSPACE\": \"/workspace\",
+                \"TASK_FILE\": \"/workspace/results/task.json\",
+                \"HOME\": \"/workspace/agent\"
+              },
+              \"networkPolicy\": {
+                \"defaultAction\": \"deny\",
+                \"egress\": [
+                  {\"action\": \"allow\", \"target\": \"172.17.0.1:11434\"},
+                  {\"action\": \"allow\", \"target\": \"172.17.0.1:11435\"},
+                  {\"action\": \"allow\", \"target\": \"openrouter.ai:443\"},
+                  {\"action\": \"allow\", \"target\": \"172.17.0.1:8080\"}
+                ]
+              },
+              \"volumes\": [
+                {\"name\": \"workspace\", \"host\": {\"path\": \"$WORKSPACE\"}, \"mountPath\": \"/workspace/agent\"},
+                {\"name\": \"results\", \"host\": {\"path\": \"$result_dir\"}, \"mountPath\": \"/workspace/results\"}
+              ]
+            }" | jq -r '.id' 2>/dev/null)
+        fi
 
         if [ -z "$SANDBOX_ID" ] || [ "$SANDBOX_ID" = "null" ]; then
           echo "Failed to spawn sandbox for task $task_id"

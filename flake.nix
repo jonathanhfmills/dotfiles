@@ -80,6 +80,7 @@
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
+        ./modules/services/vllm-08b-cpu.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -111,6 +112,7 @@
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
         ./modules/services/stremio-server.nix
+        ./modules/services/vllm-08b-cpu.nix
         # No agent compute — desktop-zfs is a fallback config without GPU
         agenix.nixosModules.default
         disko.nixosModules.disko
@@ -135,8 +137,9 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/nullclaw.nix
-        ./modules/services/vllm-nvidia.nix
+        ./modules/services/sglang-nvidia.nix
         ./modules/services/vllm-08b.nix
+        ./modules/services/rock-worker.nix
         ./modules/services/trajectory-logger.nix
         ./modules/services/caddy.nix
         ./modules/services/dnscrypt-proxy.nix
@@ -168,9 +171,11 @@
         ./modules/development.nix
         ./modules/programs/1password.nix
         ./modules/programs/nullclaw.nix
-        ./modules/services/sglang.nix
+        ./modules/services/vllm.nix
         ./modules/services/sglang-evaluator.nix
-        ./modules/services/llm-worker.nix
+        ./modules/services/vllm-08b-cpu.nix
+        ./modules/services/rock-admin.nix
+        ./modules/services/rock-worker.nix
         ./modules/services/trajectory-logger.nix
         ./modules/services/training-timer.nix
         ./modules/services/caddy.nix
@@ -202,6 +207,7 @@
         ./modules/base.nix
         ./modules/networking.nix
         ./modules/services/dnscrypt-proxy.nix
+        ./modules/services/vllm-08b-cpu.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
@@ -228,6 +234,7 @@
         ./modules/programs/activitywatch.nix
         ./modules/services/syncthing.nix
         ./modules/services/dnscrypt-proxy.nix
+        ./modules/services/vllm-08b-cpu.nix
         agenix.nixosModules.default
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager

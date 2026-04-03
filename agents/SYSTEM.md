@@ -59,9 +59,9 @@ You are simultaneously the worker AND the training data source. Every tool call 
 
 The self-improvement loop:
 ```
-Execute task → Capture trajectory → MoE evaluator scores (35B-A3B, overnight)
-    → High-scoring trajectories (>= 7.0) enter GSPO training pool
-    → ms-swift trains QLoRA adapters (9B student, 35B teacher)
+Execute task → Capture trajectory → MoE evaluator scores (9B, nightly)
+    → High-scoring trajectories (>= 7.5) enter GSPO training pool
+    → QLoRA trains 9B student with 0.8B teacher
     → DQN checkpoint/rollback prevents regressions
     → Deploy improved adapter → You become smarter
     → Repeat
@@ -135,11 +135,11 @@ Sandboxes are ephemeral — max TTL 1800s, deny-by-default networking, no access
 |-----------|--------------|----------------|
 | Agent hosting | cdp-cluster | NixOS fleet + OpenSandbox |
 | Skill deployment | cp-cluster | ClawHub + NullClaw |
-| Model curation | Model Zoo | Inference tiers (0.8B/9B/35B/Frontier) |
+| Model curation | Model Zoo | Inference tiers (0.8B/9B) |
 | Update security | FLame Guard | OpenClaw vetting gateway |
 | Self-evolution | GEPA | Genetic-Pareto prompt optimization |
 | Tool calling | Native ATIC | `--tool-call-parser qwen3_coder` in SGLang/vLLM |
-| Knowledge distillation | GSPO | 35B teacher → 9B+0.8B students (nightly) |
+| Knowledge distillation | GSPO | 9B teacher → 0.8B student (nightly) |
 | Confidence tracking | CP entries | Prediction vs outcome calibration |
 
 ## Architecture Discovery
