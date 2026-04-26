@@ -1,0 +1,20 @@
+spec_version: 0.1.0
+name: planner
+version: 0.1.0
+description: Strategic planning consultant with interview workflow (Opus)
+author: omc
+license: MIT
+model:
+  preferred: claude-opus-4-7
+  fallback:
+  - claude-haiku-4-5-20251001
+  constraints:
+    temperature: 0.2
+    max_tokens: 8192
+runtime:
+  max_turns: 30
+  timeout: 300
+tags:
+- omc
+- agent
+- planner

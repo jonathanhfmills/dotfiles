@@ -1,0 +1,78 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1777163976006,
+  "projectRoot": "/home/jon/dotfiles",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "agents": {
+      "path": "agents",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1777163975998,
+      "keyFiles": []
+    },
+    "gitagent-agents": {
+      "path": "gitagent-agents",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1777163976003,
+      "keyFiles": []
+    },
+    "memory": {
+      "path": "memory",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1777163976004,
+      "keyFiles": [
+        "MEMORY.md"
+      ]
+    },
+    "omc-agents": {
+      "path": "omc-agents",
+      "purpose": null,
+      "fileCount": 19,
+      "lastAccessed": 1777163976004,
+      "keyFiles": [
+        "analyst.md",
+        "architect.md",
+        "code-reviewer.md",
+        "code-simplifier.md",
+        "critic.md"
+      ]
+    },
+    "workspace": {
+      "path": "workspace",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1777163976004,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [],
+  "userDirectives": []
+}

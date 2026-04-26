@@ -1,0 +1,21 @@
+spec_version: 0.1.0
+name: code-reviewer
+version: 0.1.0
+description: Expert code review specialist with severity-rated feedback, logic defect
+  detection, SOLID principle checks, style, performance, and quality strategy
+author: omc
+license: MIT
+model:
+  preferred: claude-opus-4-7
+  fallback:
+  - claude-haiku-4-5-20251001
+  constraints:
+    temperature: 0.2
+    max_tokens: 8192
+runtime:
+  max_turns: 30
+  timeout: 300
+tags:
+- omc
+- agent
+- code-reviewer
