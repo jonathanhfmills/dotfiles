@@ -28,7 +28,8 @@ OPENSANDBOX_SERVER = "http://localhost:8080"
 OPENCLAW_IMAGE = "ghcr.io/openclaw/openclaw:latest"
 OPENCLAW_PORT = 18789
 OPENCLAW_TOKEN = os.environ.get("OPENCLAW_GATEWAY_TOKEN", "dotfiles-agent-token")
-OPENCLAW_MODEL = os.environ.get("OPENCLAW_MODEL", "claude-sonnet-4-6")
+OPENCLAW_MODEL = os.environ.get("OPENCLAW_MODEL", "ollama/qwen3.5:9b-q8_0")
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
 SANDBOX_TIMEOUT = timedelta(hours=24)
 
 SOUL_PATH = DOTFILES_ROOT / "SOUL.md"
@@ -202,6 +203,7 @@ def main():
         env={
             "OPENCLAW_GATEWAY_TOKEN": OPENCLAW_TOKEN,
             "OPENCLAW_MODEL": OPENCLAW_MODEL,
+            "OLLAMA_BASE_URL": OLLAMA_BASE_URL,
             "ANTHROPIC_API_KEY": os.environ.get("ANTHROPIC_API_KEY", ""),
         },
         volumes=[
@@ -211,8 +213,8 @@ def main():
         network_policy=NetworkPolicy(
             defaultAction="deny",
             egress=[
+                NetworkRule(action="allow", target="host.docker.internal"),
                 NetworkRule(action="allow", target="api.anthropic.com"),
-                NetworkRule(action="allow", target="api.claude.ai"),
             ],
         ),
         metadata={"repo": "dotfiles", "event": args.event},
