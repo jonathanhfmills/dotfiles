@@ -1,0 +1,42 @@
+# OpenSandbox Server - Docker Runtime Configuration
+
+[server]
+host = "127.0.0.1"
+port = 8080
+max_sandbox_timeout_seconds = 86400
+
+# Optional: Uncomment to enable API key authentication
+# api_key = "your-secret-api-key"
+# If api_key stays empty, startup requires explicit acknowledgment:
+# - Interactive TTY: type YES when prompted
+# - Non-interactive: set OPENSANDBOX_INSECURE_SERVER=YES
+
+[log]
+level = "INFO"
+
+[runtime]
+type = "docker"
+execd_image = "opensandbox/execd:v1.0.13"
+
+[storage]
+allowed_host_paths = []
+volume_default_size = "1Gi"
+
+[docker]
+network_mode = "bridge"
+drop_capabilities = ["AUDIT_WRITE", "MKNOD", "NET_ADMIN", "NET_RAW", "SYS_ADMIN", "SYS_MODULE", "SYS_PTRACE", "SYS_TIME", "SYS_TTY_CONFIG"]
+no_new_privileges = true
+apparmor_profile = ""
+pids_limit = 4096
+seccomp_profile = ""
+
+[ingress]
+mode = "direct"
+
+[egress]
+image = "opensandbox/egress:v1.0.8"
+mode = "dns"
+
+[renew_intent]
+enabled = false
+min_interval_seconds = 60
