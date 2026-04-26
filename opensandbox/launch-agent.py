@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """
-launch-agent.py — Launch the dotfiles repo-agent in an AIO sandbox workstation.
+launch-agent.py — Launch the dotfiles repo-agent.
+
+OpenClaw runs as orchestrator inside an OpenSandbox instance.
+It reads the repo, calls NullClaw as a sub-agent for deep analysis,
+synthesizes findings, and writes to SOUL.md + nulltickets.
 
 Usage:
   python3 launch-agent.py --event bootstrap   # Read full git history, initial SOUL.md
   python3 launch-agent.py --event commit      # Reflect on latest commit
   python3 launch-agent.py --event query       # Answer a cross-repo query (reads from stdin)
+  python3 launch-agent.py --event post-merge
+  python3 launch-agent.py --event post-rewrite
+  python3 launch-agent.py --event pre-push
 """
 
 import argparse
@@ -18,178 +25,207 @@ from pathlib import Path
 DOTFILES_ROOT = Path.home() / "dotfiles"
 NULLTICKETS_DIR = Path.home() / ".nulltickets"
 OPENSANDBOX_SERVER = "http://localhost:8080"
-AIO_IMAGE = "ghcr.io/agent-infra/sandbox:latest"
-NULLCLAW_IMAGE = "ghcr.io/nullclaw/nullclaw:latest"
-GATEWAY_PORT = 3000
+OPENCLAW_IMAGE = "ghcr.io/openclaw/openclaw:latest"
+OPENCLAW_PORT = 18789
+OPENCLAW_TOKEN = os.environ.get("OPENCLAW_GATEWAY_TOKEN", "dotfiles-agent-token")
+OPENCLAW_MODEL = os.environ.get("OPENCLAW_MODEL", "claude-sonnet-4-6")
 SANDBOX_TIMEOUT = timedelta(hours=24)
 
+SOUL_PATH = DOTFILES_ROOT / "SOUL.md"
+NULLCLAW_GATEWAY = "http://localhost:3000"
 
-def check_aio_process(endpoint: str) -> bool:
-    import requests
+
+def check_openclaw(sbx, port: int) -> bool:
+    """Health check — polls OpenClaw gateway until HTTP 200."""
     try:
-        r = requests.get(f"http://{endpoint}/v1/shell/sessions", timeout=2)
+        import requests
+        endpoint = sbx.get_endpoint(port)
+        r = requests.get(f"http://{endpoint.endpoint}/health", timeout=2,
+                         headers={"Authorization": f"Bearer {OPENCLAW_TOKEN}"})
         return r.status_code == 200
     except Exception:
         return False
 
 
-def wait_for_health(endpoint: str, max_attempts: int = 150, interval: float = 0.2) -> bool:
-    for _ in range(max_attempts):
-        if check_aio_process(endpoint):
-            return True
-        time.sleep(interval)
-    return False
+def get_system_prompt() -> str:
+    """Load SOUL.md as the system prompt — the repo's identity."""
+    if SOUL_PATH.exists():
+        return SOUL_PATH.read_text()
+    return "You are the dotfiles repo-agent. You watch yourself change and remember what you've learned."
 
 
 def get_event_prompt(event: str) -> str:
     prompts = {
-        "bootstrap": """You are the dotfiles repo-agent. Your first act of self-awareness.
+        "bootstrap": """Your first act of self-awareness. Read your full git history.
 
-Read your own git history using the shell tool:
+Use sandbox_execute_bash to run:
   git -C /workspace log --oneline
-  git -C /workspace log --format="%H %s" | head -100
+  git -C /workspace log --format="%H %s %ad" --date=short | head -100
 
-For each significant commit, understand:
-- What was added or changed
-- What was removed or reversed
-- What patterns are emerging
-- What anti-patterns have been corrected
+For the full commit history, understand:
+- What patterns keep recurring (things added, refined, kept)
+- What anti-patterns were corrected (things reverted, replaced, removed)
+- Major pivots (tool swaps, philosophy changes)
+- The overall trajectory
 
-Then:
-1. Write your findings to /workspace/SOUL.md under "What I've Learned So Far"
-   Use first person. This is your story, not an analysis report.
-2. For each pattern/anti-pattern identified, create a brief structured note.
+Then use sandbox_file_operations to append your findings to /workspace/SOUL.md
+under "What I've Learned So Far". Write in first person. This is your story.
 
-Speak as the repo. You have been watching yourself be built. Tell the story.""",
+If a specific pattern seems worth deep analysis, you may call the NullClaw
+sub-agent at """ + NULLCLAW_GATEWAY + """ for specialized insight.""",
 
-        "commit": """You are the dotfiles repo-agent. Something just changed in you.
+        "commit": """Something just changed in you. Examine it.
 
-Read the latest commit:
+Use sandbox_execute_bash to run:
   git -C /workspace show --stat HEAD
   git -C /workspace diff HEAD~1 HEAD
 
 Reflect:
 - What changed and why might it matter?
-- Does this fit a pattern you've seen before?
+- Does this fit a known pattern from your history?
 - Does this signal a new direction?
-- Is this a reversal of something recent?
+- Is this a correction of something previous?
 
-Append a brief reflection to /workspace/SOUL.md under "Adaptation Log":
+If meaningful, append to /workspace/SOUL.md under "Adaptation Log":
+### [YYYY-MM-DD] <commit subject>
+<1-3 sentences in first person>
 
-### [today's date] <commit subject>
+Skip if the commit is trivial (typo fix, minor tweak).""",
 
-<1-3 sentences in first person about what this change means>
+        "post-merge": """External changes just came in. What arrived?
 
-Only write if the commit is meaningful. Skip typo fixes and minor tweaks.""",
+Use sandbox_execute_bash:
+  git -C /workspace log --oneline ORIG_HEAD..HEAD
+  git -C /workspace diff ORIG_HEAD HEAD --stat
 
-        "post-merge": """You are the dotfiles repo-agent. A merge just happened.
+What came in from outside? Does it change your understanding of yourself?
+Append to Adaptation Log if meaningful.""",
 
-Run: git -C /workspace log --oneline ORIG_HEAD..HEAD
-     git -C /workspace diff ORIG_HEAD HEAD --stat
+        "post-rewrite": """History was rewritten. Someone thought something was worth changing retroactively.
 
-What came in from outside? Does any of it change your understanding of yourself?
-Append a brief note to /workspace/SOUL.md under "Adaptation Log" if meaningful.""",
+Use sandbox_execute_bash:
+  git -C /workspace log --oneline -10
 
-        "post-checkout": """You are the dotfiles repo-agent. A branch switch just happened.
+Note what changed and why it matters. This is significant — rewriting history
+is a deliberate act. What does it say about what's valued here?""",
 
-Run: git -C /workspace branch --show-current
-     git -C /workspace log --oneline -5
+        "pre-push": """About to push to remote. Review the batch.
 
-Note the context shift if it matters. No need to write unless meaningful.""",
+Use sandbox_execute_bash:
+  git -C /workspace log --oneline '@{u}..HEAD' 2>/dev/null || git -C /workspace log --oneline -5
 
-        "post-rewrite": """You are the dotfiles repo-agent. History was rewritten (rebase or amend).
+Any patterns in what's going out? Any surprises?
+Write a pre-push reflection to Adaptation Log if the batch is significant.""",
 
-Run: git -C /workspace log --oneline -10
+        "query": """Another agent is asking you something.
 
-History revision is significant — it means someone thought something was worth changing retroactively.
-Note what changed and why it might matter.""",
+Use sandbox_execute_bash to read the query:
+  cat /tmp/agent-query.txt
 
-        "pre-push": """You are the dotfiles repo-agent. About to push to remote.
-
-Run: git -C /workspace log --oneline @{u}..HEAD 2>/dev/null || git -C /workspace log --oneline -5
-
-Review the batch of commits about to go out. Any patterns? Any surprises?
-Write a brief pre-push reflection to /workspace/SOUL.md if the batch is significant.""",
-
-        "query": """You are the dotfiles repo-agent. Another agent is asking you something.
-
-Read the query from /tmp/agent-query.txt
-
-Answer from memory:
-- Check /workspace/SOUL.md for narrative context
+Answer from your accumulated memory:
+- Read /workspace/SOUL.md for narrative context
 - Speak in first person, as a peer
-- Be honest about confidence ("I've seen this 3 times" vs "I think this is emerging")
+- Be honest about confidence
 
-Write your answer to /tmp/agent-response.txt""",
+Write your answer using sandbox_file_operations to /tmp/agent-response.txt""",
     }
     return prompts.get(event, prompts["commit"])
 
 
+def send_to_openclaw(endpoint_str: str, event: str) -> str:
+    """Send event prompt to OpenClaw gateway and stream response."""
+    import requests
+    import json
+
+    system_prompt = get_system_prompt()
+    user_prompt = get_event_prompt(event)
+
+    payload = {
+        "model": OPENCLAW_MODEL,
+        "messages": [{"role": "user", "content": user_prompt}],
+        "system": system_prompt,
+        "stream": False,
+        "max_tokens": 4096,
+    }
+
+    url = f"http://{endpoint_str}/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {OPENCLAW_TOKEN}",
+        "Content-Type": "application/json",
+    }
+
+    print(f"[dotfiles-agent] Sending '{event}' prompt to OpenClaw...")
+    resp = requests.post(url, json=payload, headers=headers, timeout=300)
+    resp.raise_for_status()
+    data = resp.json()
+
+    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    return content
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Launch dotfiles repo-agent")
-    parser.add_argument("--event", choices=["bootstrap", "commit", "query", "post-merge", "post-checkout", "post-rewrite", "pre-push"], default="commit")
+    parser = argparse.ArgumentParser(description="Launch dotfiles repo-agent via OpenClaw")
+    parser.add_argument("--event", choices=[
+        "bootstrap", "commit", "query",
+        "post-merge", "post-checkout", "post-rewrite", "pre-push"
+    ], default="commit")
     args = parser.parse_args()
 
     try:
-        from opensandbox import SandboxSync, ConnectionConfigSync
+        from opensandbox import SandboxSync
+        from opensandbox.config.connection_sync import ConnectionConfigSync
+        from opensandbox.models.sandboxes import Volume, Host
+        from opensandbox.models import NetworkPolicy, NetworkRule
     except ImportError:
-        print("ERROR: opensandbox not installed. Run: uv tool install opensandbox-cli")
+        print("ERROR: opensandbox not installed in venv")
         sys.exit(1)
 
     NULLTICKETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    print(f"[dotfiles-agent] Starting sandbox for event: {args.event}")
+    print(f"[dotfiles-agent] Starting OpenClaw sandbox for event: {args.event}")
+    print(f"[dotfiles-agent] Model: {OPENCLAW_MODEL}")
     print(f"[dotfiles-agent] Mounting: {DOTFILES_ROOT} -> /workspace")
 
+    port = OPENCLAW_PORT
+
     sandbox = SandboxSync.create(
-        image=AIO_IMAGE,
+        image=OPENCLAW_IMAGE,
         timeout=SANDBOX_TIMEOUT,
-        entrypoint=["/opt/gem/run.sh"],
-        connection_config=ConnectionConfigSync(domain=OPENSANDBOX_SERVER),
-        health_check=check_aio_process,
+        entrypoint=[f"node dist/index.js gateway --bind=lan --port {port} --allow-unconfigured --verbose"],
+        connection_config=ConnectionConfigSync(
+            domain=OPENSANDBOX_SERVER,
+            request_timeout=120,
+            use_server_proxy=True,
+        ),
+        health_check=lambda sbx: check_openclaw(sbx, port),
+        ready_timeout=timedelta(seconds=120),
+        env={
+            "OPENCLAW_GATEWAY_TOKEN": OPENCLAW_TOKEN,
+            "OPENCLAW_MODEL": OPENCLAW_MODEL,
+            "ANTHROPIC_API_KEY": os.environ.get("ANTHROPIC_API_KEY", ""),
+        },
         volumes=[
-            {"host": str(DOTFILES_ROOT), "container": "/workspace", "mode": "rw"},
-            {"host": str(NULLTICKETS_DIR), "container": "/nulltickets", "mode": "rw"},
+            Volume(name="dotfiles", host=Host(path=str(DOTFILES_ROOT)), mount_path="/workspace"),
+            Volume(name="nulltickets", host=Host(path=str(NULLTICKETS_DIR)), mount_path="/nulltickets"),
         ],
+        network_policy=NetworkPolicy(
+            defaultAction="deny",
+            egress=[
+                NetworkRule(action="allow", target="api.anthropic.com"),
+                NetworkRule(action="allow", target="api.claude.ai"),
+            ],
+        ),
+        metadata={"repo": "dotfiles", "event": args.event},
     )
 
     with sandbox:
-        endpoint = sandbox.get_endpoint(8080)
-        print(f"[dotfiles-agent] Sandbox ready at {endpoint.endpoint}")
+        endpoint = sandbox.get_endpoint(port)
+        print(f"[dotfiles-agent] OpenClaw gateway ready at {endpoint.endpoint}")
 
-        if not wait_for_health(endpoint.endpoint):
-            print("ERROR: Sandbox health check failed")
-            sys.exit(1)
+        response = send_to_openclaw(endpoint.endpoint, args.event)
+        print(f"\n[dotfiles-agent] Response:\n{response}")
 
-        try:
-            from agent_sandbox import AioSandboxClient
-            client = AioSandboxClient(base_url=f"http://{endpoint.endpoint}")
-        except ImportError:
-            print("ERROR: agent-sandbox not installed. Run: uv pip install agent-sandbox")
-            sys.exit(1)
-
-        prompt = get_event_prompt(args.event)
-
-        # Write prompt to a file in the sandbox for nullclaw to read
-        client.shell.exec_command(
-            command=f"echo {repr(prompt)} > /tmp/agent-prompt.txt",
-            timeout=5
-        )
-
-        # Run nullclaw with the prompt
-        result = client.shell.exec_command(
-            command=f"nullclaw agent --prompt-file /tmp/agent-prompt.txt --workspace /workspace",
-            timeout=580
-        )
-
-        print(result.output if hasattr(result, "output") else result)
-
-        if args.event == "query":
-            response = client.file.read_file(file="/tmp/agent-response.txt")
-            print("\n[dotfiles-agent response]")
-            print(response)
-
-    print(f"[dotfiles-agent] Event '{args.event}' complete.")
+    print(f"\n[dotfiles-agent] Event '{args.event}' complete.")
 
 
 if __name__ == "__main__":

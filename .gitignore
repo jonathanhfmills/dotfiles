@@ -1,4 +1,5 @@
 node_modules/
+opensandbox/.venv/
 dist/
 .gitagent/
 .omc/state/
