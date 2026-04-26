@@ -202,8 +202,11 @@ def main():
             "sh", "-c",
             f"""mkdir -p /home/node/.openclaw/agents/main/agent && \
 cat > /home/node/.openclaw/agents/main/agent/auth-profiles.json << 'AUTHEOF'
-{{"ollama":{{"baseUrl":"http://ollama:11434"}}}}
+{{"ollama":{{"baseUrl":"http://ollama:11434","apiKey":"ollama-local"}}}}
 AUTHEOF
+mkdir -p /home/node/.openclaw/agents/main/agent && cat > /home/node/.openclaw/agents/main/agent/models.json << 'MODEOF'
+{{"providers":{{"ollama":{{"baseUrl":"http://ollama:11434","api":"ollama","apiKey":"OLLAMA_API_KEY","models":[{{"id":"qwen3.5:9b-q8_0","name":"Qwen3.5 9B Q8_0","api":"ollama","input":["text"],"contextWindow":32768,"maxTokens":8192,"cost":{{"input":0,"output":0,"cacheRead":0,"cacheWrite":0}}}}]}}}}}}
+MODEOF
 mkdir -p /home/node/.openclaw && cat > /home/node/.openclaw/openclaw.json << 'OCEOF'
 {{
   "gateway": {{"mode": "local", "auth": {{"mode": "token"}}}},
@@ -227,6 +230,7 @@ mkdir -p /home/node/.openclaw && cat > /home/node/.openclaw/openclaw.json << 'OC
 }}
 OCEOF
 node -e "const fs=require('fs');const f='/app/dist/extensions/bonjour/openclaw.plugin.json';const d=JSON.parse(fs.readFileSync(f));d.enabledByDefault=false;fs.writeFileSync(f,JSON.stringify(d));console.log('[patch] bonjour plugin disabled');" && \
+for f in /app/dist/defaults-DOKD5eTO.js /app/dist/runtime-CadHRMLo.js /app/dist/provider-model-defaults-IBbFVYjQ.js; do sed -i "s|127.0.0.1:11434|ollama:11434|g" "$f" 2>/dev/null && echo "[patch] fixed ollama URL in $(basename $f)"; done && \
 while true; do node dist/index.js gateway --bind=lan --port {port} --verbose; echo "[restart] gateway exited, restarting in 3s..."; sleep 3; done"""
         ],
         connection_config=ConnectionConfigSync(
@@ -240,6 +244,7 @@ while true; do node dist/index.js gateway --bind=lan --port {port} --verbose; ec
             "OPENCLAW_MODEL": OPENCLAW_MODEL,
             "OLLAMA_BASE_URL": OLLAMA_BASE_URL,
             "OLLAMA_API_KEY": "ollama-local",
+            "OPENCLAW_NO_RESPAWN": "1",
             "NODE_OPTIONS": "--unhandled-rejections=none",
             "ANTHROPIC_API_KEY": os.environ.get("ANTHROPIC_API_KEY", ""),
             "IRC_HOST": IRC_HOST,
