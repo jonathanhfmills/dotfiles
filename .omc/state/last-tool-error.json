@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"pip install pyyaml --break-system-packages 2>&1 | tail -3 && omc2gitagent --help\",\"description\":\"Install pyyaml and verify omc2gitagent works\",\"dangerouslyDisableSandbox\":true}",
-  "error": "Exit code 1\nzsh: command not found: pip\nTraceback (most recent call last):\n  File \"/home/jon/.local/bin/omc2gitagent\", line 6, in <module>\n    import yaml\nModuleNotFoundError: No module named 'yaml'",
-  "timestamp": "2026-04-26T00:29:11.719Z",
-  "retry_count": 1
-}
