@@ -1,6 +1,6 @@
 .PHONY: install stow unstow update
 
-PACKAGES = agents git zsh npm local fish opensandbox
+PACKAGES = agents git zsh npm local fish opensandbox weechat
 
 install: deps stow
 
