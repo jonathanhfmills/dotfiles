@@ -5,3 +5,4 @@ dist/
 .omc/
 __pycache__/
 *.pyc
+nullboiler.db
