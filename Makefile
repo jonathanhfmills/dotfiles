@@ -13,7 +13,7 @@ hooks:
 
 deps: paru-install
 	sudo -v
-	sudo pacman -S --needed --noconfirm stow python-yaml git nodejs npm docker github-cli weechat
+	sudo pacman -S --needed --noconfirm stow python-yaml git nodejs npm docker docker-compose github-cli weechat
 	sudo systemctl enable --now docker
 	sudo usermod -aG docker $$USER
 	@which uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -26,14 +26,15 @@ deps: paru-install
 	@paru -Q microsoft-edge-stable-bin >/dev/null 2>&1 || paru -S --noconfirm microsoft-edge-stable-bin
 	@which claude >/dev/null 2>&1 || npm install -g @anthropic-ai/claude-code
 	@which huggingface-cli >/dev/null 2>&1 || uv tool install huggingface-hub
-	@which ollama >/dev/null 2>&1 || curl -fsSL https://ollama.com/install.sh | sh
-	sudo systemctl start ollama
-	ollama pull qwen3.5:9b-q8_0
+	@which docker-compose >/dev/null 2>&1 || sudo pacman -S --noconfirm docker-compose
+	cd $(CURDIR) && docker-compose up -d ollama inspircd
+	docker exec ollama ollama pull qwen3.5:9b-q8_0
 	@which yt-dlp >/dev/null 2>&1 || uv tool install yt-dlp
 	@which whisper >/dev/null 2>&1 || uv tool install openai-whisper
 	@which lucid >/dev/null 2>&1 || curl -fsSL https://lucidmemory.dev/install | bash
 	@which omc >/dev/null 2>&1 || npm install -g oh-my-claude-sisyphus
 	@which osb >/dev/null 2>&1 || uv tool install opensandbox-cli
+	@test -f $(CURDIR)/opensandbox/.venv/bin/python || ( python3 -m venv $(CURDIR)/opensandbox/.venv && $(CURDIR)/opensandbox/.venv/bin/pip install -q opensandbox )
 
 paru-install:
 	@which paru >/dev/null 2>&1 || ( \

@@ -26,7 +26,7 @@ allowed_host_paths = [
 volume_default_size = "1Gi"
 
 [docker]
-network_mode = "bridge"
+network_mode = "royal-family"
 drop_capabilities = ["AUDIT_WRITE", "MKNOD", "NET_ADMIN", "NET_RAW", "SYS_ADMIN", "SYS_MODULE", "SYS_PTRACE", "SYS_TIME", "SYS_TTY_CONFIG"]
 no_new_privileges = true
 apparmor_profile = ""

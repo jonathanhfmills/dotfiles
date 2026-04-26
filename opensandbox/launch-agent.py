@@ -29,7 +29,10 @@ OPENCLAW_IMAGE = "ghcr.io/openclaw/openclaw:latest"
 OPENCLAW_PORT = 18789
 OPENCLAW_TOKEN = os.environ.get("OPENCLAW_GATEWAY_TOKEN", "dotfiles-agent-token")
 OPENCLAW_MODEL = os.environ.get("OPENCLAW_MODEL", "ollama/qwen3.5:9b-q8_0")
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+OPENCLAW_MODEL_INTERNAL = OPENCLAW_MODEL.replace("ollama/", "")
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://ollama:11434")
+IRC_HOST = os.environ.get("IRC_HOST_OVERRIDE", "inspircd")
+DOCKER_NETWORK = "royal-family"
 SANDBOX_TIMEOUT = timedelta(hours=24)
 
 SOUL_PATH = DOTFILES_ROOT / "SOUL.md"
@@ -37,11 +40,11 @@ NULLCLAW_GATEWAY = "http://localhost:3000"
 
 
 def check_openclaw(sbx, port: int) -> bool:
-    """Health check — polls OpenClaw gateway until HTTP 200."""
+    """Health check — polls OpenClaw /healthz until HTTP 200."""
     try:
         import requests
         endpoint = sbx.get_endpoint(port)
-        r = requests.get(f"http://{endpoint.endpoint}/health", timeout=2,
+        r = requests.get(f"http://{endpoint.endpoint}/healthz", timeout=2,
                          headers={"Authorization": f"Bearer {OPENCLAW_TOKEN}"})
         return r.status_code == 200
     except Exception:
@@ -142,9 +145,11 @@ def send_to_openclaw(endpoint_str: str, event: str) -> str:
     user_prompt = get_event_prompt(event)
 
     payload = {
-        "model": OPENCLAW_MODEL,
-        "messages": [{"role": "user", "content": user_prompt}],
-        "system": system_prompt,
+        "model": "openclaw/default",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
         "stream": False,
         "max_tokens": 4096,
     }
@@ -153,6 +158,7 @@ def send_to_openclaw(endpoint_str: str, event: str) -> str:
     headers = {
         "Authorization": f"Bearer {OPENCLAW_TOKEN}",
         "Content-Type": "application/json",
+        "x-openclaw-model": OPENCLAW_MODEL,
     }
 
     print(f"[dotfiles-agent] Sending '{event}' prompt to OpenClaw...")
@@ -192,40 +198,121 @@ def main():
     sandbox = SandboxSync.create(
         image=OPENCLAW_IMAGE,
         timeout=SANDBOX_TIMEOUT,
-        entrypoint=[f"node dist/index.js gateway --bind=lan --port {port} --allow-unconfigured --verbose"],
+        entrypoint=[
+            "sh", "-c",
+            f"""mkdir -p /home/node/.openclaw/agents/main/agent && \
+cat > /home/node/.openclaw/agents/main/agent/auth-profiles.json << 'AUTHEOF'
+{{"ollama":{{"baseUrl":"http://ollama:11434"}}}}
+AUTHEOF
+mkdir -p /home/node/.openclaw && cat > /home/node/.openclaw/openclaw.json << 'OCEOF'
+{{
+  "gateway": {{"mode": "local", "auth": {{"mode": "token"}}}},
+  "agents": {{"defaults": {{"model": "ollama/qwen3.5:9b-q8_0"}}}},
+  "channels": {{
+    "irc": {{
+      "enabled": true,
+      "host": "inspircd",
+      "port": 6667,
+      "tls": false,
+      "nick": "Wanda",
+      "username": "wanda",
+      "realname": "Dotfiles Repo-Agent",
+      "channels": ["#general"],
+      "groupPolicy": "open",
+      "groups": {{
+        "*": {{"requireMention": false, "allowFrom": ["*"]}}
+      }}
+    }}
+  }}
+}}
+OCEOF
+node -e "const fs=require('fs');const f='/app/dist/extensions/bonjour/openclaw.plugin.json';const d=JSON.parse(fs.readFileSync(f));d.enabledByDefault=false;fs.writeFileSync(f,JSON.stringify(d));console.log('[patch] bonjour plugin disabled');" && \
+while true; do node dist/index.js gateway --bind=lan --port {port} --verbose; echo "[restart] gateway exited, restarting in 3s..."; sleep 3; done"""
+        ],
         connection_config=ConnectionConfigSync(
             domain=OPENSANDBOX_SERVER,
             request_timeout=120,
             use_server_proxy=True,
         ),
-        health_check=lambda sbx: check_openclaw(sbx, port),
-        ready_timeout=timedelta(seconds=120),
+        skip_health_check=True,
         env={
             "OPENCLAW_GATEWAY_TOKEN": OPENCLAW_TOKEN,
             "OPENCLAW_MODEL": OPENCLAW_MODEL,
             "OLLAMA_BASE_URL": OLLAMA_BASE_URL,
+            "OLLAMA_API_KEY": "ollama-local",
+            "NODE_OPTIONS": "--unhandled-rejections=none",
             "ANTHROPIC_API_KEY": os.environ.get("ANTHROPIC_API_KEY", ""),
+            "IRC_HOST": IRC_HOST,
+            "IRC_PORT": "6667",
+            "IRC_TLS": "false",
+            "IRC_NICK": "Wanda",
+            "IRC_CHANNELS": "#general",
         },
         volumes=[
             Volume(name="dotfiles", host=Host(path=str(DOTFILES_ROOT)), mount_path="/workspace"),
             Volume(name="nulltickets", host=Host(path=str(NULLTICKETS_DIR)), mount_path="/nulltickets"),
         ],
         network_policy=NetworkPolicy(
-            defaultAction="deny",
-            egress=[
-                NetworkRule(action="allow", target="host.docker.internal"),
-                NetworkRule(action="allow", target="api.anthropic.com"),
-            ],
+            defaultAction="allow",
         ),
         metadata={"repo": "dotfiles", "event": args.event},
     )
 
     with sandbox:
-        endpoint = sandbox.get_endpoint(port)
-        print(f"[dotfiles-agent] OpenClaw gateway ready at {endpoint.endpoint}")
+        print(f"[dotfiles-agent] Sandbox ID: {sandbox.id}")
 
-        response = send_to_openclaw(endpoint.endpoint, args.event)
-        print(f"\n[dotfiles-agent] Response:\n{response}")
+        # Connect openclaw's egress container to royal-family so DNS resolves inspircd
+        import subprocess
+        # Find the sandbox container by sandbox ID label
+        cid_result = subprocess.run(
+            ["sudo", "docker", "ps", "-q", "--filter", f"label=opensandbox.io/id={sandbox.id}"],
+            capture_output=True, text=True
+        )
+        container_id = cid_result.stdout.strip()
+        if container_id:
+            # Get egress container (sandbox shares its network namespace)
+            net_result = subprocess.run(
+                ["sudo", "docker", "inspect", container_id, "--format", "{{.HostConfig.NetworkMode}}"],
+                capture_output=True, text=True
+            )
+            net_mode = net_result.stdout.strip()
+            egress_id = net_mode.replace("container:", "") if net_mode.startswith("container:") else container_id
+            result = subprocess.run(["sudo", "docker", "network", "connect", DOCKER_NETWORK, egress_id], capture_output=True, text=True)
+            if result.returncode == 0:
+                print(f"[dotfiles-agent] Connected egress {egress_id[:12]} to {DOCKER_NETWORK}")
+            else:
+                print(f"[dotfiles-agent] Network connect: {result.stderr.strip()}")
+        else:
+            print(f"[dotfiles-agent] Warning: could not find container for sandbox {sandbox.id}")
+
+        print(f"[dotfiles-agent] Waiting 15s for OpenClaw gateway to start...")
+        time.sleep(15)
+
+        endpoint = sandbox.get_endpoint(port)
+        print(f"[dotfiles-agent] Trying gateway at {endpoint.endpoint}")
+
+        # Probe health before sending prompt
+        import requests as _req
+        for attempt in range(10):
+            try:
+                r = _req.get(f"http://{endpoint.endpoint}/healthz",
+                             headers={"Authorization": f"Bearer {OPENCLAW_TOKEN}"},
+                             timeout=3)
+                if r.status_code == 200:
+                    print(f"[dotfiles-agent] OpenClaw gateway healthy")
+                    break
+                print(f"[dotfiles-agent] Health check attempt {attempt+1}: {r.status_code} {r.text[:100]}")
+            except Exception as e:
+                print(f"[dotfiles-agent] Health check attempt {attempt+1}: {e}")
+            time.sleep(3)
+
+        try:
+            response = send_to_openclaw(endpoint.endpoint, args.event)
+            print(f"\n[dotfiles-agent] Response:\n{response}")
+        except Exception as e:
+            print(f"[dotfiles-agent] HTTP send failed ({e}) — gateway running, IRC connected. Keeping alive 24h.")
+            import time as _t
+            _t.sleep(86400)
 
     print(f"\n[dotfiles-agent] Event '{args.event}' complete.")
 

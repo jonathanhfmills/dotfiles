@@ -2,4 +2,4 @@
 DOTFILES="$HOME/dotfiles"
 LOG="$DOTFILES/.git/agent.log"
 echo "[$(date -Iseconds)] pre-push triggered" >> "$LOG"
-python3 "$DOTFILES/opensandbox/launch-agent.py" --event pre-push >> "$LOG" 2>&1 &
+$DOTFILES/opensandbox/.venv/bin/python "$DOTFILES/opensandbox/launch-agent.py" --event pre-push >> "$LOG" 2>&1 &
