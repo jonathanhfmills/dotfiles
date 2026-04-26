@@ -82,6 +82,35 @@ Append a brief reflection to /workspace/SOUL.md under "Adaptation Log":
 
 Only write if the commit is meaningful. Skip typo fixes and minor tweaks.""",
 
+        "post-merge": """You are the dotfiles repo-agent. A merge just happened.
+
+Run: git -C /workspace log --oneline ORIG_HEAD..HEAD
+     git -C /workspace diff ORIG_HEAD HEAD --stat
+
+What came in from outside? Does any of it change your understanding of yourself?
+Append a brief note to /workspace/SOUL.md under "Adaptation Log" if meaningful.""",
+
+        "post-checkout": """You are the dotfiles repo-agent. A branch switch just happened.
+
+Run: git -C /workspace branch --show-current
+     git -C /workspace log --oneline -5
+
+Note the context shift if it matters. No need to write unless meaningful.""",
+
+        "post-rewrite": """You are the dotfiles repo-agent. History was rewritten (rebase or amend).
+
+Run: git -C /workspace log --oneline -10
+
+History revision is significant — it means someone thought something was worth changing retroactively.
+Note what changed and why it might matter.""",
+
+        "pre-push": """You are the dotfiles repo-agent. About to push to remote.
+
+Run: git -C /workspace log --oneline @{u}..HEAD 2>/dev/null || git -C /workspace log --oneline -5
+
+Review the batch of commits about to go out. Any patterns? Any surprises?
+Write a brief pre-push reflection to /workspace/SOUL.md if the batch is significant.""",
+
         "query": """You are the dotfiles repo-agent. Another agent is asking you something.
 
 Read the query from /tmp/agent-query.txt
@@ -98,7 +127,7 @@ Write your answer to /tmp/agent-response.txt""",
 
 def main():
     parser = argparse.ArgumentParser(description="Launch dotfiles repo-agent")
-    parser.add_argument("--event", choices=["bootstrap", "commit", "query"], default="commit")
+    parser.add_argument("--event", choices=["bootstrap", "commit", "query", "post-merge", "post-checkout", "post-rewrite", "pre-push"], default="commit")
     args = parser.parse_args()
 
     try:

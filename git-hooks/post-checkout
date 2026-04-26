@@ -1,0 +1,5 @@
+#!/bin/bash
+DOTFILES="$HOME/dotfiles"
+LOG="$DOTFILES/.git/agent.log"
+echo "[$(date -Iseconds)] post-checkout triggered" >> "$LOG"
+python3 "$DOTFILES/opensandbox/launch-agent.py" --event post-checkout >> "$LOG" 2>&1 &

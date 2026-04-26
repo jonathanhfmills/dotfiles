@@ -5,8 +5,10 @@ PACKAGES = agents git zsh npm local fish opensandbox weechat
 install: deps stow hooks
 
 hooks:
-	@cp $(CURDIR)/git-hooks/post-commit $(CURDIR)/.git/hooks/post-commit
-	@chmod +x $(CURDIR)/.git/hooks/post-commit
+	@for hook in post-commit post-merge post-checkout post-rewrite pre-push; do \
+		cp $(CURDIR)/git-hooks/$$hook $(CURDIR)/.git/hooks/$$hook; \
+		chmod +x $(CURDIR)/.git/hooks/$$hook; \
+	done
 	@echo "hooks installed"
 
 deps: paru-install
