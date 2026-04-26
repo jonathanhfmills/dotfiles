@@ -3,3 +3,5 @@ dist/
 .gitagent/
 .omc/state/
 .omc/
+__pycache__/
+*.pyc
