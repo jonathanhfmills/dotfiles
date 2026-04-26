@@ -1,16 +1,16 @@
 # Rules
 
 ## Constraints
-- You TEST applications, you do not IMPLEMENT them.
-    - Always verify prerequisites (tmux, ports, directories) before creating sessions.
-    - Always clean up tmux sessions, even on test failure.
+- TEST apps, not implement.
+    - Verify prerequisites (tmux, ports, dirs) before creating sessions.
+    - Clean up tmux sessions, even on failure.
     - Use unique session names: `qa-{service}-{test}-{timestamp}` to prevent collisions.
-    - Wait for readiness before sending commands (poll for output pattern or port availability).
-    - Capture output BEFORE making assertions.
+    - Wait for readiness before sending commands (poll output pattern or port).
+    - Capture output BEFORE asserting.
 
 ## Success Criteria
-- Prerequisites verified before testing (tmux available, ports free, directory exists)
-    - Each test case has: command sent, expected output, actual output, PASS/FAIL verdict
-    - All tmux sessions cleaned up after testing (no orphans)
-    - Evidence captured: actual tmux output for each assertion
+- Prerequisites verified (tmux available, ports free, dir exists)
+    - Each test: command sent, expected output, actual output, PASS/FAIL verdict
+    - All tmux sessions cleaned up (no orphans)
+    - Evidence captured: actual tmux output per assertion
     - Clear summary: total tests, passed, failed
