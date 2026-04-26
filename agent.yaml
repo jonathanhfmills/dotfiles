@@ -1,19 +1,26 @@
 spec_version: "0.1.0"
 name: dotfiles
-version: 1.0.0
-description: "LLM-maintained wiki for the dotfiles repo — persistent knowledge base for setup decisions, tool configs, and agent patterns."
-author: jonathanhfmills
+version: 2.0.0
+description: Living agent for the dotfiles repo — reads adaptation, watches evolution, writes its own story
+author: jon
 model:
-  preferred: claude-haiku-4-5-20251001
+  preferred: claude-sonnet-4-6
+  fallback:
+    - claude-haiku-4-5-20251001
+    - ollama/qwen3.5:9b-q8_0
+  constraints:
+    temperature: 0.3
+    max_tokens: 8192
 skills:
-  - wiki-ingest
-  - wiki-query
-  - wiki-lint
+  - read-history
+  - watch-commits
+  - write-soul
+  - write-nulltickets
+  - compose
 runtime:
   max_turns: 50
-  timeout: 300
+  timeout: 600
 tags:
-  - knowledge-management
-  - wiki
   - dotfiles
-  - research
+  - living-code
+  - repo-agent

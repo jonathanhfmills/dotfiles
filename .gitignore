@@ -2,7 +2,7 @@ node_modules/
 dist/
 .gitagent/
 .omc/state/
-.omc/
+.omc/drafts/
 __pycache__/
 *.pyc
 nullboiler.db
