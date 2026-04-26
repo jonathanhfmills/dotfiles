@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+"""Convert OMC skill SKILL.md files to gitagent agent directories."""
+
+import re
+import sys
+import yaml
+from pathlib import Path
+
+SKILLS_DIR = Path.home() / ".agents" / "skills"
+OUT_DIR = Path.home() / "gitagent-agents"
+
+SOUL_HEADINGS = {"role", "purpose", "capabilities", "overview", "description",
+                 "when to use", "when to activate", "domain expertise",
+                 "communication style", "values", "collaboration", "identity"}
+
+RULES_HEADINGS = {"rules", "must", "never", "constraints", "boundaries",
+                  "must always", "must never", "output constraints",
+                  "interaction boundaries", "hard constraints", "error handling"}
+
+
+def parse_skill(path: Path) -> tuple[dict, str]:
+    text = path.read_text()
+    if text.startswith("---"):
+        parts = text.split("---", 2)
+        fm = yaml.safe_load(parts[1])
+        body = parts[2].strip()
+    else:
+        fm = {}
+        body = text.strip()
+    return fm, body
+
+
+def split_sections(body: str) -> dict[str, str]:
+    sections = {}
+    current_heading = "_preamble"
+    current_lines = []
+    for line in body.splitlines():
+        m = re.match(r"^#{1,3}\s+(.+)", line)
+        if m:
+            if current_lines:
+                sections[current_heading] = "\n".join(current_lines).strip()
+            current_heading = m.group(1).strip()
+            current_lines = []
+        else:
+            current_lines.append(line)
+    if current_lines:
+        sections[current_heading] = "\n".join(current_lines).strip()
+    return sections
+
+
+def classify_sections(sections: dict[str, str]) -> tuple[dict, dict]:
+    soul_parts = {}
+    rules_parts = {}
+    for heading, content in sections.items():
+        key = heading.lower()
+        if any(r in key for r in RULES_HEADINGS):
+            rules_parts[heading] = content
+        elif any(s in key for s in SOUL_HEADINGS):
+            soul_parts[heading] = content
+        elif key != "_preamble":
+            soul_parts[heading] = content
+    return soul_parts, rules_parts
+
+
+def build_agent_yaml(fm: dict, name: str) -> dict:
+    description = fm.get("description", "")
+    if isinstance(description, str):
+        description = " ".join(description.split())
+    tags = []
+    triggers = fm.get("triggers", [])
+    if isinstance(triggers, list):
+        tags = [t.strip() for t in triggers if t.strip()]
+    return {
+        "spec_version": "0.1.0",
+        "name": name,
+        "version": fm.get("metadata", {}).get("version", "0.1.0") if isinstance(fm.get("metadata"), dict) else "0.1.0",
+        "description": description or f"OMC skill: {name}",
+        "author": fm.get("metadata", {}).get("author", "omc") if isinstance(fm.get("metadata"), dict) else "omc",
+        "license": fm.get("metadata", {}).get("license", "MIT") if isinstance(fm.get("metadata"), dict) else "MIT",
+        "model": {
+            "preferred": "claude-sonnet-4-6",
+            "fallback": ["claude-haiku-4-5-20251001"],
+            "constraints": {"temperature": 0.2, "max_tokens": 8192},
+        },
+        "runtime": {"max_turns": 30, "timeout": 300},
+        "tags": tags or ["omc", name],
+    }
+
+
+def build_soul(soul_parts: dict, name: str, description: str) -> str:
+    lines = [f"# {name} — Soul\n"]
+    if not soul_parts:
+        lines.append(f"## Core Identity\n{description}\n")
+    for heading, content in soul_parts.items():
+        lines.append(f"## {heading}\n{content}\n")
+    return "\n".join(lines)
+
+
+def build_rules(rules_parts: dict) -> str:
+    if not rules_parts:
+        return "# Rules\n\n## Must Always\n- Follow OMC skill conventions.\n\n## Must Never\n- Violate user trust or safety.\n"
+    lines = ["# Rules\n"]
+    for heading, content in rules_parts.items():
+        lines.append(f"## {heading}\n{content}\n")
+    return "\n".join(lines)
+
+
+def convert(skill_name: str) -> Path:
+    skill_path = SKILLS_DIR / skill_name / "SKILL.md"
+    if not skill_path.exists():
+        print(f"✗ Not found: {skill_path}", file=sys.stderr)
+        sys.exit(1)
+
+    fm, body = parse_skill(skill_path)
+    sections = split_sections(body)
+    soul_parts, rules_parts = classify_sections(sections)
+
+    agent_yaml = build_agent_yaml(fm, skill_name)
+    description = agent_yaml["description"]
+
+    out = OUT_DIR / skill_name
+    out.mkdir(parents=True, exist_ok=True)
+
+    (out / "agent.yaml").write_text(
+        yaml.dump(agent_yaml, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    )
+    (out / "SOUL.md").write_text(build_soul(soul_parts, skill_name, description))
+    (out / "RULES.md").write_text(build_rules(rules_parts))
+
+    print(f"✓ {skill_name} → {out}")
+    return out
+
+
+def main():
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
+        print(f"Usage: omc2gitagent <skill-name|--all>")
+        print(f"  Skills dir:  {SKILLS_DIR}")
+        print(f"  Output dir:  {OUT_DIR}")
+        sys.exit(0)
+
+    if sys.argv[1] == "--all":
+        skills = [d.name for d in SKILLS_DIR.iterdir() if (d / "SKILL.md").exists()]
+        if not skills:
+            print("No skills found.", file=sys.stderr)
+            sys.exit(1)
+        for s in sorted(skills):
+            convert(s)
+        print(f"\nDone. Run with: npx @open-gitagent/gitagent@latest run -d {OUT_DIR}/<name> -a claude -p 'your prompt'")
+    else:
+        out = convert(sys.argv[1])
+        print(f"\nRun: npx @open-gitagent/gitagent@latest run -d {out} -a claude -p 'your prompt'")
+
+
+if __name__ == "__main__":
+    main()
