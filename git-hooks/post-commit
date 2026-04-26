@@ -1,0 +1,6 @@
+#!/bin/bash
+# dotfiles repo-agent: wake on commit
+DOTFILES="$HOME/dotfiles"
+LOG="$DOTFILES/.git/agent.log"
+echo "[$(date -Iseconds)] post-commit triggered" >> "$LOG"
+python3 "$DOTFILES/opensandbox/launch-agent.py" --event commit >> "$LOG" 2>&1 &

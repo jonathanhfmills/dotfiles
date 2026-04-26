@@ -1,8 +1,13 @@
-.PHONY: install stow unstow update
+.PHONY: install stow unstow update hooks
 
 PACKAGES = agents git zsh npm local fish opensandbox weechat
 
-install: deps stow
+install: deps stow hooks
+
+hooks:
+	@cp $(CURDIR)/git-hooks/post-commit $(CURDIR)/.git/hooks/post-commit
+	@chmod +x $(CURDIR)/.git/hooks/post-commit
+	@echo "hooks installed"
 
 deps: paru-install
 	sudo -v
