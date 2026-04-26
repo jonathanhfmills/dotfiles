@@ -1,0 +1,32 @@
+{
+  "tracker": {
+    "url": "http://127.0.0.1:7700",
+    "poll_interval_ms": 5000,
+    "workflows_dir": "./workflows"
+  },
+  "workers": [
+    {
+      "id": "nullclaw-orchestrator",
+      "url": "http://127.0.0.1:3000/api/chat",
+      "token": "dotfiles-agent-token",
+      "protocol": "api_chat",
+      "tags": ["orchestrator", "feelings"],
+      "max_concurrent": 1,
+      "description": "NullClaw — feelings-first orchestrator. Directs analysis, knows when the answer feels right."
+    },
+    {
+      "id": "openclaw-executor",
+      "url": "http://127.0.0.1:18789/v1/chat/completions",
+      "token": "dotfiles-agent-token",
+      "protocol": "openai_chat",
+      "model": "ollama/qwen3.5:9b-q8_0",
+      "tags": ["executor", "technical"],
+      "max_concurrent": 2,
+      "description": "OpenClaw — technical lead. Uses AIO sandbox tools to investigate, measure, prove."
+    }
+  ],
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8090
+  }
+}
