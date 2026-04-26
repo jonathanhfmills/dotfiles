@@ -1,67 +1,102 @@
 # ruff: noqa
-# Copyright 2026 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-import datetime
-from zoneinfo import ZoneInfo
+import os
+import subprocess
+from pathlib import Path
 
 from google.adk.agents import Agent
 from google.adk.apps import App
-from google.adk.models import Gemini
+from google.adk.models.lite_llm import LiteLlm
 from google.adk.tools import LongRunningFunctionTool
-from google.genai import types
 
-import os
-import google.auth
-
-_, project_id = google.auth.default()
-os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
-os.environ["GOOGLE_CLOUD_LOCATION"] = "global"
-os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
+AGENTS_DIR = Path.home() / ".agents"
+DOTFILES_DIR = Path.home() / "dotfiles"
 
 
-def get_weather(query: str) -> str:
-    """Simulates a web search. Use it get information on weather.
+def deploy_stow(packages: list[str] | None = None) -> dict:
+    """Deploy dotfiles stow packages to home directory.
 
     Args:
-        query: A string containing the location to get weather information for.
+        packages: List of package names to stow. If None, stows all packages.
 
     Returns:
-        A string with the simulated weather information for the queried location.
+        dict with status and details of stowed packages.
     """
-    if "sf" in query.lower() or "san francisco" in query.lower():
-        return "It's 60 degrees and foggy."
-    return "It's 90 degrees and sunny."
+    if packages is None:
+        packages = [
+            d.name for d in DOTFILES_DIR.iterdir()
+            if d.is_dir() and not d.name.startswith(".") and not d.name.startswith("_")
+            and d.name not in ("wiki", "skills", "adk")
+        ]
+    results = []
+    for pkg in packages:
+        result = subprocess.run(
+            ["stow", "-R", pkg, "--dir", str(DOTFILES_DIR), "--target", str(Path.home())],
+            capture_output=True, text=True
+        )
+        results.append({
+            "package": pkg,
+            "success": result.returncode == 0,
+            "output": result.stdout or result.stderr,
+        })
+    return {"stowed": results}
 
 
-def get_current_time(query: str) -> str:
-    """Simulates getting the current time for a city.
+def list_agents() -> dict:
+    """List all global agents in ~/.agents/.
+
+    Returns:
+        dict with agent names and their descriptions.
+    """
+    agents = []
+    if AGENTS_DIR.exists():
+        for d in sorted(AGENTS_DIR.iterdir()):
+            if d.is_dir() and not d.name.startswith("."):
+                yaml_path = d / "agent.yaml"
+                description = ""
+                if yaml_path.exists():
+                    for line in yaml_path.read_text().splitlines():
+                        if line.startswith("description:"):
+                            description = line.split(":", 1)[1].strip().strip('"')
+                            break
+                agents.append({"name": d.name, "description": description})
+    return {"agents": agents}
+
+
+def get_agent_info(name: str) -> dict:
+    """Get agent.yaml contents for a named global agent.
 
     Args:
-        city: The name of the city to get the current time for.
+        name: The agent name (directory name in ~/.agents/).
 
     Returns:
-        A string with the current time information.
+        dict with agent.yaml content or error.
     """
-    if "sf" in query.lower() or "san francisco" in query.lower():
-        tz_identifier = "America/Los_Angeles"
-    else:
-        return f"Sorry, I don't have timezone information for query: {query}."
+    agent_dir = AGENTS_DIR / name
+    yaml_path = agent_dir / "agent.yaml"
+    if not yaml_path.exists():
+        return {"error": f"Agent '{name}' not found in {AGENTS_DIR}"}
+    return {"name": name, "config": yaml_path.read_text()}
 
-    tz = ZoneInfo(tz_identifier)
-    now = datetime.datetime.now(tz)
-    return f"The current time for query {query} is {now.strftime('%Y-%m-%d %H:%M:%S %Z%z')}"
+
+def query_wiki(query: str) -> dict:
+    """Query the dotfiles wiki for information.
+
+    Args:
+        query: The question to ask the wiki.
+
+    Returns:
+        dict with wiki query result or instruction to run wiki agent.
+    """
+    wiki_dir = DOTFILES_DIR / "wiki"
+    index_path = wiki_dir / "memory" / "wiki" / "index.md"
+    if not wiki_dir.exists():
+        return {"error": "Wiki not found at ~/dotfiles/wiki/"}
+    index = index_path.read_text() if index_path.exists() else "Wiki index empty."
+    return {
+        "query": query,
+        "wiki_index": index,
+        "note": f"Run full wiki agent for detailed answers: npx @open-gitagent/gitagent@latest run -d {wiki_dir} -a claude -p '{query}'",
+    }
 
 
 def request_user_input(message: str) -> dict:
@@ -78,15 +113,19 @@ def request_user_input(message: str) -> dict:
 
 root_agent = Agent(
     name="root_agent",
-    model=Gemini(
-        model="gemini-flash-latest",
-        retry_options=types.HttpRetryOptions(attempts=3),
+    model=LiteLlm(model="anthropic/claude-sonnet-4-6"),
+    description="Dotfiles orchestrator — manages stow packages, global agents, and wiki knowledge via A2A.",
+    instruction=(
+        "You are the dotfiles orchestrator. You manage the ~/dotfiles repository: "
+        "deploy stow packages to set up the home directory, list and inspect global agents in ~/.agents/, "
+        "and query the project wiki for configuration knowledge. "
+        "For destructive operations like stow deploy, confirm with the user first."
     ),
-    description="An agent that can provide information about the weather and time.",
-    instruction="You are a helpful AI assistant designed to provide accurate and useful information.",
     tools=[
-        get_weather,
-        get_current_time,
+        deploy_stow,
+        list_agents,
+        get_agent_info,
+        query_wiki,
         LongRunningFunctionTool(func=request_user_input),
     ],
 )
