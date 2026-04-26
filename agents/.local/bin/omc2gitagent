@@ -8,8 +8,13 @@ from pathlib import Path
 
 SKILLS_DIR = Path.home() / ".agents" / "skills"
 SKILLS_OUT_DIR = Path.home() / "gitagent-agents"
-AGENTS_DIR = Path.home() / "dotfiles" / "omc-agents"
-AGENTS_OUT_DIR = Path.home() / "dotfiles" / "gitagent-agents"
+def _find_omc_agents_dir() -> Path:
+    base = Path.home() / ".claude" / "plugins" / "cache" / "omc" / "oh-my-claudecode"
+    candidates = sorted(base.glob("*/agents"), reverse=True)
+    return candidates[0] if candidates else base / "agents"
+
+AGENTS_DIR = _find_omc_agents_dir()
+AGENTS_OUT_DIR = Path.home() / "dotfiles" / "agents" / ".agents"
 
 MODEL_MAP = {
     "sonnet": "claude-sonnet-4-6",
