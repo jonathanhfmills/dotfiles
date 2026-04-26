@@ -1,8 +1,0 @@
-sources: []
-# Add sources here as you ingest them. Example:
-# - id: stow-setup-notes
-#   title: "Stow setup notes"
-#   file: stow-setup-notes.md
-#   tags: [stow, setup]
-#   priority: high
-#   ingested: false
