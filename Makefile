@@ -17,18 +17,12 @@ deps: paru-install
 	sudo systemctl enable --now docker
 	sudo usermod -aG docker $$USER
 	@which uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
-	@paru -Q inspircd >/dev/null 2>&1 || paru -S --noconfirm inspircd
-	sudo mkdir -p /var/lib/inspircd /var/log/inspircd
-	sudo chown inspircd:inspircd /var/lib/inspircd /var/log/inspircd
-	@test -f /etc/inspircd/inspircd.conf || sudo cp $(CURDIR)/inspircd/etc/inspircd/inspircd.conf /etc/inspircd/inspircd.conf
-	sudo systemctl enable --now inspircd
 	@paru -Q 1password >/dev/null 2>&1 || paru -S --noconfirm 1password
 	@paru -Q microsoft-edge-stable-bin >/dev/null 2>&1 || paru -S --noconfirm microsoft-edge-stable-bin
 	@which claude >/dev/null 2>&1 || npm install -g @anthropic-ai/claude-code
 	@which huggingface-cli >/dev/null 2>&1 || uv tool install huggingface-hub
-	@which docker-compose >/dev/null 2>&1 || sudo pacman -S --noconfirm docker-compose
-	cd $(CURDIR) && docker-compose up -d ollama inspircd
-	docker exec ollama ollama pull qwen3.5:9b-q8_0
+	docker-compose -f $(CURDIR)/docker-compose.yml up -d ollama inspircd
+	@docker exec ollama ollama list | grep -q qwen3.5 || docker exec ollama ollama pull qwen3.5:9b-q8_0
 	@which yt-dlp >/dev/null 2>&1 || uv tool install yt-dlp
 	@which whisper >/dev/null 2>&1 || uv tool install openai-whisper
 	@which lucid >/dev/null 2>&1 || curl -fsSL https://lucidmemory.dev/install | bash
