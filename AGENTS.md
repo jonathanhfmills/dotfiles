@@ -31,7 +31,7 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `nvm` | Node Version Manager |
 | `node` | Node.js via nvm |
 | `claude` | Claude Code CLI |
-| `npm-globals` | Global npm packages |
+| `npm-globals` | Global npm packages (oh-my-claude-sisyphus, sandbox-runtime, codex) |
 | `claude-plugins` | Prints manual plugin install instructions |
 | `docker` | Docker Engine + compose plugin |
 | `lucid` | Lucid Memory MCP server |
