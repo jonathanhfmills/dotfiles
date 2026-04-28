@@ -1,14 +1,27 @@
-# Copy to ~/.gitconfig.local and fill in your values
-# This file is NOT tracked — keep it local only
+# Copy to git/.gitconfig (gitignored) and fill in your values
+# Run `make link` to stow — creates ~/.gitconfig symlink
+
+[credential "https://github.com"]
+	helper =
+	helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !/usr/bin/gh auth git-credential
 
 [user]
 	name = Your Name
 	email = you@example.com
 	signingkey = ssh-rsa AAAA...your-public-key...
 
+[gpg]
+	format = ssh
+
 [gpg "ssh"]
 	# Path to 1Password SSH signing helper (Windows-side via WSL interop)
 	program = /mnt/c/Users/YOUR_WINDOWS_USERNAME/AppData/Local/Microsoft/WindowsApps/op-ssh-sign-wsl.exe
+
+[commit]
+	gpgsign = true
 
 [core]
 	# Use Windows SSH agent through WSL interop

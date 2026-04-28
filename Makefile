@@ -118,8 +118,8 @@ proxy:
 
 # ── Symlink dotfiles via stow ─────────────────────────────────────────────────
 link:
-	@if [ ! -f "$(HOME)/.gitconfig.local" ]; then \
-		cp "$(CURDIR)/git/.gitconfig.local.example" "$(HOME)/.gitconfig.local"; \
-		echo "Created ~/.gitconfig.local from example — fill in your personal settings"; \
+	@if [ ! -f "$(CURDIR)/git/.gitconfig" ]; then \
+		cp "$(CURDIR)/git/.gitconfig.example" "$(CURDIR)/git/.gitconfig"; \
+		echo "Created git/.gitconfig from example — fill in your personal settings before continuing"; \
 	fi
 	stow -d "$(CURDIR)" -t "$(HOME)" tmux git
