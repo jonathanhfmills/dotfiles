@@ -1,0 +1,16 @@
+# Shared git config — personal settings go in ~/.gitconfig.local (see .gitconfig.local.example)
+[include]
+	path = ~/.gitconfig.local
+
+[credential "https://github.com"]
+	helper =
+	helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !/usr/bin/gh auth git-credential
+
+[gpg]
+	format = ssh
+
+[commit]
+	gpgsign = true

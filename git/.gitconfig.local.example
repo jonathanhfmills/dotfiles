@@ -1,0 +1,15 @@
+# Copy to ~/.gitconfig.local and fill in your values
+# This file is NOT tracked — keep it local only
+
+[user]
+	name = Your Name
+	email = you@example.com
+	signingkey = ssh-rsa AAAA...your-public-key...
+
+[gpg "ssh"]
+	# Path to 1Password SSH signing helper (Windows-side via WSL interop)
+	program = /mnt/c/Users/YOUR_WINDOWS_USERNAME/AppData/Local/Microsoft/WindowsApps/op-ssh-sign-wsl.exe
+
+[core]
+	# Use Windows SSH agent through WSL interop
+	sshCommand = ssh.exe
