@@ -97,7 +97,7 @@ claude:
 # ── npm global packages ───────────────────────────────────────────────────────
 npm-globals: node
 	@source "$(NVM_DIR)/nvm.sh" && \
-	npm install -g oh-my-claude-sisyphus @anthropic-ai/sandbox-runtime @openai/codex @google/gemini-cli qwen-code
+	npm install -g oh-my-claude-sisyphus @anthropic-ai/sandbox-runtime @openai/codex @google/gemini-cli @qwen-code/qwen-code@latest
 
 # ── Claude Code plugins ───────────────────────────────────────────────────────
 # Plugins require an interactive Claude Code session — install manually:
