@@ -15,7 +15,7 @@ Restart when prompted, then complete Ubuntu first-run setup.
 ## Installation
 
 ```bash
-git clone https://github.com/jonathanhfmills/dotfiles-ntara.git dotfiles
+git clone https://github.com/jonathanhfmills/dotfiles.git dotfiles
 cd dotfiles
 make install
 ```
