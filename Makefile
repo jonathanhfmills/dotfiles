@@ -13,7 +13,7 @@ update:
 # ── System packages ──────────────────────────────────────────────────────────
 apt:
 	sudo apt-get update -qq
-	sudo apt-get install -y jq tmux git curl make stow bubblewrap socat unzip
+	sudo apt-get install -y jq tmux git curl make stow bubblewrap socat unzip ripgrep
 
 # ── Third-party apt repos ─────────────────────────────────────────────────────
 apt-repos: apt
