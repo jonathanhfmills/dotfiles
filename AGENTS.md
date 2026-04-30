@@ -30,6 +30,8 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `az` | Azure CLI via Microsoft install script |
 | `azd` | Azure Developer CLI via install script |
 | `func` | Azure Functions Core Tools v4 via Microsoft apt feed |
+| `php` | PHP + extensions (cli, mbstring, xml, curl) via apt |
+| `composer` | Composer via official installer (depends on `php`) |
 | `nvm` | Node Version Manager |
 | `node` | Node.js via nvm |
 | `claude` | Claude Code CLI |

@@ -1,10 +1,10 @@
-.PHONY: install apt gh az azd func nvm node claude npm-globals claude-plugins docker lucid ssh link proxy
+.PHONY: install apt gh az azd func php composer nvm node claude npm-globals claude-plugins docker lucid ssh link proxy
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
 NODE_VERSION := 24
 
-install: apt gh az azd func nvm node claude npm-globals claude-plugins docker lucid ssh link
+install: apt gh az azd func php composer nvm node claude npm-globals claude-plugins docker lucid ssh link
 
 # ── System packages ──────────────────────────────────────────────────────────
 apt:
@@ -50,6 +50,24 @@ func:
 		sudo apt-get update -qq && sudo apt-get install -y azure-functions-core-tools-4; \
 	else \
 		echo "func already installed: $$(func --version)"; \
+	fi
+
+# ── PHP ──────────────────────────────────────────────────────────────────────
+php:
+	@if ! command -v php &>/dev/null; then \
+		sudo apt-get update -qq && sudo apt-get install -y php php-cli php-mbstring php-xml php-curl unzip; \
+	else \
+		echo "php already installed: $$(php --version | head -1)"; \
+	fi
+
+# ── Composer ─────────────────────────────────────────────────────────────────
+composer: php
+	@if ! command -v composer &>/dev/null; then \
+		php -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"; \
+		sudo php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer; \
+		rm /tmp/composer-setup.php; \
+	else \
+		echo "composer already installed: $$(composer --version)"; \
 	fi
 
 # ── Node via nvm ─────────────────────────────────────────────────────────────
