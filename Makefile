@@ -45,6 +45,15 @@ apt-repos: apt
 			| sudo tee /etc/apt/sources.list.d/dotnetdev.list > /dev/null; \
 		echo "Microsoft repo registered"; \
 	fi
+	@# Docker
+	@if [ ! -f /etc/apt/keyrings/docker.asc ]; then \
+		sudo apt-get install -y ca-certificates; \
+		sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc; \
+		sudo chmod a+r /etc/apt/keyrings/docker.asc; \
+		echo "deb [arch=$$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $$(. /etc/os-release && echo "$${UBUNTU_CODENAME:-$$VERSION_CODENAME}") stable" \
+			| sudo tee /etc/apt/sources.list.d/docker.list > /dev/null; \
+		echo "Docker repo registered"; \
+	fi
 	@sudo apt-get update -qq
 
 # ── GitHub CLI ───────────────────────────────────────────────────────────────
@@ -160,15 +169,9 @@ claude-plugins: claude
 	claude plugin install oh-my-claudecode
 
 # ── Docker Engine ────────────────────────────────────────────────────────────
-docker:
+docker: apt-repos
 	@if ! command -v docker &>/dev/null; then \
-		sudo apt-get update -qq && sudo apt-get install -y ca-certificates curl; \
-		sudo install -m 0755 -d /etc/apt/keyrings; \
-		sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc; \
-		sudo chmod a+r /etc/apt/keyrings/docker.asc; \
-		echo "deb [arch=$$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $$(. /etc/os-release && echo "$${UBUNTU_CODENAME:-$$VERSION_CODENAME}") stable" \
-			| sudo tee /etc/apt/sources.list.d/docker.list > /dev/null; \
-		sudo apt-get update -qq && sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin; \
+		sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin; \
 		sudo usermod -aG docker $$USER; \
 		echo "Docker installed. Restart WSL to apply group membership."; \
 	else \
