@@ -1,6 +1,7 @@
 # Idempotent bootstrap for WSL2/Ubuntu dev environments.
 # Run `make install` on a fresh machine to install all default tools and symlink dotfiles.
 # Run `make update` to upgrade all installed apt packages.
+
 .PHONY: install update apt apt-repos gh az azd func php composer pwsh nvm node bun claude npm-globals sisyphus sandbox-runtime codex gemini qwen claude-plugins docker lucid ssh link proxy
 
 SHELL := /bin/bash
