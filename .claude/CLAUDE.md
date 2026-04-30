@@ -68,7 +68,17 @@ Strong criteria → loop independently. Weak criteria ("make it work") → const
 
 After changes: update root `AGENTS.md` + `AGENTS.md` in each dir touched. Reflect new targets, removed files, changed patterns, etc.
 
-## 6. Git Hygiene
+## 6. README Is a Product Artifact
+
+README = front door. Non-technical readers decide if worth installing. Treat like UI copy.
+
+- Readable by non-AI users. Translate jargon ("SessionStart hook" → "auto-runs on startup").
+- Install commands must be complete + accurate. One broken command loses real users.
+- Preserve intentional voice/brand. Quirky style is a choice — don't normalize it.
+- Benchmark/metric numbers: verify against real runs. Never invent or round. Re-run if doubt.
+- Readability check before commit: would non-programmer understand + install within 60 seconds?
+
+## 7. Git Hygiene
 
 After work in git repo: ask user "commit, push, or both? [both]" — default both.
 

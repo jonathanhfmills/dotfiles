@@ -45,7 +45,7 @@ make lucid    # Lucid Memory MCP server (depends on bun)
 
 ## Git Configuration
 
-`make link` symlinks dotfiles and copies `git/.gitconfig.example` to `git/.gitconfig` if absent. Fill in your personal values before committing:
+`make link` symlinks dotfiles and seeds global AI config. Stows: git, tmux, and AI tool configs (`~/.claude`, `~/.codex`, `~/.gemini`, `~/.qwen`) with shared behavioral guidelines. Also copies `git/.gitconfig.example` to `git/.gitconfig` if absent. Fill in your personal values before committing:
 
 ```bash
 # git/.gitconfig — gitignored, local only
@@ -59,7 +59,7 @@ make lucid    # Lucid Memory MCP server (depends on bun)
 
 ```bash
 make update         # apt-get update && upgrade
-make link           # re-stow dotfiles (git + tmux)
+make link           # re-stow dotfiles (git, tmux, .claude, .codex, .gemini, .qwen)
 make proxy          # start Caddy reverse proxy stack
 make claude-plugins # install caveman + oh-my-claudecode plugins
 make apt-repos      # register all third-party apt repos/keys
