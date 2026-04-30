@@ -1,28 +1,52 @@
-.PHONY: install apt gh az azd func php composer nvm node bun claude npm-globals sisyphus sandbox-runtime codex gemini qwen claude-plugins docker lucid ssh link proxy
+.PHONY: install apt apt-repos gh az azd func php composer nvm node bun claude npm-globals sisyphus sandbox-runtime codex gemini qwen claude-plugins docker lucid ssh link proxy
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
 NODE_VERSION := 24
 
-install: apt gh az azd func php composer nvm node bun claude npm-globals claude-plugins docker lucid ssh link
+install: apt apt-repos gh az azd func php composer nvm node bun claude npm-globals claude-plugins docker lucid ssh link
 
 # ── System packages ──────────────────────────────────────────────────────────
 apt:
 	sudo apt-get update -qq
 	sudo apt-get install -y jq tmux git curl make stow bubblewrap socat unzip
 
-# ── GitHub CLI ───────────────────────────────────────────────────────────────
-gh:
-	@if ! command -v gh &>/dev/null; then \
-		type -p wget >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y wget); \
-		sudo mkdir -p -m 755 /etc/apt/keyrings; \
+# ── Third-party apt repos ─────────────────────────────────────────────────────
+apt-repos: apt
+	@sudo mkdir -p -m 755 /etc/apt/keyrings /etc/apt/sources.list.d
+	@# GitHub CLI
+	@if [ ! -f /etc/apt/keyrings/githubcli-archive-keyring.gpg ]; then \
+		type -p wget >/dev/null || sudo apt-get install -y wget; \
 		out=$$(mktemp) && wget -nv -O$$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
 			&& cat $$out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null; \
 		sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg; \
-		sudo mkdir -p -m 755 /etc/apt/sources.list.d; \
 		echo "deb [arch=$$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
 			| sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null; \
-		sudo apt-get update -qq && sudo apt-get install -y gh; \
+		echo "GitHub CLI repo registered"; \
+	fi
+	@# Claude Code
+	@if [ ! -f /etc/apt/keyrings/claude-code.asc ]; then \
+		sudo curl -fsSL https://downloads.claude.ai/keys/claude-code.asc \
+			-o /etc/apt/keyrings/claude-code.asc; \
+		echo "deb [signed-by=/etc/apt/keyrings/claude-code.asc] https://downloads.claude.ai/claude-code/apt/stable stable main" \
+			| sudo tee /etc/apt/sources.list.d/claude-code.list > /dev/null; \
+		echo "Claude Code repo registered"; \
+	fi
+	@# Microsoft (Azure Functions Core Tools)
+	@if [ ! -f /etc/apt/trusted.gpg.d/microsoft.gpg ]; then \
+		curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+			| gpg --dearmor \
+			| sudo tee /etc/apt/trusted.gpg.d/microsoft.gpg > /dev/null; \
+		echo "deb [arch=$$(dpkg --print-architecture)] https://packages.microsoft.com/repos/microsoft-ubuntu-$$(lsb_release -cs)-prod $$(lsb_release -cs) main" \
+			| sudo tee /etc/apt/sources.list.d/dotnetdev.list > /dev/null; \
+		echo "Microsoft repo registered"; \
+	fi
+	@sudo apt-get update -qq
+
+# ── GitHub CLI ───────────────────────────────────────────────────────────────
+gh: apt-repos
+	@if ! command -v gh &>/dev/null; then \
+		sudo apt-get install -y gh; \
 	else \
 		echo "gh already installed: $$(gh --version | head -1)"; \
 	fi
@@ -44,14 +68,9 @@ azd:
 	fi
 
 # ── Azure Functions Core Tools ───────────────────────────────────────────────
-func:
+func: apt-repos
 	@if ! command -v func &>/dev/null; then \
-		curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-			| gpg --dearmor \
-			| sudo tee /etc/apt/trusted.gpg.d/microsoft.gpg > /dev/null; \
-		echo "deb [arch=$$(dpkg --print-architecture)] https://packages.microsoft.com/repos/microsoft-ubuntu-$$(lsb_release -cs)-prod $$(lsb_release -cs) main" \
-			| sudo tee /etc/apt/sources.list.d/dotnetdev.list > /dev/null; \
-		sudo apt-get update -qq && sudo apt-get install -y azure-functions-core-tools-4; \
+		sudo apt-get install -y azure-functions-core-tools-4; \
 	else \
 		echo "func already installed: $$(func --version)"; \
 	fi
@@ -91,14 +110,9 @@ node: nvm
 	nvm alias default $(NODE_VERSION)
 
 # ── Claude Code CLI ───────────────────────────────────────────────────────────
-claude:
+claude: apt-repos
 	@if ! command -v claude &>/dev/null; then \
-		sudo install -d -m 0755 /etc/apt/keyrings; \
-		sudo curl -fsSL https://downloads.claude.ai/keys/claude-code.asc \
-			-o /etc/apt/keyrings/claude-code.asc; \
-		echo "deb [signed-by=/etc/apt/keyrings/claude-code.asc] https://downloads.claude.ai/claude-code/apt/stable stable main" \
-			| sudo tee /etc/apt/sources.list.d/claude-code.list > /dev/null; \
-		sudo apt-get update -qq && sudo apt-get install -y claude-code; \
+		sudo apt-get install -y claude-code; \
 	else \
 		echo "claude already installed: $$(claude --version 2>/dev/null | head -1)"; \
 	fi
