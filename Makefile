@@ -4,7 +4,7 @@ SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
 NODE_VERSION := 24
 
-install: apt apt-repos gh az azd func php composer pwsh nvm node bun claude npm-globals claude-plugins docker lucid ssh link
+install: apt gh az azd func php composer pwsh nvm node claude npm-globals claude-plugins docker lucid ssh link
 
 # ── Update ───────────────────────────────────────────────────────────────────
 update:
