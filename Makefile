@@ -135,7 +135,7 @@ claude: apt-repos
 	fi
 
 # ── npm global packages ───────────────────────────────────────────────────────
-npm-globals: node sisyphus sandbox-runtime codex gemini qwen
+npm-globals: node sandbox-runtime
 
 sisyphus: node
 	@source "$(NVM_DIR)/nvm.sh" && npm install -g oh-my-claude-sisyphus
