@@ -173,3 +173,6 @@ link:
 	fi
 	stow -d "$(CURDIR)" -t "$(HOME)" tmux git
 	stow -d "$(CURDIR)" -t "$(HOME)/.claude" .claude
+	stow -d "$(CURDIR)" -t "$(HOME)/.codex" .codex
+	stow -d "$(CURDIR)" -t "$(HOME)/.gemini" .gemini
+	stow -d "$(CURDIR)" -t "$(HOME)/.qwen" .qwen

@@ -18,6 +18,9 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `git/` | git config stow package (see `git/AGENTS.md`) |
 | `tmux/` | tmux config stow package (see `tmux/AGENTS.md`) |
 | `.claude/` | Claude Code global config stow package (target: `~/.claude`) |
+| `.codex/` | Codex global config stow package (target: `~/.codex`) |
+| `.gemini/` | Gemini CLI global config stow package (target: `~/.gemini`) |
+| `.qwen/` | Qwen global config stow package (target: `~/.qwen`) |
 | `proxy/` | Caddy reverse proxy Docker stack (see `proxy/AGENTS.md`) |
 | `scripts/` | Utility shell scripts (empty, reserved) |
 
@@ -45,7 +48,7 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `claude-plugins` | Install caveman + oh-my-claudecode plugins via `claude plugin` CLI |
 | `docker` | Docker Engine + compose plugin (depends on `apt-repos`) |
 | `lucid` | Lucid Memory MCP server (depends on `bun`) |
-| `link` | Symlink stow packages → `$HOME` (tmux, git) and `~/.claude` (.claude), copy `.gitconfig.example` if absent |
+| `link` | Symlink stow packages → `$HOME` (tmux, git) and tool config dirs (.claude, .codex, .gemini, .qwen), copy `.gitconfig.example` if absent |
 | `proxy` | Start Caddy reverse proxy stack |
 
 ## For AI Agents
