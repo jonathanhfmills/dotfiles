@@ -55,7 +55,7 @@ func:
 # ── PHP ──────────────────────────────────────────────────────────────────────
 php:
 	@if ! command -v php &>/dev/null; then \
-		sudo apt-get update -qq && sudo apt-get install -y php php-cli php-mbstring php-xml php-curl unzip; \
+		sudo apt-get update -qq && sudo apt-get install -y php-fpm php-cli php-mbstring php-xml php-curl unzip; \
 	else \
 		echo "php already installed: $$(php --version | head -1)"; \
 	fi
