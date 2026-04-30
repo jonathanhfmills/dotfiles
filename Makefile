@@ -1,10 +1,14 @@
-.PHONY: install apt apt-repos gh az azd func php composer nvm node bun claude npm-globals sisyphus sandbox-runtime codex gemini qwen claude-plugins docker lucid ssh link proxy
+.PHONY: install update apt apt-repos gh az azd func php composer nvm node bun claude npm-globals sisyphus sandbox-runtime codex gemini qwen claude-plugins docker lucid ssh link proxy
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
 NODE_VERSION := 24
 
 install: apt apt-repos gh az azd func php composer nvm node bun claude npm-globals claude-plugins docker lucid ssh link
+
+# ── Update ───────────────────────────────────────────────────────────────────
+update:
+	sudo apt-get update && sudo apt-get upgrade -y
 
 # ── System packages ──────────────────────────────────────────────────────────
 apt:
