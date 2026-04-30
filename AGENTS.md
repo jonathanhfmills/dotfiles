@@ -28,6 +28,8 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `apt` | Base system packages (jq, tmux, git, stow, etc.) |
 | `gh` | GitHub CLI via official apt repo |
 | `az` | Azure CLI via Microsoft install script |
+| `azd` | Azure Developer CLI via install script |
+| `func` | Azure Functions Core Tools v4 via Microsoft apt feed |
 | `nvm` | Node Version Manager |
 | `node` | Node.js via nvm |
 | `claude` | Claude Code CLI |

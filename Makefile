@@ -1,10 +1,10 @@
-.PHONY: install apt gh az nvm node claude npm-globals claude-plugins docker lucid ssh link proxy
+.PHONY: install apt gh az azd func nvm node claude npm-globals claude-plugins docker lucid ssh link proxy
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
 NODE_VERSION := 24
 
-install: apt gh az nvm node claude npm-globals claude-plugins docker lucid ssh link
+install: apt gh az azd func nvm node claude npm-globals claude-plugins docker lucid ssh link
 
 # ── System packages ──────────────────────────────────────────────────────────
 apt:
@@ -29,6 +29,27 @@ az:
 		curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash; \
 	else \
 		echo "az already installed: $$(az --version | head -1)"; \
+	fi
+
+# ── Azure Developer CLI ──────────────────────────────────────────────────────
+azd:
+	@if ! command -v azd &>/dev/null; then \
+		curl -fsSL https://aka.ms/install-azd.sh | bash; \
+	else \
+		echo "azd already installed: $$(azd version)"; \
+	fi
+
+# ── Azure Functions Core Tools ───────────────────────────────────────────────
+func:
+	@if ! command -v func &>/dev/null; then \
+		curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+			| gpg --dearmor \
+			| sudo tee /etc/apt/trusted.gpg.d/microsoft.gpg > /dev/null; \
+		echo "deb [arch=$$(dpkg --print-architecture)] https://packages.microsoft.com/repos/microsoft-ubuntu-$$(lsb_release -cs)-prod $$(lsb_release -cs) main" \
+			| sudo tee /etc/apt/sources.list.d/dotnetdev.list > /dev/null; \
+		sudo apt-get update -qq && sudo apt-get install -y azure-functions-core-tools-4; \
+	else \
+		echo "func already installed: $$(func --version)"; \
 	fi
 
 # ── Node via nvm ─────────────────────────────────────────────────────────────
