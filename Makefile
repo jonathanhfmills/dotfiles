@@ -1,14 +1,10 @@
-# Idempotent bootstrap for WSL2/Ubuntu dev environments.
-# Run `make install` on a fresh machine to install all default tools and symlink dotfiles.
-# Run `make update` to upgrade all installed apt packages.
-
-.PHONY: install update apt apt-repos gh az azd func php composer pwsh nvm node bun claude npm-globals sisyphus sandbox-runtime codex gemini qwen claude-plugins docker lucid ssh link proxy
+.PHONY: install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
 NODE_VERSION := 24
 
-install: apt gh az azd func php composer pwsh nvm node claude npm-globals claude-plugins docker lucid ssh link
+install: apt gh php composer pwsh nvm node claude npm-globals claude-plugins docker link
 
 # ── Update ───────────────────────────────────────────────────────────────────
 update:
@@ -40,15 +36,6 @@ apt-repos: apt
 			| sudo tee /etc/apt/sources.list.d/claude-code.list > /dev/null; \
 		echo "Claude Code repo registered"; \
 	fi
-	@# Microsoft (Azure Functions Core Tools)
-	@if [ ! -f /etc/apt/trusted.gpg.d/microsoft.gpg ]; then \
-		curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-			| gpg --dearmor \
-			| sudo tee /etc/apt/trusted.gpg.d/microsoft.gpg > /dev/null; \
-		echo "deb [arch=$$(dpkg --print-architecture)] https://packages.microsoft.com/repos/microsoft-ubuntu-$$(lsb_release -cs)-prod $$(lsb_release -cs) main" \
-			| sudo tee /etc/apt/sources.list.d/dotnetdev.list > /dev/null; \
-		echo "Microsoft repo registered"; \
-	fi
 	@# Docker
 	@if [ ! -f /etc/apt/keyrings/docker.asc ]; then \
 		sudo apt-get install -y ca-certificates; \
@@ -68,22 +55,6 @@ gh: apt-repos
 		echo "gh already installed: $$(gh --version | head -1)"; \
 	fi
 
-# ── Azure CLI ────────────────────────────────────────────────────────────────
-az:
-	@if ! command -v az &>/dev/null; then \
-		curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash; \
-	else \
-		echo "az already installed: $$(az --version | head -1)"; \
-	fi
-
-# ── Azure Developer CLI ──────────────────────────────────────────────────────
-azd:
-	@if ! command -v azd &>/dev/null; then \
-		curl -fsSL https://aka.ms/install-azd.sh | bash; \
-	else \
-		echo "azd already installed: $$(azd version)"; \
-	fi
-
 # ── PowerShell ───────────────────────────────────────────────────────────────
 pwsh:
 	@if ! command -v pwsh &>/dev/null; then \
@@ -97,14 +68,6 @@ pwsh:
 		echo "pwsh already installed: $$(pwsh --version)"; \
 	fi
 
-# ── Azure Functions Core Tools ───────────────────────────────────────────────
-func: apt-repos
-	@if ! command -v func &>/dev/null; then \
-		sudo apt-get install -y azure-functions-core-tools-4; \
-	else \
-		echo "func already installed: $$(func --version)"; \
-	fi
-
 # ── PHP ──────────────────────────────────────────────────────────────────────
 php:
 	@if ! command -v php &>/dev/null; then \
@@ -116,9 +79,7 @@ php:
 # ── Composer ─────────────────────────────────────────────────────────────────
 composer: php
 	@if ! command -v composer &>/dev/null; then \
-		php -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"; \
-		sudo php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer; \
-		rm /tmp/composer-setup.php; \
+		sudo apt-get install -y composer; \
 	else \
 		echo "composer already installed: $$(composer --version)"; \
 	fi
@@ -150,7 +111,7 @@ claude: apt-repos
 # ── npm global packages ───────────────────────────────────────────────────────
 npm-globals: node sandbox-runtime
 
-sisyphus: node
+omc: node
 	@source "$(NVM_DIR)/nvm.sh" && npm install -g oh-my-claude-sisyphus
 
 sandbox-runtime: node
@@ -198,15 +159,6 @@ lucid: bun
 		curl -fsSL https://lucidmemory.dev/install | bash; \
 	else \
 		echo "lucid already installed"; \
-	fi
-
-# ── SSH setup ────────────────────────────────────────────────────────────────
-ssh:
-	@mkdir -p $(HOME)/.ssh && chmod 700 $(HOME)/.ssh
-	@if ! grep -q ssh.dev.azure.com $(HOME)/.ssh/known_hosts 2>/dev/null; then \
-		ssh-keyscan ssh.dev.azure.com >> $(HOME)/.ssh/known_hosts; \
-	else \
-		echo "ssh.dev.azure.com already in known_hosts"; \
 	fi
 
 # ── Reverse proxy ────────────────────────────────────────────────────────────

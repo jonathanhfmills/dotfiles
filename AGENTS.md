@@ -24,14 +24,11 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 
 | Target | Purpose |
 |--------|---------|
-| `install` | Full bootstrap — chains all default targets |
+| `install` | Full bootstrap — chains all default targets (excludes `bun`, `lucid`, opt-in AI CLIs) |
 | `update` | `apt-get update && upgrade` |
 | `apt` | Base system packages (jq, tmux, git, curl, stow, ripgrep, etc.) |
-| `apt-repos` | Register all third-party apt repos/keys (gh, claude-code, microsoft, docker) |
+| `apt-repos` | Register all third-party apt repos/keys (gh, claude-code, docker) |
 | `gh` | GitHub CLI (depends on `apt-repos`) |
-| `az` | Azure CLI via Microsoft install script |
-| `azd` | Azure Developer CLI via install script |
-| `func` | Azure Functions Core Tools v4 (depends on `apt-repos`) |
 | `php` | PHP-FPM + extensions (cli, mbstring, xml, curl) — no Apache dep |
 | `composer` | Composer via official installer (depends on `php`) |
 | `pwsh` | PowerShell via packages-microsoft-prod.deb |
@@ -40,14 +37,13 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `bun` | Bun JavaScript runtime |
 | `claude` | Claude Code CLI via apt (depends on `apt-repos`) |
 | `npm-globals` | `@anthropic-ai/sandbox-runtime` only (depends on `node`) |
-| `sisyphus` | `oh-my-claude-sisyphus` npm global (opt-in) |
+| `omc` | `oh-my-claude-sisyphus` npm global (opt-in) |
 | `codex` | `@openai/codex` npm global (opt-in) |
 | `gemini` | `@google/gemini-cli` npm global (opt-in) |
 | `qwen` | `@qwen-code/qwen-code` npm global (opt-in) |
 | `claude-plugins` | Install caveman + oh-my-claudecode plugins via `claude plugin` CLI |
 | `docker` | Docker Engine + compose plugin (depends on `apt-repos`) |
 | `lucid` | Lucid Memory MCP server (depends on `bun`) |
-| `ssh` | SSH known_hosts setup (Azure DevOps) |
 | `link` | Symlink stow packages → `$HOME`, copy `.gitconfig.example` if absent |
 | `proxy` | Start Caddy reverse proxy stack |
 

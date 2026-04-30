@@ -20,12 +20,9 @@ All third-party software is installed from official, GPG-signed sources:
 |------|--------|
 | GitHub CLI | `cli.github.com/packages` — signed keyring |
 | Claude Code | `downloads.claude.ai` — signed ASC key |
-| Azure CLI | `aka.ms/InstallAzureCLIDeb` — official Microsoft script |
-| Azure Developer CLI | `aka.ms/install-azd.sh` — official Microsoft script |
-| Azure Functions Core Tools | `packages.microsoft.com` — signed GPG key |
 | Docker | `download.docker.com` — signed ASC key |
 | PowerShell | `packages.microsoft.com` — Microsoft prod package |
-| Composer | `getcomposer.org/installer` — official PHP installer |
+| Composer | `apt-get install composer` — Ubuntu package |
 
 No Makefile targets fetch from unverified sources.
 

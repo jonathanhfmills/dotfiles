@@ -1,4 +1,4 @@
-# dotfiles-ntara
+# dotfiles
 
 Idempotent bootstrap for WSL2/Ubuntu dev environments. Installs system tools, CLI utilities, and symlinks dotfiles via GNU Stow.
 
@@ -27,13 +27,11 @@ make install
 | Category | Tools |
 |----------|-------|
 | System | jq, tmux, git, curl, stow, ripgrep, bubblewrap |
-| Azure | az, azd, func, pwsh |
+| PowerShell | pwsh |
 | PHP | php-fpm, composer |
 | Node | nvm, node 24 |
-| Bun | bun |
 | AI CLIs | claude-code, @anthropic-ai/sandbox-runtime |
 | Docker | docker-ce, docker compose |
-| Lucid | Lucid Memory MCP server |
 
 Optional AI CLI tools (install individually):
 
@@ -41,7 +39,8 @@ Optional AI CLI tools (install individually):
 make codex    # @openai/codex
 make gemini   # @google/gemini-cli
 make qwen     # @qwen-code/qwen-code
-make sisyphus # oh-my-claude-sisyphus
+make omc      # oh-my-claude-sisyphus
+make lucid    # Lucid Memory MCP server (depends on bun)
 ```
 
 ## Git Configuration
@@ -64,6 +63,7 @@ make link           # re-stow dotfiles (git + tmux)
 make proxy          # start Caddy reverse proxy stack
 make claude-plugins # install caveman + oh-my-claudecode plugins
 make apt-repos      # register all third-party apt repos/keys
+make bun            # Bun JavaScript runtime
 ```
 
 ## Security
