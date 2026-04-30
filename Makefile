@@ -153,18 +153,11 @@ qwen: node
 	@source "$(NVM_DIR)/nvm.sh" && npm install -g @qwen-code/qwen-code@latest
 
 # ── Claude Code plugins ───────────────────────────────────────────────────────
-# Plugins require an interactive Claude Code session — install manually:
-#   /plugin marketplace add https://github.com/JuliusBrussee/caveman
-#   /plugin install caveman
-#   /plugin marketplace add https://github.com/Yeachan-Heo/oh-my-claudecode
-#   /plugin install oh-my-claudecode
-claude-plugins:
-	@echo "Claude plugins must be installed interactively inside Claude Code."
-	@echo "Run these commands in a Claude Code session:"
-	@echo "  /plugin marketplace add https://github.com/JuliusBrussee/caveman"
-	@echo "  /plugin install caveman"
-	@echo "  /plugin marketplace add https://github.com/Yeachan-Heo/oh-my-claudecode"
-	@echo "  /plugin install oh-my-claudecode"
+claude-plugins: claude
+	claude plugin marketplace add https://github.com/JuliusBrussee/caveman
+	claude plugin install caveman
+	claude plugin marketplace add https://github.com/Yeachan-Heo/oh-my-claudecode
+	claude plugin install oh-my-claudecode
 
 # ── Docker Engine ────────────────────────────────────────────────────────────
 docker:
