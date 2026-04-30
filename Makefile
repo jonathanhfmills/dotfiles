@@ -172,3 +172,4 @@ link:
 		echo "Created git/.gitconfig from example — fill in your personal settings before continuing"; \
 	fi
 	stow -d "$(CURDIR)" -t "$(HOME)" tmux git
+	stow -d "$(CURDIR)" -t "$(HOME)/.claude" .claude
