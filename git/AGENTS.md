@@ -1,5 +1,5 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-04-28 | Updated: 2026-04-28 -->
+<!-- Generated: 2026-04-28 | Updated: 2026-04-30 -->
 
 # git
 
@@ -10,12 +10,16 @@ Stow package for git configuration. Files mirror `$HOME` layout — stow symlink
 
 | File | Description |
 |------|-------------|
-| `.gitconfig` | Global git config: credentials, user, GPG signing, SSH |
+| `.gitconfig` | Global git config: credentials, user, GPG signing, SSH — **gitignored, local only** |
+| `.gitconfig.example` | Template for new devs — copy to `.gitconfig` and fill personal values |
 
 ## For AI Agents
 
 ### Working In This Directory
-- Layout must mirror `$HOME` exactly — `.gitconfig` here → `~/.gitconfig`
+- `.gitconfig` is gitignored — never committed; contains personal identity, signing key, Windows paths
+- `.gitconfig.example` is tracked — template only, no personal values
+- `make link` copies `.gitconfig.example` → `.gitconfig` if absent, then stows
+- Layout mirrors `$HOME` exactly — `.gitconfig` here → `~/.gitconfig`
 - Credential helpers use `gh auth git-credential` for github.com and gist.github.com
 - Commits signed via SSH key; signing program is `op-ssh-sign-wsl.exe` (1Password, Windows-side)
 - `core.sshCommand = ssh.exe` — uses Windows SSH agent through WSL interop
