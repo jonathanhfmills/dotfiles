@@ -70,7 +70,7 @@ After changes: update root `AGENTS.md` + `AGENTS.md` in each dir touched. Reflec
 
 ## 6. Git Hygiene
 
-After work in git repo: ask user if changes should be committed and/or pushed.
+After work in git repo: ask user "commit, push, or both? [both]" — default both.
 
 <!-- OMC:START -->
 <!-- OMC:VERSION:4.13.4 -->
