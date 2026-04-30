@@ -1,10 +1,10 @@
-.PHONY: install apt gh az azd func php composer nvm node claude npm-globals claude-plugins docker lucid ssh link proxy
+.PHONY: install apt gh az azd func php composer nvm node bun claude npm-globals sisyphus sandbox-runtime codex gemini qwen claude-plugins docker lucid ssh link proxy
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
 NODE_VERSION := 24
 
-install: apt gh az azd func php composer nvm node claude npm-globals claude-plugins docker lucid ssh link
+install: apt gh az azd func php composer nvm node bun claude npm-globals claude-plugins docker lucid ssh link
 
 # ── System packages ──────────────────────────────────────────────────────────
 apt:
@@ -89,15 +89,33 @@ node: nvm
 # ── Claude Code CLI ───────────────────────────────────────────────────────────
 claude:
 	@if ! command -v claude &>/dev/null; then \
-		curl -fsSL https://claude.ai/install.sh | bash; \
+		sudo install -d -m 0755 /etc/apt/keyrings; \
+		sudo curl -fsSL https://downloads.claude.ai/keys/claude-code.asc \
+			-o /etc/apt/keyrings/claude-code.asc; \
+		echo "deb [signed-by=/etc/apt/keyrings/claude-code.asc] https://downloads.claude.ai/claude-code/apt/stable stable main" \
+			| sudo tee /etc/apt/sources.list.d/claude-code.list > /dev/null; \
+		sudo apt-get update -qq && sudo apt-get install -y claude-code; \
 	else \
 		echo "claude already installed: $$(claude --version 2>/dev/null | head -1)"; \
 	fi
 
 # ── npm global packages ───────────────────────────────────────────────────────
-npm-globals: node
-	@source "$(NVM_DIR)/nvm.sh" && \
-	npm install -g oh-my-claude-sisyphus @anthropic-ai/sandbox-runtime @openai/codex @google/gemini-cli@latest @qwen-code/qwen-code@latest
+npm-globals: node sisyphus sandbox-runtime codex gemini qwen
+
+sisyphus: node
+	@source "$(NVM_DIR)/nvm.sh" && npm install -g oh-my-claude-sisyphus
+
+sandbox-runtime: node
+	@source "$(NVM_DIR)/nvm.sh" && npm install -g @anthropic-ai/sandbox-runtime
+
+codex: node
+	@source "$(NVM_DIR)/nvm.sh" && npm install -g @openai/codex
+
+gemini: node
+	@source "$(NVM_DIR)/nvm.sh" && npm install -g @google/gemini-cli@latest
+
+qwen: node
+	@source "$(NVM_DIR)/nvm.sh" && npm install -g @qwen-code/qwen-code@latest
 
 # ── Claude Code plugins ───────────────────────────────────────────────────────
 # Plugins require an interactive Claude Code session — install manually:
@@ -129,14 +147,19 @@ docker:
 		echo "docker already installed: $$(docker --version)"; \
 	fi
 
+# ── Bun ──────────────────────────────────────────────────────────────────────
+bun:
+	@if ! command -v bun &>/dev/null; then \
+		curl -fsSL https://bun.sh/install | bash; \
+	else \
+		echo "bun already installed: $$(bun --version)"; \
+	fi
+
 # ── Lucid Memory (MCP memory for Claude Code) ────────────────────────────────
-lucid:
+lucid: bun
 	@if [ ! -d "$(HOME)/.lucid" ]; then \
 		sudo apt-get install -y python3-pip ffmpeg yt-dlp; \
 		pip3 install --break-system-packages openai-whisper; \
-		if ! command -v bun &>/dev/null; then \
-			curl -fsSL https://bun.sh/install | bash; \
-		fi; \
 		curl -fsSL https://lucidmemory.dev/install | bash; \
 	else \
 		echo "lucid already installed"; \
