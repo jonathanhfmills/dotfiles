@@ -1,10 +1,10 @@
-.PHONY: install update apt apt-repos gh az azd func php composer nvm node bun claude npm-globals sisyphus sandbox-runtime codex gemini qwen claude-plugins docker lucid ssh link proxy
+.PHONY: install update apt apt-repos gh az azd func php composer pwsh nvm node bun claude npm-globals sisyphus sandbox-runtime codex gemini qwen claude-plugins docker lucid ssh link proxy
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
 NODE_VERSION := 24
 
-install: apt apt-repos gh az azd func php composer nvm node bun claude npm-globals claude-plugins docker lucid ssh link
+install: apt apt-repos gh az azd func php composer pwsh nvm node bun claude npm-globals claude-plugins docker lucid ssh link
 
 # ── Update ───────────────────────────────────────────────────────────────────
 update:
@@ -69,6 +69,19 @@ azd:
 		curl -fsSL https://aka.ms/install-azd.sh | bash; \
 	else \
 		echo "azd already installed: $$(azd version)"; \
+	fi
+
+# ── PowerShell ───────────────────────────────────────────────────────────────
+pwsh:
+	@if ! command -v pwsh &>/dev/null; then \
+		sudo apt-get install -y wget apt-transport-https software-properties-common; \
+		source /etc/os-release; \
+		wget -q https://packages.microsoft.com/config/ubuntu/$$VERSION_ID/packages-microsoft-prod.deb; \
+		sudo dpkg -i packages-microsoft-prod.deb; \
+		rm packages-microsoft-prod.deb; \
+		sudo apt-get update -qq && sudo apt-get install -y powershell; \
+	else \
+		echo "pwsh already installed: $$(pwsh --version)"; \
 	fi
 
 # ── Azure Functions Core Tools ───────────────────────────────────────────────
