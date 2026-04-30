@@ -17,10 +17,10 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 |-----------|---------|
 | `git/` | git config stow package (see `git/AGENTS.md`) |
 | `tmux/` | tmux config stow package (see `tmux/AGENTS.md`) |
-| `.claude/` | Claude Code global config stow package (target: `~/.claude`) |
-| `.codex/` | Codex global config stow package (target: `~/.codex`) |
-| `.gemini/` | Gemini CLI global config stow package (target: `~/.gemini`) |
-| `.qwen/` | Qwen global config stow package (target: `~/.qwen`) |
+| `.claude/` | Claude Code global config stow package (target: `~/.claude`, see `.claude/AGENTS.md`) |
+| `.codex/` | Codex global config stow package (target: `~/.codex`) — `AGENTS.md` doubles as behavioral guidelines |
+| `.gemini/` | Gemini CLI global config stow package (target: `~/.gemini`, see `.gemini/AGENTS.md`) |
+| `.qwen/` | Qwen global config stow package (target: `~/.qwen`, see `.qwen/AGENTS.md`) |
 | `proxy/` | Caddy reverse proxy Docker stack (see `proxy/AGENTS.md`) |
 | `scripts/` | Utility shell scripts (empty, reserved) |
 
