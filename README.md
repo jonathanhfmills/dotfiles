@@ -15,9 +15,9 @@ Restart when prompted, then complete Ubuntu first-run setup.
 ## Installation
 
 ```bash
-git clone https://github.com/jonathanhfmills/dotfiles.git dotfiles
-cd dotfiles
-make install
+git clone https://github.com/jonathanhfmills/dotfiles.git ~/dotfiles
+sudo apt update && sudo apt install build-essential
+cd ~/dotfiles && make install
 ```
 
 `make install` is idempotent — safe to run multiple times or on an existing machine.
@@ -30,12 +30,12 @@ make install
 | PowerShell | pwsh |
 | PHP | php-fpm, composer |
 | Node | nvm, node 24 |
-| AI CLIs | claude-code, @anthropic-ai/sandbox-runtime |
 | Docker | docker-ce, docker compose |
 
 Optional AI CLI tools (install individually):
 
 ```bash
+make claude   # @anthropic-ai/claude-code + @anthropic-ai/sandbox-runtime
 make codex    # @openai/codex
 make gemini   # @google/gemini-cli
 make qwen     # @qwen-code/qwen-code
@@ -62,9 +62,15 @@ make update         # apt-get update && upgrade
 make link           # re-stow dotfiles (git, tmux, .claude, .codex, .gemini, .qwen)
 make proxy          # start Caddy reverse proxy stack
 make claude-plugins # install caveman + oh-my-claudecode plugins
+make codex-plugins  # install caveman + oh-my-codex plugins
+make gemini-plugins # install caveman + oh-my-gemini plugins
 make apt-repos      # register all third-party apt repos/keys
 make bun            # Bun JavaScript runtime
 ```
+
+## Contributions
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security
 
