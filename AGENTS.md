@@ -54,7 +54,7 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `go-runtime` | Install Go $(GO_VERSION) to `/usr/local/go` (opt-in) |
 | `rust-runtime` | Install Rust via rustup to `~/.cargo` (opt-in) |
 | `dotnet-runtime` | Install .NET LTS to `~/.dotnet` via dotnet-install.sh (opt-in) |
-| `lsp-servers` | Install all LSP binaries, symlinked into `~/.local/bin` — clangd, bash-ls, intelephense, pyright, ts-ls, gopls, rust-analyzer, csharp-ls, jdtls, kotlin-ls, lua-ls (opt-in; depends on `go-runtime rust-runtime dotnet-runtime node`) |
+| `lsp-servers` | Install all LSP binaries into `~/.local/bin` — clangd, bash-ls, intelephense, ty (Python), ts-ls, gopls, rust-analyzer, csharp-ls (wrapper), jdtls, lua-ls (opt-in; depends on `go-runtime rust-runtime dotnet-runtime node`). Note: kotlin-lsp (no Linux binary) and swift-lsp (needs Swift toolchain) require manual install |
 | `claude-lsp-plugins` | Install official Claude Code LSP plugins (clangd-lsp, gopls-lsp, pyright-lsp, etc.) from `claude-plugins-official` (opt-in; depends on `claude`) |
 
 ## For AI Agents

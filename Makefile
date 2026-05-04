@@ -201,31 +201,49 @@ rust-runtime:
 	fi
 
 # ── .NET runtime ─────────────────────────────────────────────────────────────
+# Installs .NET LTS (current) + .NET 8 (required for csharp-ls compatibility).
 dotnet-runtime:
 	@if ! [ -x "$(HOME)/.dotnet/dotnet" ]; then \
 		curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel LTS; \
-		ln -sf $(HOME)/.dotnet/dotnet $(HOME)/.local/bin/dotnet; \
-		echo ".NET installed"; \
+		echo ".NET LTS installed"; \
 	else \
 		echo "dotnet already installed: $$($(HOME)/.dotnet/dotnet --version)"; \
 	fi
+	@if ! $(HOME)/.dotnet/dotnet --list-sdks 2>/dev/null | grep -q "^8\."; then \
+		curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0; \
+		echo ".NET 8 SDK installed (required for csharp-ls)"; \
+	else \
+		echo "dotnet 8 SDK already installed"; \
+	fi
+	@ln -sf $(HOME)/.dotnet/dotnet $(HOME)/.local/bin/dotnet
 
 # ── LSP servers (opt-in: make lsp-servers) ───────────────────────────────────
-# Installs all language server binaries, symlinked into ~/.local/bin (already in PATH).
-# Requires: clangd via apt, Go/Rust/.NET runtimes, Java (default-jdk), Node via nvm.
+# Installs all LSP binaries into ~/.local/bin (already in PATH).
+# Tested: clangd, typescript-ls, rust-analyzer, jdtls, lua-ls, gopls, ty (Python).
+# csharp-ls works but ~30s WSL2 init time (known .NET cold-start on WSL2).
+# kotlin-lsp: JetBrains binary Linux-unavailable (macOS/Homebrew only).
+# swift-lsp: requires full Swift toolchain from swift.org (~600MB).
 lsp-servers: go-runtime rust-runtime dotnet-runtime node
 	@mkdir -p $(HOME)/.local/bin $(HOME)/.local/share
 	@# clangd (C/C++)
 	@if ! command -v clangd &>/dev/null; then sudo apt-get install -y clangd; fi
-	@# Java (required for jdtls + kotlin-ls)
+	@# Java (required for jdtls)
 	@if ! command -v java &>/dev/null; then sudo apt-get install -y default-jdk; fi
-	@# npm-based LSPs: bash, PHP, Python, TypeScript
+	@# npm-based LSPs: bash, PHP, TypeScript
 	@source "$(NVM_DIR)/nvm.sh" && npm install -g \
 		bash-language-server \
 		intelephense \
-		pyright \
 		typescript \
 		typescript-language-server
+	@# ty (Python LSP — required by pyright-lsp plugin)
+	@if ! [ -x "$(HOME)/.local/bin/ty" ]; then \
+		TY_URL=$$(curl -fsSL -H "User-Agent: dotfiles-installer" \
+			https://api.github.com/repos/astral-sh/ty/releases/latest | \
+			python3 -c "import sys,json; d=json.load(sys.stdin); \
+			print(next(a['browser_download_url'] for a in d['assets'] if 'linux' in a['name'] and 'x86_64' in a['name'] and a['name'].endswith('.tar.gz')))"); \
+		curl -fsSL "$$TY_URL" | tar -xz -C $(HOME)/.local/share; \
+		ln -sf $$(find $(HOME)/.local/share -name "ty" -type f -path "*/ty-*/ty" 2>/dev/null | head -1) $(HOME)/.local/bin/ty; \
+	else echo "ty already installed: $$($(HOME)/.local/bin/ty --version)"; fi
 	@# gopls (Go LSP)
 	@if ! [ -f "$(HOME)/go/bin/gopls" ]; then \
 		GOPATH=$(HOME)/go GOBIN=$(HOME)/go/bin /usr/local/go/bin/go install golang.org/x/tools/gopls@latest; \
@@ -234,11 +252,12 @@ lsp-servers: go-runtime rust-runtime dotnet-runtime node
 	@# rust-analyzer
 	@$(HOME)/.cargo/bin/rustup component add rust-analyzer
 	@ln -sf $(HOME)/.cargo/bin/rust-analyzer $(HOME)/.local/bin/rust-analyzer
-	@# csharp-ls (.NET LSP)
+	@# csharp-ls (.NET LSP) — wrapper sets DOTNET_ROOT (required on WSL2)
 	@if ! [ -f "$(HOME)/.dotnet/tools/csharp-ls" ]; then \
-		$(HOME)/.dotnet/dotnet tool install --global csharp-ls; \
+		DOTNET_ROOT=$(HOME)/.dotnet $(HOME)/.dotnet/dotnet tool install --global csharp-ls; \
 	else echo "csharp-ls already installed"; fi
-	@ln -sf $(HOME)/.dotnet/tools/csharp-ls $(HOME)/.local/bin/csharp-ls
+	@printf '#!/bin/bash\nexport DOTNET_ROOT="$$HOME/.dotnet"\nexport PATH="$$HOME/.dotnet:$$HOME/.dotnet/tools:$$PATH"\nexec "$$HOME/.dotnet/tools/csharp-ls" "$$@"\n' \
+		> $(HOME)/.local/bin/csharp-ls && chmod +x $(HOME)/.local/bin/csharp-ls
 	@# jdtls (Java LSP) — from Eclipse download server
 	@if ! [ -d "$(HOME)/.local/share/jdtls" ]; then \
 		mkdir -p $(HOME)/.local/share/jdtls; \
@@ -246,17 +265,6 @@ lsp-servers: go-runtime rust-runtime dotnet-runtime node
 			| tar -xz -C $(HOME)/.local/share/jdtls; \
 	else echo "jdtls already installed"; fi
 	@ln -sf $(HOME)/.local/share/jdtls/bin/jdtls $(HOME)/.local/bin/jdtls
-	@# kotlin-language-server — from GitHub releases
-	@if ! [ -f "$(HOME)/.local/share/kotlin-language-server/bin/kotlin-language-server" ]; then \
-		KLS_URL=$$(curl -fsSL -H "User-Agent: dotfiles-installer" \
-			https://api.github.com/repos/fwcd/kotlin-language-server/releases/latest | \
-			python3 -c "import sys,json; d=json.load(sys.stdin); \
-			print(next(a['browser_download_url'] for a in d['assets'] if a['name']=='server.zip'))"); \
-		curl -fsSL "$$KLS_URL" -o /tmp/kotlin-ls.zip; \
-		unzip -q /tmp/kotlin-ls.zip -d $(HOME)/.local/share/kotlin-language-server; \
-		rm /tmp/kotlin-ls.zip; \
-	else echo "kotlin-language-server already installed"; fi
-	@ln -sf $(HOME)/.local/share/kotlin-language-server/bin/kotlin-language-server $(HOME)/.local/bin/kotlin-language-server
 	@# lua-language-server — from GitHub releases
 	@if ! [ -f "$(HOME)/.local/share/lua-language-server/bin/lua-language-server" ]; then \
 		LUA_URL=$$(curl -fsSL -H "User-Agent: dotfiles-installer" \
@@ -267,7 +275,8 @@ lsp-servers: go-runtime rust-runtime dotnet-runtime node
 		curl -fsSL "$$LUA_URL" | tar -xz -C $(HOME)/.local/share/lua-language-server; \
 	else echo "lua-language-server already installed"; fi
 	@ln -sf $(HOME)/.local/share/lua-language-server/bin/lua-language-server $(HOME)/.local/bin/lua-language-server
-	@echo "All LSP servers installed. Binaries available in ~/.local/bin"
+	@echo "LSP servers installed. Binaries in ~/.local/bin"
+	@echo "Note: kotlin-lsp (no Linux binary) and swift-lsp (needs Swift toolchain) require manual install"
 
 # ── Claude Code LSP plugins (opt-in: make claude-lsp-plugins) ────────────────
 # Uses the official claude-plugins-official marketplace (registered by default).
