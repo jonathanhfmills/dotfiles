@@ -1,4 +1,4 @@
-.PHONY: install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go-runtime rust-runtime dotnet-runtime lsp-servers claude-lsp-plugins
+.PHONY: install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go-runtime rust-runtime dotnet-runtime java python lua lsp-servers claude-lsp-plugins
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
@@ -12,9 +12,11 @@ update:
 	sudo apt-get update && sudo apt-get upgrade -y
 
 # ── System packages ──────────────────────────────────────────────────────────
+# Includes clangd for C/C++ LSP (clangd-lsp plugin).
 apt:
 	sudo apt-get update -qq
-	sudo apt-get install -y jq tmux git curl make stow bubblewrap socat unzip ripgrep
+	sudo apt-get install -y jq tmux git curl make stow bubblewrap socat unzip ripgrep clangd
+	@command -v claude &>/dev/null && claude plugin install clangd-lsp 2>/dev/null || true
 
 # ── Third-party apt repos ─────────────────────────────────────────────────────
 apt-repos: apt
@@ -69,12 +71,19 @@ pwsh:
 		echo "pwsh already installed: $$(pwsh --version)"; \
 	fi
 
-# ── PHP ──────────────────────────────────────────────────────────────────────
+# ── PHP + PHP LSP (intelephense) ──────────────────────────────────────────────
 php:
 	@if ! command -v php &>/dev/null; then \
 		sudo apt-get update -qq && sudo apt-get install -y php-fpm php-cli php-mbstring php-xml php-curl unzip; \
 	else \
 		echo "php already installed: $$(php --version | head -1)"; \
+	fi
+	@# PHP LSP (intelephense) — requires node/npm
+	@if command -v npm &>/dev/null; then \
+		npm install -g intelephense; \
+		command -v claude &>/dev/null && claude plugin install php-lsp 2>/dev/null || true; \
+	else \
+		echo "npm not found — run 'make node' first, then re-run 'make php' for PHP LSP"; \
 	fi
 
 # ── Composer ─────────────────────────────────────────────────────────────────
@@ -85,7 +94,7 @@ composer: php
 		echo "composer already installed: $$(composer --version)"; \
 	fi
 
-# ── Node via nvm ─────────────────────────────────────────────────────────────
+# ── Node via nvm + TypeScript/Bash LSPs ──────────────────────────────────────
 nvm:
 	@if [ ! -f "$(NVM_DIR)/nvm.sh" ]; then \
 		curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash; \
@@ -100,6 +109,10 @@ node: nvm
 	fi && \
 	nvm use $(NODE_VERSION) && \
 	nvm alias default $(NODE_VERSION)
+	@# TypeScript + Bash LSPs
+	@source "$(NVM_DIR)/nvm.sh" && npm install -g typescript typescript-language-server bash-language-server
+	@command -v claude &>/dev/null && claude plugin install typescript-lsp 2>/dev/null || true
+	@command -v claude &>/dev/null && claude plugin install bash-language-server 2>/dev/null || true
 
 # ── Claude Code CLI ───────────────────────────────────────────────────────────
 claude: apt-repos
@@ -179,7 +192,7 @@ ssh:
 proxy:
 	docker compose -f "$(CURDIR)/proxy/docker-compose.yml" up -d
 
-# ── Go runtime ───────────────────────────────────────────────────────────────
+# ── Go runtime + gopls LSP ───────────────────────────────────────────────────
 go-runtime:
 	@if ! [ -x /usr/local/go/bin/go ]; then \
 		curl -fsSL https://go.dev/dl/go$(GO_VERSION).linux-amd64.tar.gz -o /tmp/go.tar.gz; \
@@ -190,8 +203,14 @@ go-runtime:
 	else \
 		echo "go already installed: $$(/usr/local/go/bin/go version)"; \
 	fi
+	@mkdir -p $(HOME)/.local/bin $(HOME)/go/bin
+	@if ! [ -f "$(HOME)/go/bin/gopls" ]; then \
+		GOPATH=$(HOME)/go GOBIN=$(HOME)/go/bin /usr/local/go/bin/go install golang.org/x/tools/gopls@latest; \
+	else echo "gopls already installed"; fi
+	@ln -sf $(HOME)/go/bin/gopls $(HOME)/.local/bin/gopls
+	@command -v claude &>/dev/null && claude plugin install gopls-lsp 2>/dev/null || true
 
-# ── Rust runtime ─────────────────────────────────────────────────────────────
+# ── Rust runtime + rust-analyzer LSP ─────────────────────────────────────────
 rust-runtime:
 	@if ! [ -x "$(HOME)/.cargo/bin/rustc" ]; then \
 		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path; \
@@ -199,9 +218,14 @@ rust-runtime:
 	else \
 		echo "rust already installed: $$($(HOME)/.cargo/bin/rustc --version)"; \
 	fi
+	@mkdir -p $(HOME)/.local/bin
+	@$(HOME)/.cargo/bin/rustup component add rust-analyzer
+	@ln -sf $(HOME)/.cargo/bin/rust-analyzer $(HOME)/.local/bin/rust-analyzer
+	@command -v claude &>/dev/null && claude plugin install rust-analyzer-lsp 2>/dev/null || true
 
-# ── .NET runtime ─────────────────────────────────────────────────────────────
-# Installs .NET LTS (current) + .NET 8 (required for csharp-ls compatibility).
+# ── .NET runtime + csharp-ls LSP ─────────────────────────────────────────────
+# Installs .NET LTS + .NET 8 (csharp-ls compatibility). Wrapper script sets
+# DOTNET_ROOT so csharp-ls finds the runtime on WSL2.
 dotnet-runtime:
 	@if ! [ -x "$(HOME)/.dotnet/dotnet" ]; then \
 		curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel LTS; \
@@ -215,27 +239,34 @@ dotnet-runtime:
 	else \
 		echo "dotnet 8 SDK already installed"; \
 	fi
+	@mkdir -p $(HOME)/.local/bin
 	@ln -sf $(HOME)/.dotnet/dotnet $(HOME)/.local/bin/dotnet
+	@if ! [ -f "$(HOME)/.dotnet/tools/csharp-ls" ]; then \
+		DOTNET_ROOT=$(HOME)/.dotnet $(HOME)/.dotnet/dotnet tool install --global csharp-ls; \
+	else echo "csharp-ls already installed"; fi
+	@printf '#!/bin/bash\nexport DOTNET_ROOT="$$HOME/.dotnet"\nexport PATH="$$HOME/.dotnet:$$HOME/.dotnet/tools:$$PATH"\nexec "$$HOME/.dotnet/tools/csharp-ls" "$$@"\n' \
+		> $(HOME)/.local/bin/csharp-ls && chmod +x $(HOME)/.local/bin/csharp-ls
+	@command -v claude &>/dev/null && claude plugin install csharp-lsp 2>/dev/null || true
 
-# ── LSP servers (opt-in: make lsp-servers) ───────────────────────────────────
-# Installs all LSP binaries into ~/.local/bin (already in PATH).
-# Tested: clangd, typescript-ls, rust-analyzer, jdtls, lua-ls, gopls, ty (Python).
-# csharp-ls works but ~30s WSL2 init time (known .NET cold-start on WSL2).
-# kotlin-lsp: JetBrains binary Linux-unavailable (macOS/Homebrew only).
-# swift-lsp: requires full Swift toolchain from swift.org (~600MB).
-lsp-servers: go-runtime rust-runtime dotnet-runtime node
+# ── Java + jdtls LSP ─────────────────────────────────────────────────────────
+java:
+	@if ! command -v java &>/dev/null; then \
+		sudo apt-get install -y default-jdk; \
+	else \
+		echo "java already installed: $$(java -version 2>&1 | head -1)"; \
+	fi
+	@mkdir -p $(HOME)/.local/bin $(HOME)/.local/share/jdtls
+	@if ! [ -d "$(HOME)/.local/share/jdtls/bin" ]; then \
+		curl -fsSL https://download.eclipse.org/jdtls/snapshots/jdt-language-server-latest.tar.gz \
+			| tar -xz -C $(HOME)/.local/share/jdtls; \
+	else echo "jdtls already installed"; fi
+	@ln -sf $(HOME)/.local/share/jdtls/bin/jdtls $(HOME)/.local/bin/jdtls
+	@command -v claude &>/dev/null && claude plugin install jdtls-lsp 2>/dev/null || true
+
+# ── Python + ty LSP ──────────────────────────────────────────────────────────
+# ty is Astral's Python type checker / LSP (required by pyright-lsp plugin).
+python:
 	@mkdir -p $(HOME)/.local/bin $(HOME)/.local/share
-	@# clangd (C/C++)
-	@if ! command -v clangd &>/dev/null; then sudo apt-get install -y clangd; fi
-	@# Java (required for jdtls)
-	@if ! command -v java &>/dev/null; then sudo apt-get install -y default-jdk; fi
-	@# npm-based LSPs: bash, PHP, TypeScript
-	@source "$(NVM_DIR)/nvm.sh" && npm install -g \
-		bash-language-server \
-		intelephense \
-		typescript \
-		typescript-language-server
-	@# ty (Python LSP — required by pyright-lsp plugin)
 	@if ! [ -x "$(HOME)/.local/bin/ty" ]; then \
 		TY_URL=$$(curl -fsSL -H "User-Agent: dotfiles-installer" \
 			https://api.github.com/repos/astral-sh/ty/releases/latest | \
@@ -243,44 +274,32 @@ lsp-servers: go-runtime rust-runtime dotnet-runtime node
 			print(next(a['browser_download_url'] for a in d['assets'] if 'linux' in a['name'] and 'x86_64' in a['name'] and a['name'].endswith('.tar.gz')))"); \
 		curl -fsSL "$$TY_URL" | tar -xz -C $(HOME)/.local/share; \
 		ln -sf $$(find $(HOME)/.local/share -name "ty" -type f -path "*/ty-*/ty" 2>/dev/null | head -1) $(HOME)/.local/bin/ty; \
+		echo "ty installed: $$($(HOME)/.local/bin/ty --version)"; \
 	else echo "ty already installed: $$($(HOME)/.local/bin/ty --version)"; fi
-	@# gopls (Go LSP)
-	@if ! [ -f "$(HOME)/go/bin/gopls" ]; then \
-		GOPATH=$(HOME)/go GOBIN=$(HOME)/go/bin /usr/local/go/bin/go install golang.org/x/tools/gopls@latest; \
-	else echo "gopls already installed"; fi
-	@ln -sf $(HOME)/go/bin/gopls $(HOME)/.local/bin/gopls
-	@# rust-analyzer
-	@$(HOME)/.cargo/bin/rustup component add rust-analyzer
-	@ln -sf $(HOME)/.cargo/bin/rust-analyzer $(HOME)/.local/bin/rust-analyzer
-	@# csharp-ls (.NET LSP) — wrapper sets DOTNET_ROOT (required on WSL2)
-	@if ! [ -f "$(HOME)/.dotnet/tools/csharp-ls" ]; then \
-		DOTNET_ROOT=$(HOME)/.dotnet $(HOME)/.dotnet/dotnet tool install --global csharp-ls; \
-	else echo "csharp-ls already installed"; fi
-	@printf '#!/bin/bash\nexport DOTNET_ROOT="$$HOME/.dotnet"\nexport PATH="$$HOME/.dotnet:$$HOME/.dotnet/tools:$$PATH"\nexec "$$HOME/.dotnet/tools/csharp-ls" "$$@"\n' \
-		> $(HOME)/.local/bin/csharp-ls && chmod +x $(HOME)/.local/bin/csharp-ls
-	@# jdtls (Java LSP) — from Eclipse download server
-	@if ! [ -d "$(HOME)/.local/share/jdtls" ]; then \
-		mkdir -p $(HOME)/.local/share/jdtls; \
-		curl -fsSL https://download.eclipse.org/jdtls/snapshots/jdt-language-server-latest.tar.gz \
-			| tar -xz -C $(HOME)/.local/share/jdtls; \
-	else echo "jdtls already installed"; fi
-	@ln -sf $(HOME)/.local/share/jdtls/bin/jdtls $(HOME)/.local/bin/jdtls
-	@# lua-language-server — from GitHub releases
+	@command -v claude &>/dev/null && claude plugin install pyright-lsp 2>/dev/null || true
+
+# ── Lua + lua-language-server LSP ────────────────────────────────────────────
+lua:
+	@mkdir -p $(HOME)/.local/bin $(HOME)/.local/share/lua-language-server
 	@if ! [ -f "$(HOME)/.local/share/lua-language-server/bin/lua-language-server" ]; then \
 		LUA_URL=$$(curl -fsSL -H "User-Agent: dotfiles-installer" \
 			https://api.github.com/repos/LuaLS/lua-language-server/releases/latest | \
 			python3 -c "import sys,json; d=json.load(sys.stdin); \
 			print(next(a['browser_download_url'] for a in d['assets'] if 'linux-x64' in a['name'] and a['name'].endswith('.tar.gz')))"); \
-		mkdir -p $(HOME)/.local/share/lua-language-server; \
 		curl -fsSL "$$LUA_URL" | tar -xz -C $(HOME)/.local/share/lua-language-server; \
 	else echo "lua-language-server already installed"; fi
 	@ln -sf $(HOME)/.local/share/lua-language-server/bin/lua-language-server $(HOME)/.local/bin/lua-language-server
-	@echo "LSP servers installed. Binaries in ~/.local/bin"
-	@echo "Note: kotlin-lsp (no Linux binary) and swift-lsp (needs Swift toolchain) require manual install"
+	@command -v claude &>/dev/null && claude plugin install lua-lsp 2>/dev/null || true
 
-# ── Claude Code LSP plugins (opt-in: make claude-lsp-plugins) ────────────────
-# Uses the official claude-plugins-official marketplace (registered by default).
-# swift-lsp included for completeness; sourcekit-lsp binary requires Swift toolchain.
+# ── All LSP servers (opt-in convenience target) ───────────────────────────────
+# Runs all language targets that include LSP setup. Each target is idempotent.
+# Note: kotlin-lsp (no Linux binary) and swift-lsp (needs Swift toolchain) require manual install.
+lsp-servers: node go-runtime rust-runtime dotnet-runtime java python lua
+	@echo "All LSP servers installed. Binaries in ~/.local/bin"
+	@echo "Note: kotlin-lsp and swift-lsp require manual install on Linux"
+
+# ── All Claude LSP plugins (opt-in convenience target) ────────────────────────
+# Installs all official LSP plugins. Binaries must be installed separately (make lsp-servers).
 claude-lsp-plugins: claude
 	@for plugin in clangd-lsp csharp-lsp gopls-lsp jdtls-lsp kotlin-lsp lua-lsp php-lsp pyright-lsp rust-analyzer-lsp swift-lsp typescript-lsp; do \
 		claude plugin install $$plugin 2>/dev/null || true; \

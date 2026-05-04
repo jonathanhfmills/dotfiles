@@ -28,34 +28,37 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 
 | Target | Purpose |
 |--------|---------|
-| `install` | Full bootstrap — chains all default targets (excludes `bun`, `lucid`, opt-in AI CLIs) |
+| `install` | Full bootstrap — chains all default targets (excludes `bun`, `lucid`, opt-in AI CLIs, language runtimes) |
 | `update` | `apt-get update && upgrade` |
-| `apt` | Base system packages (jq, tmux, git, curl, stow, ripgrep, etc.) |
+| `apt` | Base system packages + clangd (C/C++ LSP). Installs clangd-lsp plugin if `claude` present |
 | `apt-repos` | Register all third-party apt repos/keys (gh, claude-code, docker) |
 | `gh` | GitHub CLI (depends on `apt-repos`) |
-| `php` | PHP-FPM + extensions (cli, mbstring, xml, curl) — no Apache dep |
-| `composer` | Composer via official installer (depends on `php`) |
+| `php` | PHP-FPM + extensions + intelephense (PHP LSP). Installs php-lsp plugin if `claude` + `npm` present |
+| `composer` | Composer (depends on `php`) |
 | `pwsh` | PowerShell via packages-microsoft-prod.deb |
 | `nvm` | Node Version Manager |
-| `node` | Node.js via nvm (depends on `nvm`) |
+| `node` | Node.js via nvm + typescript-language-server + bash-language-server. Installs typescript-lsp + bash-language-server plugins |
 | `bun` | Bun JavaScript runtime |
 | `claude` | Claude Code CLI via apt (depends on `apt-repos`) |
-| `npm-globals` | `@anthropic-ai/sandbox-runtime` only (depends on `node`) |
+| `npm-globals` | `@anthropic-ai/sandbox-runtime` (depends on `node`) |
 | `omc` | `oh-my-claude-sisyphus` npm global (opt-in) |
 | `codex` | `@openai/codex` npm global (opt-in) |
 | `gemini` | `@google/gemini-cli` npm global (opt-in) |
 | `qwen` | `@qwen-code/qwen-code` npm global (opt-in) |
-| `claude-plugins` | Install caveman + oh-my-claudecode plugins via `claude plugin` CLI |
+| `claude-plugins` | Install caveman + oh-my-claudecode plugins |
 | `docker` | Docker Engine + compose plugin (depends on `apt-repos`) |
 | `lucid` | Lucid Memory MCP server (depends on `bun`) |
-| `link` | Symlink stow packages → `$HOME` (tmux, git) and tool config dirs (.claude, .codex, .gemini, .qwen), copy `.gitconfig.example` if absent |
+| `link` | Symlink stow packages → `$HOME` (tmux, git, .claude, .codex, .gemini, .qwen) |
 | `proxy` | Start Caddy reverse proxy stack |
-| `ssh` | Install openssh-server, configure port 2222, enable via systemd (opt-in; for Claude Desktop Remote SSH) |
-| `go-runtime` | Install Go $(GO_VERSION) to `/usr/local/go` (opt-in) |
-| `rust-runtime` | Install Rust via rustup to `~/.cargo` (opt-in) |
-| `dotnet-runtime` | Install .NET LTS to `~/.dotnet` via dotnet-install.sh (opt-in) |
-| `lsp-servers` | Install all LSP binaries into `~/.local/bin` — clangd, bash-ls, intelephense, ty (Python), ts-ls, gopls, rust-analyzer, csharp-ls (wrapper), jdtls, lua-ls (opt-in; depends on `go-runtime rust-runtime dotnet-runtime node`). Note: kotlin-lsp (no Linux binary) and swift-lsp (needs Swift toolchain) require manual install |
-| `claude-lsp-plugins` | Install official Claude Code LSP plugins (clangd-lsp, gopls-lsp, pyright-lsp, etc.) from `claude-plugins-official` (opt-in; depends on `claude`) |
+| `ssh` | openssh-server on port 2222, key auth only (opt-in; for Claude Desktop Remote SSH) |
+| `go-runtime` | Go runtime + gopls LSP + gopls-lsp plugin (opt-in) |
+| `rust-runtime` | Rust via rustup + rust-analyzer + rust-analyzer-lsp plugin (opt-in) |
+| `dotnet-runtime` | .NET LTS + .NET 8 SDK + csharp-ls wrapper + csharp-lsp plugin (opt-in) |
+| `java` | default-jdk + jdtls LSP + jdtls-lsp plugin (opt-in) |
+| `python` | ty (Astral Python LSP) + pyright-lsp plugin (opt-in) |
+| `lua` | lua-language-server + lua-lsp plugin (opt-in) |
+| `lsp-servers` | Meta-target: runs node + go-runtime + rust-runtime + dotnet-runtime + java + python + lua (opt-in) |
+| `claude-lsp-plugins` | Install all official LSP plugins without binaries — use individual language targets for full setup (opt-in) |
 
 ## For AI Agents
 

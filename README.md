@@ -26,22 +26,39 @@ cd ~/dotfiles && make install
 
 | Category | Tools |
 |----------|-------|
-| System | jq, tmux, git, curl, stow, ripgrep, bubblewrap |
-| PowerShell | pwsh |
-| PHP | php-fpm, composer |
-| Node | nvm, node 24 |
+| System | jq, tmux, git, curl, stow, ripgrep, bubblewrap, **clangd** (C/C++ LSP) |
+| PHP | php-fpm, composer, **intelephense** (PHP LSP) |
+| Node | nvm, node 24, **typescript-language-server**, **bash-language-server** |
 | Docker | docker-ce, docker compose |
 
 Optional AI CLI tools (install individually):
 
 ```bash
-make claude   # @anthropic-ai/claude-code + @anthropic-ai/sandbox-runtime
+make claude   # Claude Code CLI
 make codex    # @openai/codex
 make gemini   # @google/gemini-cli
 make qwen     # @qwen-code/qwen-code
 make omc      # oh-my-claude-sisyphus
 make lucid    # Lucid Memory MCP server (depends on bun)
 ```
+
+## Language Runtimes + LSPs
+
+Each language target installs the runtime, LSP binary, and Claude Code LSP plugin together:
+
+```bash
+make go-runtime      # Go + gopls + gopls-lsp plugin
+make rust-runtime    # Rust + rust-analyzer + rust-analyzer-lsp plugin
+make dotnet-runtime  # .NET (LTS + 8) + csharp-ls + csharp-lsp plugin
+make java            # OpenJDK + jdtls + jdtls-lsp plugin
+make python          # ty (Astral Python LSP) + pyright-lsp plugin
+make lua             # lua-language-server + lua-lsp plugin
+make lsp-servers     # all of the above at once
+```
+
+Claude Code LSP plugins are installed automatically when `claude` is in PATH. All LSP binaries land in `~/.local/bin` (already in PATH).
+
+> **Note:** `kotlin-lsp` and `swift-lsp` plugins have no Linux binary available. Install manually if needed.
 
 ## Git Configuration
 
@@ -58,14 +75,13 @@ make lucid    # Lucid Memory MCP server (depends on bun)
 ## Other Commands
 
 ```bash
-make update         # apt-get update && upgrade
-make link           # re-stow dotfiles (git, tmux, .claude, .codex, .gemini, .qwen)
-make proxy          # start Caddy reverse proxy stack
-make claude-plugins # install caveman + oh-my-claudecode plugins
-make codex-plugins  # install caveman + oh-my-codex plugins
-make gemini-plugins # install caveman + oh-my-gemini plugins
-make apt-repos      # register all third-party apt repos/keys
-make bun            # Bun JavaScript runtime
+make update          # apt-get update && upgrade
+make link            # re-stow dotfiles (git, tmux, .claude, .codex, .gemini, .qwen)
+make proxy           # start Caddy reverse proxy stack
+make claude-plugins  # install caveman + oh-my-claudecode plugins
+make apt-repos       # register all third-party apt repos/keys
+make bun             # Bun JavaScript runtime
+make ssh             # openssh-server on port 2222 (Claude Desktop Remote SSH)
 ```
 
 ## Contributions
