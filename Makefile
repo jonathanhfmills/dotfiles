@@ -134,12 +134,22 @@ gemini: node
 qwen: node
 	@source "$(NVM_DIR)/nvm.sh" && npm install -g @qwen-code/qwen-code@latest
 
-# ── Claude Code plugins ───────────────────────────────────────────────────────
-claude-plugins: claude
+# ── Claude Code plugins + companions ─────────────────────────────────────────
+claude-plugins: claude bun
 	claude plugin marketplace add https://github.com/JuliusBrussee/caveman
 	claude plugin install caveman
 	claude plugin marketplace add https://github.com/Yeachan-Heo/oh-my-claudecode
 	claude plugin install oh-my-claudecode
+	@# OMC npm companion
+	@source "$(NVM_DIR)/nvm.sh" && npm install -g oh-my-claude-sisyphus
+	@# Lucid Memory MCP server
+	@if [ ! -d "$(HOME)/.lucid" ]; then \
+		sudo apt-get install -y python3-pip ffmpeg yt-dlp; \
+		pip3 install --break-system-packages openai-whisper; \
+		curl -fsSL https://lucidmemory.dev/install | bash; \
+	else \
+		echo "lucid already installed"; \
+	fi
 
 # ── Docker Engine ────────────────────────────────────────────────────────────
 docker: apt-repos

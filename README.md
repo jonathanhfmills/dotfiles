@@ -35,14 +35,14 @@ cd ~/dotfiles && make install
 
 ## AI Tools
 
-Claude Code is installed by default with plugins. Other AI CLIs are opt-in:
+Claude Code is installed by default with caveman + oh-my-claudecode plugins, oh-my-claude-sisyphus (OMC), and Lucid Memory MCP server.
+
+Other AI CLIs are opt-in:
 
 ```bash
 make codex   # @openai/codex
 make gemini  # @google/gemini-cli
 make qwen    # @qwen-code/qwen-code
-make omc     # oh-my-claude-sisyphus
-make lucid   # Lucid Memory MCP server (depends on bun)
 ```
 
 ## Languages + LSPs
@@ -76,6 +76,7 @@ make gh         # GitHub CLI
 make pwsh       # PowerShell
 make bun        # Bun JavaScript runtime
 make ssh        # openssh-server on port 2222 (Claude Desktop Remote SSH)
+make lucid      # Lucid Memory MCP (also auto-installed via make claude-plugins)
 ```
 
 ## Git Configuration
