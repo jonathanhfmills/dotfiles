@@ -24,22 +24,26 @@ cd ~/dotfiles && make install
 
 ## What Gets Installed
 
+`make install` installs only the essentials:
+
 | Category | Tools |
 |----------|-------|
-| System | jq, tmux, git, curl, stow, ripgrep, bubblewrap, **clangd** (C/C++ LSP) |
-| PHP | php-fpm, composer, **intelephense** (PHP LSP) |
-| Node | nvm, node 24, **typescript-language-server**, **bash-language-server** |
+| System | jq, tmux, git, curl, stow, ripgrep, bubblewrap, socat, unzip |
+| Node | nvm, node 24, @anthropic-ai/sandbox-runtime |
 | Docker | docker-ce, docker compose |
+| GitHub CLI | gh |
+| PowerShell | pwsh |
 
-Optional AI CLI tools (install individually):
+Optional — install individually:
 
 ```bash
-make claude   # Claude Code CLI
-make codex    # @openai/codex
-make gemini   # @google/gemini-cli
-make qwen     # @qwen-code/qwen-code
-make omc      # oh-my-claude-sisyphus
-make lucid    # Lucid Memory MCP server (depends on bun)
+make php         # PHP-FPM + composer + intelephense (PHP LSP)
+make claude      # Claude Code CLI
+make codex       # @openai/codex
+make gemini      # @google/gemini-cli
+make qwen        # @qwen-code/qwen-code
+make omc         # oh-my-claude-sisyphus
+make lucid       # Lucid Memory MCP server (depends on bun)
 ```
 
 ## Language Runtimes + LSPs

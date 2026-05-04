@@ -5,18 +5,16 @@ NVM_DIR := $(HOME)/.nvm
 NODE_VERSION := 24
 GO_VERSION := 1.24.3
 
-install: apt gh php composer pwsh nvm node claude npm-globals claude-plugins docker link
+install: apt gh pwsh nvm node claude npm-globals claude-plugins docker link
 
 # ── Update ───────────────────────────────────────────────────────────────────
 update:
 	sudo apt-get update && sudo apt-get upgrade -y
 
 # ── System packages ──────────────────────────────────────────────────────────
-# Includes clangd for C/C++ LSP (clangd-lsp plugin).
 apt:
 	sudo apt-get update -qq
-	sudo apt-get install -y jq tmux git curl make stow bubblewrap socat unzip ripgrep clangd
-	@command -v claude &>/dev/null && claude plugin install clangd-lsp 2>/dev/null || true
+	sudo apt-get install -y jq tmux git curl make stow bubblewrap socat unzip ripgrep
 
 # ── Third-party apt repos ─────────────────────────────────────────────────────
 apt-repos: apt
@@ -109,10 +107,6 @@ node: nvm
 	fi && \
 	nvm use $(NODE_VERSION) && \
 	nvm alias default $(NODE_VERSION)
-	@# TypeScript + Bash LSPs
-	@source "$(NVM_DIR)/nvm.sh" && npm install -g typescript typescript-language-server bash-language-server
-	@command -v claude &>/dev/null && claude plugin install typescript-lsp 2>/dev/null || true
-	@command -v claude &>/dev/null && claude plugin install bash-language-server 2>/dev/null || true
 
 # ── Claude Code CLI ───────────────────────────────────────────────────────────
 claude: apt-repos
@@ -295,6 +289,13 @@ lua:
 # Runs all language targets that include LSP setup. Each target is idempotent.
 # Note: kotlin-lsp (no Linux binary) and swift-lsp (needs Swift toolchain) require manual install.
 lsp-servers: node go rust dotnet java python lua
+	@# clangd (C/C++)
+	@if ! command -v clangd &>/dev/null; then sudo apt-get install -y clangd; fi
+	@command -v claude &>/dev/null && claude plugin install clangd-lsp 2>/dev/null || true
+	@# TypeScript + Bash LSPs (npm-based)
+	@source "$(NVM_DIR)/nvm.sh" && npm install -g typescript typescript-language-server bash-language-server
+	@command -v claude &>/dev/null && claude plugin install typescript-lsp 2>/dev/null || true
+	@command -v claude &>/dev/null && claude plugin install bash-language-server 2>/dev/null || true
 	@echo "All LSP servers installed. Binaries in ~/.local/bin"
 	@echo "Note: kotlin-lsp and swift-lsp require manual install on Linux"
 

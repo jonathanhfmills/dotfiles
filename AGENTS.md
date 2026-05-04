@@ -28,7 +28,7 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 
 | Target | Purpose |
 |--------|---------|
-| `install` | Full bootstrap — chains all default targets (excludes `bun`, `lucid`, opt-in AI CLIs, language runtimes) |
+| `install` | Core bootstrap: apt + gh + pwsh + nvm + node + claude + npm-globals + claude-plugins + docker + link. Excludes php, language runtimes, and all LSP targets (opt-in) |
 | `update` | `apt-get update && upgrade` |
 | `apt` | Base system packages + clangd (C/C++ LSP). Installs clangd-lsp plugin if `claude` present |
 | `apt-repos` | Register all third-party apt repos/keys (gh, claude-code, docker) |
