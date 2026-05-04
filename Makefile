@@ -270,10 +270,11 @@ lsp-servers: go-runtime rust-runtime dotnet-runtime node
 	@echo "All LSP servers installed. Binaries available in ~/.local/bin"
 
 # ── Claude Code LSP plugins (opt-in: make claude-lsp-plugins) ────────────────
+# Uses the official claude-plugins-official marketplace (registered by default).
+# swift-lsp included for completeness; sourcekit-lsp binary requires Swift toolchain.
 claude-lsp-plugins: claude
-	@claude plugin marketplace add boostvolt/claude-code-lsps 2>/dev/null || true
-	@for plugin in bash-language-server clangd gopls intelephense jdtls kotlin-lsp lua-language-server pyright rust-analyzer; do \
-		claude plugin install $$plugin@claude-code-lsps 2>/dev/null || true; \
+	@for plugin in clangd-lsp csharp-lsp gopls-lsp jdtls-lsp kotlin-lsp lua-lsp php-lsp pyright-lsp rust-analyzer-lsp swift-lsp typescript-lsp; do \
+		claude plugin install $$plugin 2>/dev/null || true; \
 	done
 	@echo "Claude LSP plugins installed"
 

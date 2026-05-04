@@ -55,7 +55,7 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `rust-runtime` | Install Rust via rustup to `~/.cargo` (opt-in) |
 | `dotnet-runtime` | Install .NET LTS to `~/.dotnet` via dotnet-install.sh (opt-in) |
 | `lsp-servers` | Install all LSP binaries, symlinked into `~/.local/bin` — clangd, bash-ls, intelephense, pyright, ts-ls, gopls, rust-analyzer, csharp-ls, jdtls, kotlin-ls, lua-ls (opt-in; depends on `go-runtime rust-runtime dotnet-runtime node`) |
-| `claude-lsp-plugins` | Install Claude Code LSP plugins from `boostvolt/claude-code-lsps` marketplace (opt-in; depends on `claude`) |
+| `claude-lsp-plugins` | Install official Claude Code LSP plugins (clangd-lsp, gopls-lsp, pyright-lsp, etc.) from `claude-plugins-official` (opt-in; depends on `claude`) |
 
 ## For AI Agents
 
