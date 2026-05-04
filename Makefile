@@ -1,4 +1,4 @@
-.PHONY: install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go-runtime rust-runtime dotnet-runtime java python lua lsp-servers claude-lsp-plugins
+.PHONY: install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust dotnet java python lua lsp-servers claude-lsp-plugins
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
@@ -193,7 +193,7 @@ proxy:
 	docker compose -f "$(CURDIR)/proxy/docker-compose.yml" up -d
 
 # ── Go runtime + gopls LSP ───────────────────────────────────────────────────
-go-runtime:
+go:
 	@if ! [ -x /usr/local/go/bin/go ]; then \
 		curl -fsSL https://go.dev/dl/go$(GO_VERSION).linux-amd64.tar.gz -o /tmp/go.tar.gz; \
 		sudo rm -rf /usr/local/go; \
@@ -211,7 +211,7 @@ go-runtime:
 	@command -v claude &>/dev/null && claude plugin install gopls-lsp 2>/dev/null || true
 
 # ── Rust runtime + rust-analyzer LSP ─────────────────────────────────────────
-rust-runtime:
+rust:
 	@if ! [ -x "$(HOME)/.cargo/bin/rustc" ]; then \
 		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path; \
 		echo "Rust installed"; \
@@ -226,7 +226,7 @@ rust-runtime:
 # ── .NET runtime + csharp-ls LSP ─────────────────────────────────────────────
 # Installs .NET LTS + .NET 8 (csharp-ls compatibility). Wrapper script sets
 # DOTNET_ROOT so csharp-ls finds the runtime on WSL2.
-dotnet-runtime:
+dotnet:
 	@if ! [ -x "$(HOME)/.dotnet/dotnet" ]; then \
 		curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel LTS; \
 		echo ".NET LTS installed"; \
@@ -294,7 +294,7 @@ lua:
 # ── All LSP servers (opt-in convenience target) ───────────────────────────────
 # Runs all language targets that include LSP setup. Each target is idempotent.
 # Note: kotlin-lsp (no Linux binary) and swift-lsp (needs Swift toolchain) require manual install.
-lsp-servers: node go-runtime rust-runtime dotnet-runtime java python lua
+lsp-servers: node go rust dotnet java python lua
 	@echo "All LSP servers installed. Binaries in ~/.local/bin"
 	@echo "Note: kotlin-lsp and swift-lsp require manual install on Linux"
 

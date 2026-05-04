@@ -47,9 +47,9 @@ make lucid    # Lucid Memory MCP server (depends on bun)
 Each language target installs the runtime, LSP binary, and Claude Code LSP plugin together:
 
 ```bash
-make go-runtime      # Go + gopls + gopls-lsp plugin
-make rust-runtime    # Rust + rust-analyzer + rust-analyzer-lsp plugin
-make dotnet-runtime  # .NET (LTS + 8) + csharp-ls + csharp-lsp plugin
+make go      # Go + gopls + gopls-lsp plugin
+make rust    # Rust + rust-analyzer + rust-analyzer-lsp plugin
+make dotnet  # .NET (LTS + 8) + csharp-ls + csharp-lsp plugin
 make java            # OpenJDK + jdtls + jdtls-lsp plugin
 make python          # ty (Astral Python LSP) + pyright-lsp plugin
 make lua             # lua-language-server + lua-lsp plugin
