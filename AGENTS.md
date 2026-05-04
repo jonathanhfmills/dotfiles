@@ -51,6 +51,11 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `link` | Symlink stow packages → `$HOME` (tmux, git) and tool config dirs (.claude, .codex, .gemini, .qwen), copy `.gitconfig.example` if absent |
 | `proxy` | Start Caddy reverse proxy stack |
 | `ssh` | Install openssh-server, configure port 2222, enable via systemd (opt-in; for Claude Desktop Remote SSH) |
+| `go-runtime` | Install Go $(GO_VERSION) to `/usr/local/go` (opt-in) |
+| `rust-runtime` | Install Rust via rustup to `~/.cargo` (opt-in) |
+| `dotnet-runtime` | Install .NET LTS to `~/.dotnet` via dotnet-install.sh (opt-in) |
+| `lsp-servers` | Install all LSP binaries, symlinked into `~/.local/bin` — clangd, bash-ls, intelephense, pyright, ts-ls, gopls, rust-analyzer, csharp-ls, jdtls, kotlin-ls, lua-ls (opt-in; depends on `go-runtime rust-runtime dotnet-runtime node`) |
+| `claude-lsp-plugins` | Install Claude Code LSP plugins from `boostvolt/claude-code-lsps` marketplace (opt-in; depends on `claude`) |
 
 ## For AI Agents
 
