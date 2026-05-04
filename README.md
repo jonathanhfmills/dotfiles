@@ -31,19 +31,18 @@ cd ~/dotfiles && make install
 | System | jq, tmux, git, curl, stow, ripgrep, bubblewrap, socat, unzip |
 | Node | nvm, node 24, @anthropic-ai/sandbox-runtime |
 | Docker | docker-ce, docker compose |
-| GitHub CLI | gh |
-| PowerShell | pwsh |
+| Claude Code | claude CLI + caveman + oh-my-claudecode plugins |
 
 ## AI Tools
 
+Claude Code is installed by default with plugins. Other AI CLIs are opt-in:
+
 ```bash
-make claude          # Claude Code CLI (via apt)
-make claude-plugins  # caveman + oh-my-claudecode plugins
-make omc             # oh-my-claude-sisyphus npm global
-make codex           # @openai/codex
-make gemini          # @google/gemini-cli
-make qwen            # @qwen-code/qwen-code
-make lucid           # Lucid Memory MCP server (depends on bun)
+make codex   # @openai/codex
+make gemini  # @google/gemini-cli
+make qwen    # @qwen-code/qwen-code
+make omc     # oh-my-claude-sisyphus
+make lucid   # Lucid Memory MCP server (depends on bun)
 ```
 
 ## Languages + LSPs
@@ -73,6 +72,8 @@ make update     # apt-get update && upgrade
 make link       # re-stow dotfiles (git, tmux, .claude, .codex, .gemini, .qwen)
 make proxy      # start Caddy reverse proxy stack
 make apt-repos  # register third-party apt repos/keys (gh, claude-code, docker)
+make gh         # GitHub CLI
+make pwsh       # PowerShell
 make bun        # Bun JavaScript runtime
 make ssh        # openssh-server on port 2222 (Claude Desktop Remote SSH)
 ```

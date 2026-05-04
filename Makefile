@@ -5,7 +5,7 @@ NVM_DIR := $(HOME)/.nvm
 NODE_VERSION := 24
 GO_VERSION := 1.24.3
 
-install: apt gh pwsh nvm node claude npm-globals claude-plugins docker link
+install: apt nvm node claude npm-globals claude-plugins docker link
 
 # ── Update ───────────────────────────────────────────────────────────────────
 update:
