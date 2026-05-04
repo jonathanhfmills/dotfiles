@@ -53,11 +53,11 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `ssh` | openssh-server on port 2222, key auth only (opt-in; for Claude Desktop Remote SSH) |
 | `go` | Go runtime + gopls LSP + gopls-lsp plugin (opt-in) |
 | `rust` | Rust via rustup + rust-analyzer + rust-analyzer-lsp plugin (opt-in) |
-| `dotnet` | .NET LTS + .NET 8 SDK + csharp-ls wrapper + csharp-lsp plugin (opt-in) |
+| `csharp` | .NET LTS + .NET 8 SDK + PowerShell + csharp-ls wrapper + csharp-lsp plugin (opt-in) |
 | `java` | default-jdk + jdtls LSP + jdtls-lsp plugin (opt-in) |
 | `python` | ty (Astral Python LSP) + pyright-lsp plugin (opt-in) |
 | `lua` | lua-language-server + lua-lsp plugin (opt-in) |
-| `lsp-servers` | Meta-target: runs node + go + rust + dotnet + java + python + lua (opt-in) |
+| `lsp-servers` | Meta-target: runs node + go + rust + csharp + java + python + lua (opt-in) |
 | `claude-lsp-plugins` | Install all official LSP plugins without binaries — use individual language targets for full setup (opt-in) |
 
 ## For AI Agents

@@ -1,4 +1,4 @@
-.PHONY: install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust dotnet java python lua lsp-servers claude-lsp-plugins
+.PHONY: install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
@@ -227,10 +227,11 @@ rust:
 	@ln -sf $(HOME)/.cargo/bin/rust-analyzer $(HOME)/.local/bin/rust-analyzer
 	@command -v claude &>/dev/null && claude plugin install rust-analyzer-lsp 2>/dev/null || true
 
-# ── .NET runtime + csharp-ls LSP ─────────────────────────────────────────────
-# Installs .NET LTS + .NET 8 (csharp-ls compatibility). Wrapper script sets
-# DOTNET_ROOT so csharp-ls finds the runtime on WSL2.
-dotnet:
+# ── C# + PowerShell (.NET platform) ──────────────────────────────────────────
+# Installs .NET LTS + .NET 8 (csharp-ls compatibility) + PowerShell + csharp-ls.
+# Wrapper script sets DOTNET_ROOT so csharp-ls finds the runtime on WSL2.
+csharp:
+	@# .NET runtime
 	@if ! [ -x "$(HOME)/.dotnet/dotnet" ]; then \
 		curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel LTS; \
 		echo ".NET LTS installed"; \
@@ -245,6 +246,18 @@ dotnet:
 	fi
 	@mkdir -p $(HOME)/.local/bin
 	@ln -sf $(HOME)/.dotnet/dotnet $(HOME)/.local/bin/dotnet
+	@# PowerShell (runs on .NET)
+	@if ! command -v pwsh &>/dev/null; then \
+		sudo apt-get install -y wget apt-transport-https software-properties-common; \
+		. /etc/os-release; \
+		wget -q https://packages.microsoft.com/config/ubuntu/$$VERSION_ID/packages-microsoft-prod.deb; \
+		sudo dpkg -i packages-microsoft-prod.deb; \
+		rm packages-microsoft-prod.deb; \
+		sudo apt-get update -qq && sudo apt-get install -y powershell; \
+	else \
+		echo "pwsh already installed: $$(pwsh --version)"; \
+	fi
+	@# csharp-ls LSP
 	@if ! [ -f "$(HOME)/.dotnet/tools/csharp-ls" ]; then \
 		DOTNET_ROOT=$(HOME)/.dotnet $(HOME)/.dotnet/dotnet tool install --global csharp-ls; \
 	else echo "csharp-ls already installed"; fi
@@ -298,7 +311,7 @@ lua:
 # ── All LSP servers (opt-in convenience target) ───────────────────────────────
 # Runs all language targets that include LSP setup. Each target is idempotent.
 # Note: kotlin-lsp (no Linux binary) and swift-lsp (needs Swift toolchain) require manual install.
-lsp-servers: node go rust dotnet java python lua
+lsp-servers: node go rust csharp java python lua
 	@# clangd (C/C++)
 	@if ! command -v clangd &>/dev/null; then sudo apt-get install -y clangd; fi
 	@command -v claude &>/dev/null && claude plugin install clangd-lsp 2>/dev/null || true

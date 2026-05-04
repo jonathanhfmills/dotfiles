@@ -53,7 +53,7 @@ Each target installs the runtime, LSP binary, and Claude Code LSP plugin togethe
 make php     # PHP-FPM + composer + intelephense + php-lsp plugin
 make go      # Go + gopls + gopls-lsp plugin
 make rust    # Rust + rust-analyzer + rust-analyzer-lsp plugin
-make dotnet  # .NET (LTS + 8) + csharp-ls + csharp-lsp plugin
+make csharp  # .NET (LTS + 8) + PowerShell + csharp-ls + csharp-lsp plugin
 make java    # OpenJDK + jdtls + jdtls-lsp plugin
 make python  # ty (Astral) + pyright-lsp plugin
 make lua     # lua-language-server + lua-lsp plugin
@@ -73,7 +73,6 @@ make link       # re-stow dotfiles (git, tmux, .claude, .codex, .gemini, .qwen)
 make proxy      # start Caddy reverse proxy stack
 make apt-repos  # register third-party apt repos/keys (gh, claude-code, docker)
 make gh         # GitHub CLI
-make pwsh       # PowerShell
 make bun        # Bun JavaScript runtime
 make ssh        # openssh-server on port 2222 (Claude Desktop Remote SSH)
 make lucid      # Lucid Memory MCP (also auto-installed via make claude-plugins)
