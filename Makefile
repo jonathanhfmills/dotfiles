@@ -1,4 +1,4 @@
-.PHONY: install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh 1password-ssh-agent
+.PHONY: install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
@@ -161,43 +161,7 @@ lucid: bun
 		echo "lucid already installed"; \
 	fi
 
-# ── 1Password SSH Agent Bridge (WSL side) ────────────────────────────────────
-1password-ssh-agent: ssh
-	@# Stow shell config (bridge script, systemd service, .bashrc.d snippet)
-	@# --no-folding prevents stow from symlinking dirs, keeping systemd writes out of the source tree
-	stow --no-folding -d "$(CURDIR)" -t "$(HOME)" shell
-	@chmod +x "$(HOME)/.local/bin/1password-ssh-agent-bridge"
-	@# Download npiperelay.exe to Windows user's bin (bridges named pipe → socat)
-	@WINDOWS_USER=$$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r\n '); \
-	WINDOWS_BIN="/mnt/c/Users/$$WINDOWS_USER/bin"; \
-	mkdir -p "$$WINDOWS_BIN"; \
-	if [ ! -f "$$WINDOWS_BIN/npiperelay.exe" ]; then \
-		curl -fsSL -o /tmp/npiperelay.zip \
-			"https://github.com/jstarks/npiperelay/releases/latest/download/npiperelay_windows_amd64.zip"; \
-		unzip -oj /tmp/npiperelay.zip npiperelay.exe -d "$$WINDOWS_BIN/"; \
-		rm -f /tmp/npiperelay.zip; \
-		echo "npiperelay.exe installed to $$WINDOWS_BIN"; \
-	else \
-		echo "npiperelay.exe already installed"; \
-	fi
-	@# Allow SSH daemon to pass SSH_AUTH_SOCK to non-interactive sessions
-	@if ! grep -q 'PermitUserEnvironment' /etc/ssh/sshd_config.d/99-wsl.conf 2>/dev/null; then \
-		printf 'PermitUserEnvironment yes\n' | sudo tee -a /etc/ssh/sshd_config.d/99-wsl.conf > /dev/null; \
-		sudo systemctl restart ssh; \
-	fi
-	@# Persist SSH_AUTH_SOCK for non-interactive SSH sessions (e.g. claude mcp serve)
-	@mkdir -p "$(HOME)/.ssh" && chmod 700 "$(HOME)/.ssh"
-	@grep -q 'SSH_AUTH_SOCK' "$(HOME)/.ssh/environment" 2>/dev/null || \
-		{ echo "SSH_AUTH_SOCK=$(HOME)/.1password/agent.sock" >> "$(HOME)/.ssh/environment"; \
-		  chmod 600 "$(HOME)/.ssh/environment"; }
-	@# Wire .bashrc.d/ into .bashrc for interactive shells
-	@grep -q '\.bashrc\.d' "$(HOME)/.bashrc" 2>/dev/null || \
-		printf '\nfor f in ~/.bashrc.d/*.sh; do [ -f "$$f" ] && source "$$f"; done\n' >> "$(HOME)/.bashrc"
-	@# Enable persistent systemd user service
-	systemctl --user enable --now 1password-ssh-agent
-	@echo "1Password SSH agent bridge active at $(HOME)/.1password/agent.sock"
-
-# ── SSH Server (WSL → Claude Desktop MCP over SSH) ───────────────────────────
+# ── SSH Server (WSL → Claude Desktop Remote) ─────────────────────────────────
 ssh:
 	@if ! dpkg -l openssh-server 2>/dev/null | grep -q '^ii'; then \
 		sudo apt-get install -y openssh-server; \

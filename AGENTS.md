@@ -22,7 +22,6 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `.gemini/` | Gemini CLI global config stow package (target: `~/.gemini`, see `.gemini/AGENTS.md`) |
 | `.qwen/` | Qwen global config stow package (target: `~/.qwen`, see `.qwen/AGENTS.md`) |
 | `proxy/` | Caddy reverse proxy Docker stack (see `proxy/AGENTS.md`) |
-| `shell/` | Shell config stow package — `.bashrc.d/` snippets, 1Password SSH agent bridge script, systemd user service |
 | `scripts/` | Utility shell scripts (empty, reserved) |
 
 ## Makefile Targets
@@ -51,8 +50,7 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `lucid` | Lucid Memory MCP server (depends on `bun`) |
 | `link` | Symlink stow packages → `$HOME` (tmux, git) and tool config dirs (.claude, .codex, .gemini, .qwen), copy `.gitconfig.example` if absent |
 | `proxy` | Start Caddy reverse proxy stack |
-| `ssh` | Install openssh-server, configure port 2222, enable via systemd (opt-in; for Claude Desktop MCP over SSH) |
-| `1password-ssh-agent` | Bridge 1Password Windows SSH agent → WSL Unix socket via npiperelay + socat; sets up systemd user service and `~/.ssh/environment` (opt-in; depends on `ssh`) |
+| `ssh` | Install openssh-server, configure port 2222, enable via systemd (opt-in; for Claude Desktop Remote SSH) |
 
 ## For AI Agents
 

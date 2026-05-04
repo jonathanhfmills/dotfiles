@@ -2,4 +2,3 @@
 .claude/settings.local.json
 .claude/CLAUDE.original.md
 git/.gitconfig
-shell/.config/systemd/user/default.target.wants/
