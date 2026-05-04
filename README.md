@@ -34,39 +34,52 @@ cd ~/dotfiles && make install
 | GitHub CLI | gh |
 | PowerShell | pwsh |
 
-Optional — install individually:
+## AI Tools
 
 ```bash
-make php         # PHP-FPM + composer + intelephense (PHP LSP)
-make claude      # Claude Code CLI
-make codex       # @openai/codex
-make gemini      # @google/gemini-cli
-make qwen        # @qwen-code/qwen-code
-make omc         # oh-my-claude-sisyphus
-make lucid       # Lucid Memory MCP server (depends on bun)
+make claude          # Claude Code CLI (via apt)
+make claude-plugins  # caveman + oh-my-claudecode plugins
+make omc             # oh-my-claude-sisyphus npm global
+make codex           # @openai/codex
+make gemini          # @google/gemini-cli
+make qwen            # @qwen-code/qwen-code
+make lucid           # Lucid Memory MCP server (depends on bun)
 ```
 
-## Language Runtimes + LSPs
+## Languages + LSPs
 
-Each language target installs the runtime, LSP binary, and Claude Code LSP plugin together:
+Each target installs the runtime, LSP binary, and Claude Code LSP plugin together:
 
 ```bash
+make php     # PHP-FPM + composer + intelephense + php-lsp plugin
 make go      # Go + gopls + gopls-lsp plugin
 make rust    # Rust + rust-analyzer + rust-analyzer-lsp plugin
 make dotnet  # .NET (LTS + 8) + csharp-ls + csharp-lsp plugin
-make java            # OpenJDK + jdtls + jdtls-lsp plugin
-make python          # ty (Astral Python LSP) + pyright-lsp plugin
-make lua             # lua-language-server + lua-lsp plugin
-make lsp-servers     # all of the above at once
+make java    # OpenJDK + jdtls + jdtls-lsp plugin
+make python  # ty (Astral) + pyright-lsp plugin
+make lua     # lua-language-server + lua-lsp plugin
+
+make lsp-servers  # all of the above at once
 ```
 
-Claude Code LSP plugins are installed automatically when `claude` is in PATH. All LSP binaries land in `~/.local/bin` (already in PATH).
+LSP binaries land in `~/.local/bin` (already in PATH). Plugins install automatically when `claude` is in PATH.
 
-> **Note:** `kotlin-lsp` and `swift-lsp` plugins have no Linux binary available. Install manually if needed.
+> **Note:** `kotlin-lsp` and `swift-lsp` have no Linux binary. Install manually if needed.
+
+## Other Commands
+
+```bash
+make update     # apt-get update && upgrade
+make link       # re-stow dotfiles (git, tmux, .claude, .codex, .gemini, .qwen)
+make proxy      # start Caddy reverse proxy stack
+make apt-repos  # register third-party apt repos/keys (gh, claude-code, docker)
+make bun        # Bun JavaScript runtime
+make ssh        # openssh-server on port 2222 (Claude Desktop Remote SSH)
+```
 
 ## Git Configuration
 
-`make link` symlinks dotfiles and seeds global AI config. Stows: git, tmux, and AI tool configs (`~/.claude`, `~/.codex`, `~/.gemini`, `~/.qwen`) with shared behavioral guidelines. Also copies `git/.gitconfig.example` to `git/.gitconfig` if absent. Fill in your personal values before committing:
+`make link` symlinks dotfiles and seeds global AI config. Also copies `git/.gitconfig.example` to `git/.gitconfig` if absent — fill in your personal values:
 
 ```bash
 # git/.gitconfig — gitignored, local only
@@ -74,18 +87,6 @@ Claude Code LSP plugins are installed automatically when `claude` is in PATH. Al
     name = Your Name
     email = you@example.com
     signingkey = ssh-rsa AAAA...
-```
-
-## Other Commands
-
-```bash
-make update          # apt-get update && upgrade
-make link            # re-stow dotfiles (git, tmux, .claude, .codex, .gemini, .qwen)
-make proxy           # start Caddy reverse proxy stack
-make claude-plugins  # install caveman + oh-my-claudecode plugins
-make apt-repos       # register all third-party apt repos/keys
-make bun             # Bun JavaScript runtime
-make ssh             # openssh-server on port 2222 (Claude Desktop Remote SSH)
 ```
 
 ## Contributions
