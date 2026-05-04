@@ -1,4 +1,4 @@
-.PHONY: install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy
+.PHONY: install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
@@ -160,6 +160,19 @@ lucid: bun
 	else \
 		echo "lucid already installed"; \
 	fi
+
+# ── SSH Server (WSL → Claude Desktop MCP over SSH) ───────────────────────────
+ssh:
+	@if ! dpkg -l openssh-server 2>/dev/null | grep -q '^ii'; then \
+		sudo apt-get install -y openssh-server; \
+	else \
+		echo "openssh-server already installed"; \
+	fi
+	@printf 'Port 2222\nPasswordAuthentication no\n' | sudo tee /etc/ssh/sshd_config.d/99-wsl.conf > /dev/null
+	@sudo systemctl enable --now ssh
+	@echo "SSH running on port 2222 (key auth only)"
+	@echo "Add Windows public key to ~/.ssh/authorized_keys"
+	@echo "Claude Desktop config: host=localhost, port=2222, user=$$(whoami), command=claude mcp serve"
 
 # ── Reverse proxy ────────────────────────────────────────────────────────────
 proxy:

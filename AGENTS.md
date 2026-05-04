@@ -50,6 +50,7 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `lucid` | Lucid Memory MCP server (depends on `bun`) |
 | `link` | Symlink stow packages → `$HOME` (tmux, git) and tool config dirs (.claude, .codex, .gemini, .qwen), copy `.gitconfig.example` if absent |
 | `proxy` | Start Caddy reverse proxy stack |
+| `ssh` | Install openssh-server, configure port 2222, enable via systemd (opt-in; for Claude Desktop MCP over SSH) |
 
 ## For AI Agents
 
