@@ -94,7 +94,7 @@ make update     # apt-get update && upgrade
 make link       # re-stow dotfiles (git, tmux, bin, .claude, .codex, .gemini, .qwen)
 make proxy      # start Caddy reverse proxy stack
 make apt-repos  # register third-party apt repos/keys (gh, claude-code, docker)
-make gh         # GitHub CLI
+make github     # GitHub CLI + auth + git identity setup
 make bun        # Bun JavaScript runtime
 make ssh        # openssh-server on port 2222 (Claude Desktop Remote SSH)
 make lucid      # Lucid Memory MCP server (also auto-installed via make claude-plugins)

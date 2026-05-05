@@ -1,4 +1,4 @@
-.PHONY: help install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins caveman source-code-pro
+.PHONY: help install update apt apt-repos github php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins caveman source-code-pro
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
@@ -47,7 +47,7 @@ help:
 	@echo "  source-code-pro   Adobe Source Code Pro OTF → ~/.fonts"
 	@echo ""
 	@echo "Other"
-	@echo "  gh                GitHub CLI + gh auth login + write git/.gitconfig + stow"
+	@echo "  github            GitHub CLI + gh auth login + write git/.gitconfig + stow"
 	@echo "  docker            Docker Engine + compose plugin"
 	@echo "  pwsh              PowerShell"
 	@echo "  composer          PHP Composer"
@@ -98,7 +98,7 @@ apt-repos: apt
 	@sudo apt-get update -qq
 
 # ── GitHub CLI + git identity setup ──────────────────────────────────────────
-gh: apt-repos
+github: apt-repos
 	@if ! command -v gh &>/dev/null; then \
 		sudo apt-get install -y gh; \
 	else \

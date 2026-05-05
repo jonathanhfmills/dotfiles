@@ -28,11 +28,11 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 
 | Target | Purpose |
 |--------|---------|
-| `install` | Core bootstrap: apt + nvm + node + claude + npm-globals + claude-plugins + docker + link. gh, pwsh, php, language runtimes, and all LSP targets are opt-in |
+| `install` | Core bootstrap: apt + nvm + node + claude + npm-globals + claude-plugins + docker + link. github, pwsh, php, language runtimes, and all LSP targets are opt-in |
 | `update` | `apt-get update && upgrade` |
 | `apt` | Base system packages (jq, tmux, git, curl, make, stow, bubblewrap, socat, unzip, ripgrep, wget) |
-| `apt-repos` | Register all third-party apt repos/keys (gh, claude-code, docker) |
-| `gh` | GitHub CLI (depends on `apt-repos`) |
+| `apt-repos` | Register all third-party apt repos/keys (gh CLI, claude-code, docker) |
+| `github` | GitHub CLI install + `gh auth login` + write `git/.gitconfig` from gh profile + `make link` |
 | `php` | PHP-FPM + extensions + intelephense (PHP LSP). Installs php-lsp plugin if `claude` + `npm` present |
 | `composer` | Composer (depends on `php`) |
 | `pwsh` | PowerShell via packages-microsoft-prod.deb |
