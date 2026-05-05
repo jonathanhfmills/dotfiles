@@ -1,4 +1,4 @@
-.PHONY: help install update apt apt-repos github php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins caveman source-code-pro debate observer agent-start hindsight test
+.PHONY: help install update apt apt-repos github php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins caveman source-code-pro debate observer agent-start hindsight digital-twin ralph escalate training-pr test
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
@@ -56,9 +56,13 @@ help:
 	@echo ""
 	@echo "Living Code / Agents"
 	@echo "  debate            Run feelings↔logic debate: make debate TOPIC=\"...\""
+	@echo "  digital-twin      Build digital twin container (Ubuntu 24.04, full dev stack)"
+	@echo "  ralph             Ralph loop: local agents attempt impl, exit at conf>=0.75x2"
+	@echo "  escalate          Escalate GitHub issue to Claude Code: make escalate ISSUE_URL=..."
+	@echo "  training-pr       Create training signal PR (debate + hindsight + diff)"
 	@echo "  observer          Start Universal Observer container (singleton)"
 	@echo "  agent-start       Start OpenSandbox desktop sandbox"
-	@echo "  hindsight         Install hindsight-client memory provider for Hermes"
+	@echo "  hindsight         Install hindsight-client + hindsight-litellm memory providers"
 	@echo "  test              Run all agent tests (red-green cycles)"
 
 install: apt nvm node claude npm-globals claude-plugins docker link
@@ -423,7 +427,19 @@ caveman:
 
 # ── Living Code / Agent targets ──────────────────────────────────────────────
 debate:
-	@bash "$(CURDIR)/scripts/run_debate.sh"
+	@python3 "$(CURDIR)/scripts/run_debate.py"
+
+digital-twin:
+	docker build -f "$(CURDIR)/docker/Dockerfile.digital-twin" "$(CURDIR)/docker" -t digital-twin:latest
+
+ralph:
+	@ISSUE_URL="$(ISSUE_URL)" bash "$(CURDIR)/scripts/ralph_loop.sh"
+
+escalate:
+	@ISSUE_URL="$(ISSUE_URL)" bash "$(CURDIR)/scripts/escalate.sh"
+
+training-pr:
+	@bash "$(CURDIR)/scripts/create_training_pr.sh"
 
 observer:
 	docker compose -f "$(CURDIR)/docker/docker-compose.yml" up openclaw
@@ -448,6 +464,11 @@ test:
 	@bash tests/test_git_hook.sh
 	@bash tests/test_openclaw_gateway.sh
 	@bash tests/test_escalation.sh
+	@SKIP_DOCKER_BUILD=1 bash tests/test_digital_twin_build.sh
+	@bash tests/test_debate_cli_invocation.sh
+	@bash tests/test_escalate.sh
+	@bash tests/test_ralph_loop.sh
+	@bash tests/test_training_pr.sh
 	@echo "All tests passed"
 
 # ── Symlink dotfiles via stow ─────────────────────────────────────────────────

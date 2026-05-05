@@ -29,8 +29,8 @@ Also serves as the **Universal Observer** — a singleton living code repository
 | `agents/nullclaw/` | Feelings-first Google ADK debater. Gemma 4 via llama.cpp. Lucid memory. |
 | `agents/hermes/` | Logic-first Google ADK debater (NousResearch Hermes). Qwen 3.5 via llama.cpp. Hindsight memory. |
 | `debates/` | Committed debate transcripts (YYYY-MM-DD-slug.md). Git history = agent learning. |
-| `docker/` | `docker-compose.yml` + `sandbox.toml` for openclaw + OpenSandbox desktop containers |
-| `scripts/` | `run_debate.sh` (debate orchestrator), `on_issue.sh` (git hook handler) |
+| `docker/` | `docker-compose.yml` + `Dockerfile.digital-twin` + `sandbox.toml` |
+| `scripts/` | `run_debate.py` (debate orchestrator), `escalate.sh`, `ralph_loop.sh`, `create_training_pr.sh`, `on_issue.sh` |
 | `tests/` | TDD test scripts — one per red-green cycle (run with `make test`) |
 | `docs/adr/` | Architecture Decision Records (0001–0004) |
 | `CONTEXT.md` | Domain glossary — canonical terms for this living code architecture |
@@ -73,11 +73,15 @@ Also serves as the **Universal Observer** — a singleton living code repository
 | `help` | Print all targets grouped by category (default target — runs on bare `make`) |
 | `source-code-pro` | Download + install Adobe Source Code Pro OTF fonts to `~/.fonts`, refresh font cache |
 | `caveman` | Install caveman token-compression skill across 30+ AI editors (`--all` variant) |
-| `debate` | Run feelings↔logic debate: `make debate TOPIC="..."` (or `DRY_RUN=true` for stub) |
+| `debate` | Run feelings↔logic debate via `run_debate.py`: `make debate TOPIC="..."` |
+| `digital-twin` | Build digital twin container (Ubuntu 24.04, full dev stack) |
+| `ralph` | Ralph loop: local agents attempt implementation, exit at confidence ≥0.75×2: `make ralph ISSUE_URL=...` |
+| `escalate` | Escalate GitHub issue to Claude Code (human-triggered): `make escalate ISSUE_URL=...` |
+| `training-pr` | Create training signal PR with debate transcript + Hindsight patterns + confidence scores + diff |
 | `observer` | Start Universal Observer openclaw container (`docker compose up openclaw`) |
 | `agent-start` | Start OpenSandbox desktop sandbox (`docker compose up desktop`) |
-| `hindsight` | Install `hindsight-client` (NousResearch Hermes memory provider) via uv |
-| `test` | Run all agent TDD tests (Cycles 1–8) |
+| `hindsight` | Install `hindsight-client` + `hindsight-litellm` (Hermes + Nullclaw memory providers) via uv |
+| `test` | Run all agent TDD tests (Cycles 1–13) |
 
 ## For AI Agents
 
