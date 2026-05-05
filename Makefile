@@ -1,4 +1,4 @@
-.PHONY: help install update apt apt-repos github php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins caveman source-code-pro
+.PHONY: help install update apt apt-repos github php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins caveman source-code-pro debate observer agent-start hindsight test
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
@@ -53,6 +53,13 @@ help:
 	@echo "  composer          PHP Composer"
 	@echo "  link              Symlink dotfiles via stow"
 	@echo "  proxy             Start Caddy reverse proxy stack"
+	@echo ""
+	@echo "Living Code / Agents"
+	@echo "  debate            Run feelings↔logic debate: make debate TOPIC=\"...\""
+	@echo "  observer          Start Universal Observer container (singleton)"
+	@echo "  agent-start       Start OpenSandbox desktop sandbox"
+	@echo "  hindsight         Install hindsight-client memory provider for Hermes"
+	@echo "  test              Run all agent tests (red-green cycles)"
 
 install: apt nvm node claude npm-globals claude-plugins docker link
 
@@ -413,6 +420,35 @@ source-code-pro:
 # ── caveman skill/plugin (multi-agent token compression) ─────────────────────
 caveman:
 	curl -fsSL https://raw.githubusercontent.com/JuliusBrussee/caveman/main/install.sh | bash -s -- --all
+
+# ── Living Code / Agent targets ──────────────────────────────────────────────
+debate:
+	@bash "$(CURDIR)/scripts/run_debate.sh"
+
+observer:
+	docker compose -f "$(CURDIR)/docker/docker-compose.yml" up openclaw
+
+agent-start:
+	docker compose -f "$(CURDIR)/docker/docker-compose.yml" up desktop
+
+hindsight:
+	@if ! command -v uv &>/dev/null; then \
+		curl -fsSL https://astral.sh/uv/install.sh | bash; \
+	fi
+	uv pip install --system "hindsight-client>=0.4.22"
+	hermes memory setup
+
+test:
+	@chmod +x tests/*.sh
+	@bash tests/test_debate_record.sh
+	@bash tests/test_nullclaw_config.sh
+	@bash tests/test_hermes_config.sh
+	@bash tests/test_debate_loop.sh
+	@bash tests/test_make_targets.sh
+	@bash tests/test_git_hook.sh
+	@bash tests/test_openclaw_gateway.sh
+	@bash tests/test_escalation.sh
+	@echo "All tests passed"
 
 # ── Symlink dotfiles via stow ─────────────────────────────────────────────────
 link:

@@ -1,0 +1,28 @@
+services:
+  openclaw:
+    image: ghcr.io/openclaw/openclaw:latest
+    environment:
+      - OMC_OPENCLAW=1
+      - OPENCLAW_REPLY_CHANNEL=discord
+      - OPENCLAW_REPLY_TARGET=${DISCORD_CHANNEL_ID}
+      - OPENCLAW_TOKEN=${OPENCLAW_TOKEN}
+      - OPENCLAW_GATEWAY_URL=${OPENCLAW_GATEWAY_URL}
+      - NULLCLAW_LLAMA_URL=${NULLCLAW_LLAMA_URL}
+      - HERMES_LLAMA_URL=${HERMES_LLAMA_URL}
+      - LUCID_MCP_URL=${LUCID_MCP_URL}
+    volumes:
+      - ..:/workspace:ro
+      - ../debates:/workspace/debates:rw
+      - ../agents/nullclaw/memory:/workspace/agents/nullclaw/memory:rw
+      - ../agents/hermes/memory:/workspace/agents/hermes/memory:rw
+    network_mode: host  # reach llama.cpp servers on LAN
+    restart: unless-stopped
+
+  desktop:
+    image: opensandbox/desktop:latest
+    environment:
+      - VNC_PASSWORD=${VNC_PASSWORD:-opensandbox}
+      - SANDBOX_DOMAIN=localhost:8080
+    ports:
+      - "5900:5900"
+      - "6080:6080"

@@ -1,9 +1,11 @@
-<!-- Generated: 2026-04-28 | Updated: 2026-05-05 -->
+<!-- Generated: 2026-04-28 | Updated: 2026-05-05 (living code agents added) -->
 
 # dotfiles
 
 ## Purpose
 Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of system tools, CLI apps, and symlinks config files via GNU Stow.
+
+Also serves as the **Universal Observer** — a singleton living code repository that seeds every future project repo with the same agent architecture. See `agents/` and `CONTEXT.md`.
 
 ## Key Files
 
@@ -23,6 +25,15 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `.gemini/` | Gemini CLI global config stow package (target: `~/.gemini`, see `.gemini/AGENTS.md`) |
 | `.qwen/` | Qwen global config stow package (target: `~/.qwen`, see `.qwen/AGENTS.md`) |
 | `proxy/` | Caddy reverse proxy Docker stack (see `proxy/AGENTS.md`) |
+| `agents/` | Living code agents — openclaw orchestrator + nullclaw (feelings) + hermes (logic) sub-agents |
+| `agents/nullclaw/` | Feelings-first Google ADK debater. Gemma 4 via llama.cpp. Lucid memory. |
+| `agents/hermes/` | Logic-first Google ADK debater (NousResearch Hermes). Qwen 3.5 via llama.cpp. Hindsight memory. |
+| `debates/` | Committed debate transcripts (YYYY-MM-DD-slug.md). Git history = agent learning. |
+| `docker/` | `docker-compose.yml` + `sandbox.toml` for openclaw + OpenSandbox desktop containers |
+| `scripts/` | `run_debate.sh` (debate orchestrator), `on_issue.sh` (git hook handler) |
+| `tests/` | TDD test scripts — one per red-green cycle (run with `make test`) |
+| `docs/adr/` | Architecture Decision Records (0001–0004) |
+| `CONTEXT.md` | Domain glossary — canonical terms for this living code architecture |
 
 ## Makefile Targets
 
@@ -62,6 +73,11 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `help` | Print all targets grouped by category (default target — runs on bare `make`) |
 | `source-code-pro` | Download + install Adobe Source Code Pro OTF fonts to `~/.fonts`, refresh font cache |
 | `caveman` | Install caveman token-compression skill across 30+ AI editors (`--all` variant) |
+| `debate` | Run feelings↔logic debate: `make debate TOPIC="..."` (or `DRY_RUN=true` for stub) |
+| `observer` | Start Universal Observer openclaw container (`docker compose up openclaw`) |
+| `agent-start` | Start OpenSandbox desktop sandbox (`docker compose up desktop`) |
+| `hindsight` | Install `hindsight-client` (NousResearch Hermes memory provider) via uv |
+| `test` | Run all agent TDD tests (Cycles 1–8) |
 
 ## For AI Agents
 

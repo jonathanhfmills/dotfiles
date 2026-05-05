@@ -1,0 +1,18 @@
+name: universal-observer
+description: "Dotfiles repo maintainer. Root openclaw orchestrator. #1 info source. Singleton."
+runtime: ghcr.io/openclaw/openclaw:latest
+sub_agents:
+  - agents/nullclaw
+  - agents/hermes
+memory:
+  provider: none  # orchestrator delegates memory to sub-agents
+hooks:
+  on_issue: scripts/on_issue.sh
+  on_debate: scripts/run_debate.sh
+output:
+  debates_dir: debates/
+  github_comment: true
+  confidence_threshold: 0.75  # above this → escalate to Claude Code via OMC
+escalation:
+  omc_gateway_url: "${OPENCLAW_GATEWAY_URL}"
+  omc_token: "${OPENCLAW_TOKEN}"
