@@ -1,9 +1,58 @@
-.PHONY: install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins
+.PHONY: help install update apt apt-repos gh php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins caveman source-code-pro
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
 NODE_VERSION := 24
 GO_VERSION := 1.24.3
+
+help:
+	@echo "Usage: make <target>  |  dotfiles <target>"
+	@echo ""
+	@echo "Bootstrap"
+	@echo "  install           Core setup: apt + nvm + node + claude + claude-plugins + docker + link"
+	@echo "  update            apt-get update && upgrade"
+	@echo ""
+	@echo "System"
+	@echo "  apt               Base system packages (jq, tmux, git, curl, stow, ripgrep, wget...)"
+	@echo "  apt-repos         Register third-party apt repos (gh, claude-code, docker)"
+	@echo "  ssh               openssh-server on port 2222, key auth only"
+	@echo ""
+	@echo "Node / JS"
+	@echo "  nvm               Node Version Manager"
+	@echo "  node              Node.js $(NODE_VERSION) via nvm"
+	@echo "  bun               Bun JS runtime"
+	@echo ""
+	@echo "AI Tools"
+	@echo "  claude            Claude Code CLI"
+	@echo "  claude-plugins    caveman + oh-my-claudecode + mattpocock-skills + OMC + Lucid"
+	@echo "  codex             OpenAI Codex CLI"
+	@echo "  gemini            Google Gemini CLI"
+	@echo "  qwen              Qwen Code CLI"
+	@echo "  omc               oh-my-claude-sisyphus npm package (standalone)"
+	@echo "  lucid             Lucid Memory MCP server (standalone)"
+	@echo "  caveman           caveman token-compression skill for 30+ AI editors"
+	@echo ""
+	@echo "Languages + LSPs"
+	@echo "  go                Go $(GO_VERSION) + gopls + gopls-lsp plugin"
+	@echo "  rust              Rust + rust-analyzer + rust-analyzer-lsp plugin"
+	@echo "  csharp            .NET LTS + .NET 8 + PowerShell + csharp-ls + csharp-lsp plugin"
+	@echo "  java              OpenJDK + jdtls + jdtls-lsp plugin"
+	@echo "  python            ty (Astral) + pyright-lsp plugin"
+	@echo "  lua               lua-language-server + lua-lsp plugin"
+	@echo "  php               PHP-FPM + intelephense + php-lsp plugin"
+	@echo "  lsp-servers       All language runtimes + LSPs at once"
+	@echo "  claude-lsp-plugins  All LSP plugins only (no runtimes)"
+	@echo ""
+	@echo "Fonts"
+	@echo "  source-code-pro   Adobe Source Code Pro OTF → ~/.fonts"
+	@echo ""
+	@echo "Other"
+	@echo "  gh                GitHub CLI + gh auth login + write git/.gitconfig + stow"
+	@echo "  docker            Docker Engine + compose plugin"
+	@echo "  pwsh              PowerShell"
+	@echo "  composer          PHP Composer"
+	@echo "  link              Symlink dotfiles via stow"
+	@echo "  proxy             Start Caddy reverse proxy stack"
 
 install: apt nvm node claude npm-globals claude-plugins docker link
 
@@ -14,7 +63,7 @@ update:
 # ── System packages ──────────────────────────────────────────────────────────
 apt:
 	sudo apt-get update -qq
-	sudo apt-get install -y jq tmux git curl make stow bubblewrap socat unzip ripgrep
+	sudo apt-get install -y jq tmux git curl make stow bubblewrap socat unzip ripgrep wget
 
 # ── Third-party apt repos ─────────────────────────────────────────────────────
 apt-repos: apt
@@ -48,13 +97,24 @@ apt-repos: apt
 	fi
 	@sudo apt-get update -qq
 
-# ── GitHub CLI ───────────────────────────────────────────────────────────────
+# ── GitHub CLI + git identity setup ──────────────────────────────────────────
 gh: apt-repos
 	@if ! command -v gh &>/dev/null; then \
 		sudo apt-get install -y gh; \
 	else \
 		echo "gh already installed: $$(gh --version | head -1)"; \
 	fi
+	@if ! gh auth status &>/dev/null; then \
+		gh auth login; \
+	else \
+		echo "gh already authenticated"; \
+	fi
+	@GH_NAME=$$(gh api user --jq .name 2>/dev/null); \
+	GH_EMAIL=$$(gh api user/emails --jq '[.[] | select(.primary == true)][0].email' 2>/dev/null); \
+	printf '[credential "https://github.com"]\n\thelper =\n\thelper = !/usr/bin/gh auth git-credential\n[credential "https://gist.github.com"]\n\thelper =\n\thelper = !/usr/bin/gh auth git-credential\n[user]\n\tname = '"$$GH_NAME"'\n\temail = '"$$GH_EMAIL"'\n' \
+		> "$(CURDIR)/git/.gitconfig"; \
+	echo "git/.gitconfig written for $$GH_NAME <$$GH_EMAIL>"
+	$(MAKE) link
 
 # ── PowerShell ───────────────────────────────────────────────────────────────
 pwsh:
@@ -140,6 +200,16 @@ claude-plugins: claude bun
 	claude plugin install caveman
 	claude plugin marketplace add https://github.com/Yeachan-Heo/oh-my-claudecode
 	claude plugin install oh-my-claudecode
+	@# mattpocock skills (no marketplace.json upstream — create one locally)
+	@if [ ! -d "$(HOME)/.local/share/mattpocock-skills" ]; then \
+		git clone https://github.com/mattpocock/skills $(HOME)/.local/share/mattpocock-skills; \
+	else \
+		git -C $(HOME)/.local/share/mattpocock-skills pull --ff-only; \
+	fi
+	@printf '{"$$schema":"https://anthropic.com/claude-code/marketplace.schema.json","name":"mattpocock-skills","description":"Matt Pocock skills for Claude Code","owner":{"name":"Matt Pocock","url":"https://github.com/mattpocock"},"plugins":[{"name":"mattpocock-skills","description":"Engineering and productivity skills","source":"./","category":"productivity"}]}' \
+		> $(HOME)/.local/share/mattpocock-skills/.claude-plugin/marketplace.json
+	claude plugin marketplace add $(HOME)/.local/share/mattpocock-skills
+	claude plugin install mattpocock-skills
 	@# OMC npm companion
 	@source "$(NVM_DIR)/nvm.sh" && npm install -g oh-my-claude-sisyphus
 	@# Lucid Memory MCP server
@@ -330,13 +400,27 @@ claude-lsp-plugins: claude
 	done
 	@echo "Claude LSP plugins installed"
 
+# ── Adobe Source Code Pro font ───────────────────────────────────────────────
+source-code-pro:
+	@mkdir -p ~/.fonts /tmp/scp
+	wget -q -O /tmp/scp/scp.zip \
+		https://github.com/adobe-fonts/source-code-pro/releases/download/2.042R-u%2F1.062R-i%2F1.026R-vf/OTF-source-code-pro-2.042R-u_1.062R-i.zip
+	unzip -q /tmp/scp/scp.zip -d /tmp/scp
+	cp -f /tmp/scp/OTF/*.otf ~/.fonts/
+	fc-cache -f
+	rm -rf /tmp/scp
+
+# ── caveman skill/plugin (multi-agent token compression) ─────────────────────
+caveman:
+	curl -fsSL https://raw.githubusercontent.com/JuliusBrussee/caveman/main/install.sh | bash -s -- --all
+
 # ── Symlink dotfiles via stow ─────────────────────────────────────────────────
 link:
 	@if [ ! -f "$(CURDIR)/git/.gitconfig" ]; then \
 		cp "$(CURDIR)/git/.gitconfig.example" "$(CURDIR)/git/.gitconfig"; \
 		echo "Created git/.gitconfig from example — fill in your personal settings before continuing"; \
 	fi
-	stow -d "$(CURDIR)" -t "$(HOME)" tmux git
+	stow -d "$(CURDIR)" -t "$(HOME)" tmux git bin
 	stow -d "$(CURDIR)" -t "$(HOME)/.claude" .claude
 	stow -d "$(CURDIR)" -t "$(HOME)/.codex" .codex
 	stow -d "$(CURDIR)" -t "$(HOME)/.gemini" .gemini

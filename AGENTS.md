@@ -1,4 +1,4 @@
-<!-- Generated: 2026-04-28 | Updated: 2026-04-30 -->
+<!-- Generated: 2026-04-28 | Updated: 2026-05-05 -->
 
 # dotfiles
 
@@ -15,6 +15,7 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 
 | Directory | Purpose |
 |-----------|---------|
+| `bin/` | `dotfiles` CLI wrapper stow package (stows to `~/.local/bin/dotfiles`) |
 | `git/` | git config stow package (see `git/AGENTS.md`) |
 | `tmux/` | tmux config stow package (see `tmux/AGENTS.md`) |
 | `.claude/` | Claude Code global config stow package (target: `~/.claude`, see `.claude/AGENTS.md`) |
@@ -22,7 +23,6 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `.gemini/` | Gemini CLI global config stow package (target: `~/.gemini`, see `.gemini/AGENTS.md`) |
 | `.qwen/` | Qwen global config stow package (target: `~/.qwen`, see `.qwen/AGENTS.md`) |
 | `proxy/` | Caddy reverse proxy Docker stack (see `proxy/AGENTS.md`) |
-| `scripts/` | Utility shell scripts (empty, reserved) |
 
 ## Makefile Targets
 
@@ -30,7 +30,7 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 |--------|---------|
 | `install` | Core bootstrap: apt + nvm + node + claude + npm-globals + claude-plugins + docker + link. gh, pwsh, php, language runtimes, and all LSP targets are opt-in |
 | `update` | `apt-get update && upgrade` |
-| `apt` | Base system packages + clangd (C/C++ LSP). Installs clangd-lsp plugin if `claude` present |
+| `apt` | Base system packages (jq, tmux, git, curl, make, stow, bubblewrap, socat, unzip, ripgrep, wget) |
 | `apt-repos` | Register all third-party apt repos/keys (gh, claude-code, docker) |
 | `gh` | GitHub CLI (depends on `apt-repos`) |
 | `php` | PHP-FPM + extensions + intelephense (PHP LSP). Installs php-lsp plugin if `claude` + `npm` present |
@@ -48,7 +48,7 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `claude-plugins` | Install caveman + oh-my-claudecode plugins |
 | `docker` | Docker Engine + compose plugin (depends on `apt-repos`) |
 | `lucid` | Lucid Memory MCP server (depends on `bun`) |
-| `link` | Symlink stow packages → `$HOME` (tmux, git, .claude, .codex, .gemini, .qwen) |
+| `link` | Symlink stow packages → `$HOME` (bin, tmux, git, .claude, .codex, .gemini, .qwen) |
 | `proxy` | Start Caddy reverse proxy stack |
 | `ssh` | openssh-server on port 2222, key auth only (opt-in; for Claude Desktop Remote SSH) |
 | `go` | Go runtime + gopls LSP + gopls-lsp plugin (opt-in) |
@@ -59,6 +59,9 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `lua` | lua-language-server + lua-lsp plugin (opt-in) |
 | `lsp-servers` | Meta-target: runs node + go + rust + csharp + java + python + lua (opt-in) |
 | `claude-lsp-plugins` | Install all official LSP plugins without binaries — use individual language targets for full setup (opt-in) |
+| `help` | Print all targets grouped by category (default target — runs on bare `make`) |
+| `source-code-pro` | Download + install Adobe Source Code Pro OTF fonts to `~/.fonts`, refresh font cache |
+| `caveman` | Install caveman token-compression skill across 30+ AI editors (`--all` variant) |
 
 ## For AI Agents
 

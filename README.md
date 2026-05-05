@@ -2,6 +2,22 @@
 
 Idempotent bootstrap for WSL2/Ubuntu dev environments. Installs system tools, CLI utilities, and symlinks dotfiles via GNU Stow.
 
+## Quick Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jonathanhfmills/dotfiles/master/install.sh | bash
+```
+
+Clones the repo to `~/dotfiles` and runs `make install`. Idempotent — safe to re-run.
+
+After install, the `dotfiles` command is available:
+
+```bash
+dotfiles help     # list all targets
+dotfiles gemini   # install Google Gemini CLI
+dotfiles go       # install Go + gopls LSP
+```
+
 ## Prerequisites
 
 Install WSL2 with Ubuntu from PowerShell (run as Administrator):
@@ -12,11 +28,10 @@ wsl --install
 
 Restart when prompted, then complete Ubuntu first-run setup.
 
-## Installation
+## Manual Installation
 
 ```bash
 git clone https://github.com/jonathanhfmills/dotfiles.git ~/dotfiles
-sudo apt update && sudo apt install build-essential
 cd ~/dotfiles && make install
 ```
 
@@ -28,10 +43,10 @@ cd ~/dotfiles && make install
 
 | Category | Tools |
 |----------|-------|
-| System | jq, tmux, git, curl, stow, ripgrep, bubblewrap, socat, unzip |
+| System | jq, tmux, git, curl, make, wget, stow, ripgrep, bubblewrap, socat, unzip |
 | Node | nvm, node 24, @anthropic-ai/sandbox-runtime |
 | Docker | docker-ce, docker compose |
-| Claude Code | claude CLI + caveman + oh-my-claudecode plugins |
+| Claude Code | claude CLI + caveman skill + oh-my-claudecode plugins |
 
 ## AI Tools
 
@@ -65,17 +80,24 @@ LSP binaries land in `~/.local/bin` (already in PATH). Plugins install automatic
 
 > **Note:** `kotlin-lsp` and `swift-lsp` have no Linux binary. Install manually if needed.
 
+## Fonts (opt-in)
+
+```bash
+make source-code-pro  # Adobe Source Code Pro OTF → ~/.fonts
+make caveman          # caveman token-compression skill for 30+ AI editors
+```
+
 ## Other Commands
 
 ```bash
 make update     # apt-get update && upgrade
-make link       # re-stow dotfiles (git, tmux, .claude, .codex, .gemini, .qwen)
+make link       # re-stow dotfiles (git, tmux, bin, .claude, .codex, .gemini, .qwen)
 make proxy      # start Caddy reverse proxy stack
 make apt-repos  # register third-party apt repos/keys (gh, claude-code, docker)
 make gh         # GitHub CLI
 make bun        # Bun JavaScript runtime
 make ssh        # openssh-server on port 2222 (Claude Desktop Remote SSH)
-make lucid      # Lucid Memory MCP (also auto-installed via make claude-plugins)
+make lucid      # Lucid Memory MCP server (also auto-installed via make claude-plugins)
 ```
 
 ## Git Configuration
