@@ -1,0 +1,3 @@
+[submodule "bicameral-mind"]
+	path = bicameral-mind
+	url = https://github.com/jonathanhfmills/bicameral-mind

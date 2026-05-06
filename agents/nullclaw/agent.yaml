@@ -1,0 +1,12 @@
+name: nullclaw
+description: "Feelings-first debater. Empathic, intuitive, values-driven."
+runtime: ghcr.io/nullclaw/nullclaw:latest
+soul: SOUL.md
+rules: RULES.md
+model:
+  provider: openai_compatible
+  base_url: "${NULLCLAW_LLAMA_URL:-http://localhost:8080/v1}"  # llama.cpp, Gemma 4, desktop 9070 XT
+  model: "${NULLCLAW_MODEL:-gemma4}"
+memory:
+  provider: lucid
+  mcp_endpoint: "${LUCID_MCP_URL}"

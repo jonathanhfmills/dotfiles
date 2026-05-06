@@ -1,0 +1,3 @@
+We run agent models locally via llama.cpp rather than the Gemini API. Nullclaw runs Gemma 4 on the desktop AMD RX 9070 XT (16GB, ROCm/Vulkan backend). Hermes runs Qwen 3.5 on the laptop NVIDIA RTX A4000 Ada (12GB, CUDA backend). Both expose an OpenAI-compatible HTTP API; Google ADK agents point to these endpoints via `openai_compatible` provider config.
+
+The tradeoff: zero API cost and full data sovereignty, but requires LAN reachability between containers and host model servers. Containers use `network_mode: host` to reach llama.cpp on the local network. Future target: Flutter SaaS wrapping this architecture for cross-platform distribution.

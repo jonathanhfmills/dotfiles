@@ -1,0 +1,3 @@
+The Universal Observer is reachable via two independent paths: (1) OMC gateway hooks when a Claude Code session is active, and (2) Discord direct message without Claude Code. Both paths must work independently — neither is a fallback for the other.
+
+Escalation path: debate confidence score ≥ 0.75 → openclaw sends issue URL to OMC → Claude Code goes fully autonomous on implementation. Distillation path: Claude Code implementation diff is committed back to the repo → repo agents learn patterns → Claude Code dependency shrinks over time for repeat tasks. Long-term goal: Claude Code becomes optional escalation only, not required for routine work.

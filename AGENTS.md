@@ -1,9 +1,11 @@
-<!-- Generated: 2026-04-28 | Updated: 2026-04-30 -->
+<!-- Generated: 2026-04-28 | Updated: 2026-05-06 (bicameral-mind submodule extraction) -->
 
 # dotfiles
 
 ## Purpose
 Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of system tools, CLI apps, and symlinks config files via GNU Stow.
+
+Also serves as the **Universal Observer** — a singleton living code repository that seeds every future project repo with the same agent architecture. See `agents/` and `CONTEXT.md`.
 
 ## Key Files
 
@@ -15,6 +17,7 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 
 | Directory | Purpose |
 |-----------|---------|
+| `bin/` | `dotfiles` CLI wrapper stow package (stows to `~/.local/bin/dotfiles`) |
 | `git/` | git config stow package (see `git/AGENTS.md`) |
 | `tmux/` | tmux config stow package (see `tmux/AGENTS.md`) |
 | `.claude/` | Claude Code global config stow package (target: `~/.claude`, see `.claude/AGENTS.md`) |
@@ -22,17 +25,25 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `.gemini/` | Gemini CLI global config stow package (target: `~/.gemini`, see `.gemini/AGENTS.md`) |
 | `.qwen/` | Qwen global config stow package (target: `~/.qwen`, see `.qwen/AGENTS.md`) |
 | `proxy/` | Caddy reverse proxy Docker stack (see `proxy/AGENTS.md`) |
-| `scripts/` | Utility shell scripts (empty, reserved) |
+| `agents/` | Living code agents — openclaw orchestrator + nullclaw (feelings) sub-agent |
+| `agents/nullclaw/` | Feelings-first debater. Gemma 4 via llama.cpp. Lucid memory. |
+| `bicameral-mind/` | Debate engine submodule — LogicAgent, docker stack, debate/ralph/escalation scripts. |
+| `debates/` | Committed debate transcripts (YYYY-MM-DD-slug.md). Git history = agent learning. |
+| `docker/` | Removed — docker stack moved to `bicameral-mind/docker/` |
+| `scripts/` | Engine scripts moved to `bicameral-mind/scripts/` — dotfiles `scripts/` is now empty |
+| `tests/` | TDD test scripts — one per red-green cycle (run with `make test`) |
+| `docs/adr/` | Architecture Decision Records (0001–0004) |
+| `CONTEXT.md` | Domain glossary — canonical terms for this living code architecture |
 
 ## Makefile Targets
 
 | Target | Purpose |
 |--------|---------|
-| `install` | Core bootstrap: apt + nvm + node + claude + npm-globals + claude-plugins + docker + link. gh, pwsh, php, language runtimes, and all LSP targets are opt-in |
+| `install` | Core bootstrap: apt + nvm + node + claude + npm-globals + claude-plugins + docker + link. github, pwsh, php, language runtimes, and all LSP targets are opt-in |
 | `update` | `apt-get update && upgrade` |
-| `apt` | Base system packages + clangd (C/C++ LSP). Installs clangd-lsp plugin if `claude` present |
-| `apt-repos` | Register all third-party apt repos/keys (gh, claude-code, docker) |
-| `gh` | GitHub CLI (depends on `apt-repos`) |
+| `apt` | Base system packages (jq, tmux, git, curl, make, stow, bubblewrap, socat, unzip, ripgrep, wget) |
+| `apt-repos` | Register all third-party apt repos/keys (gh CLI, claude-code, docker) |
+| `github` | GitHub CLI install + `gh auth login` + write `git/.gitconfig` from gh profile + `make link` |
 | `php` | PHP-FPM + extensions + intelephense (PHP LSP). Installs php-lsp plugin if `claude` + `npm` present |
 | `composer` | Composer (depends on `php`) |
 | `pwsh` | PowerShell via packages-microsoft-prod.deb |
@@ -48,7 +59,7 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `claude-plugins` | Install caveman + oh-my-claudecode plugins |
 | `docker` | Docker Engine + compose plugin (depends on `apt-repos`) |
 | `lucid` | Lucid Memory MCP server (depends on `bun`) |
-| `link` | Symlink stow packages → `$HOME` (tmux, git, .claude, .codex, .gemini, .qwen) |
+| `link` | Symlink stow packages → `$HOME` (bin, tmux, git, .claude, .codex, .gemini, .qwen) |
 | `proxy` | Start Caddy reverse proxy stack |
 | `ssh` | openssh-server on port 2222, key auth only (opt-in; for Claude Desktop Remote SSH) |
 | `go` | Go runtime + gopls LSP + gopls-lsp plugin (opt-in) |
@@ -59,6 +70,19 @@ Personal dotfiles for WSL2/Ubuntu dev environment. Manages installation of syste
 | `lua` | lua-language-server + lua-lsp plugin (opt-in) |
 | `lsp-servers` | Meta-target: runs node + go + rust + csharp + java + python + lua (opt-in) |
 | `claude-lsp-plugins` | Install all official LSP plugins without binaries — use individual language targets for full setup (opt-in) |
+| `help` | Print all targets grouped by category (default target — runs on bare `make`) |
+| `source-code-pro` | Download + install Adobe Source Code Pro OTF fonts to `~/.fonts`, refresh font cache |
+| `caveman` | Install caveman token-compression skill across 30+ AI editors (`--all` variant) |
+| `debate` | Delegate to `make -C bicameral-mind debate TOPIC="..."` |
+| `maintainer` | Delegate to `make -C bicameral-mind maintainer` — starts openclaw observer container |
+| `observer` | Alias for `maintainer` |
+| `ralph` | Delegate to `make -C bicameral-mind ralph ISSUE_URL=...` |
+| `escalate` | Delegate to `make -C bicameral-mind escalate ISSUE_URL=...` |
+| `training-pr` | Delegate to `make -C bicameral-mind training-pr` |
+| `digital-twin` | Delegate to `make -C bicameral-mind digital-twin` |
+| `agent-start` | Delegate to `make -C bicameral-mind agent-start` |
+| `hindsight` | Delegate to `make -C bicameral-mind hindsight` |
+| `test` | Run dotfiles tests (nullclaw, make targets, submodule) + engine tests via submodule |
 
 ## For AI Agents
 
