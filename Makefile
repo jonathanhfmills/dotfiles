@@ -1,4 +1,4 @@
-.PHONY: help install update apt apt-repos github php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins caveman source-code-pro debate maintainer observer agent-start hindsight llama-install llama-download llama-serve digital-twin ralph escalate training-pr test
+.PHONY: help install update apt apt-repos github php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins caveman source-code-pro debate maintainer observer agent-start hindsight llama-install llama-download llama-serve digital-twin ralph escalate training-pr test sync-upstream
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
@@ -462,6 +462,10 @@ llama-download: ## Download Qwen3.5-4B model
 
 llama-serve: ## Start llama-server on port 8080
 	@$(MAKE) -C bicameral-mind llama-serve
+
+sync-upstream: ## Pull shared changes from dotfiles template upstream
+	git fetch upstream
+	git merge upstream/master --allow-unrelated-histories
 
 test:
 	@chmod +x tests/*.sh
