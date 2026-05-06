@@ -15,4 +15,6 @@ else
   git clone "$REPO" "$DEST"
 fi
 
+git -C "$DEST" submodule update --init --recursive
+
 make -C "$DEST" install

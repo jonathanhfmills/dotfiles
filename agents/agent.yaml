@@ -3,12 +3,12 @@ description: "Dotfiles repo maintainer. Root openclaw orchestrator. #1 info sour
 runtime: ghcr.io/openclaw/openclaw:latest
 sub_agents:
   - agents/nullclaw
-  - agents/hermes
+  - bicameral-mind/agents/logicagent
 memory:
   provider: none  # orchestrator delegates memory to sub-agents
 hooks:
-  on_issue: scripts/on_issue.sh
-  on_debate: scripts/run_debate.sh
+  on_issue: bicameral-mind/scripts/on_issue.sh
+  on_debate: bicameral-mind/scripts/run_debate.sh
 output:
   debates_dir: debates/
   github_comment: true
