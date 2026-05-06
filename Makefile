@@ -1,4 +1,4 @@
-.PHONY: help install update apt apt-repos github php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins caveman source-code-pro debate observer agent-start hindsight digital-twin ralph escalate training-pr test
+.PHONY: help install update apt apt-repos github php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins caveman source-code-pro debate maintainer observer agent-start hindsight digital-twin ralph escalate training-pr test
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
@@ -54,16 +54,17 @@ help:
 	@echo "  link              Symlink dotfiles via stow"
 	@echo "  proxy             Start Caddy reverse proxy stack"
 	@echo ""
-	@echo "Living Code / Agents"
+	@echo "Living Code / Agents (delegated to bicameral-mind submodule)"
 	@echo "  debate            Run feelings↔logic debate: make debate TOPIC=\"...\""
-	@echo "  digital-twin      Build digital twin container (Ubuntu 24.04, full dev stack)"
-	@echo "  ralph             Ralph loop: local agents attempt impl, exit at conf>=0.75x2"
+	@echo "  maintainer        Start Universal Observer (openclaw) container"
+	@echo "  observer          Alias for maintainer"
+	@echo "  ralph             Ralph loop: exit at confidence >=0.75x2: make ralph ISSUE_URL=..."
 	@echo "  escalate          Escalate GitHub issue to Claude Code: make escalate ISSUE_URL=..."
 	@echo "  training-pr       Create training signal PR (debate + hindsight + diff)"
-	@echo "  observer          Start Universal Observer container (singleton)"
+	@echo "  digital-twin      Build digital twin container (Ubuntu 24.04, full dev stack)"
 	@echo "  agent-start       Start OpenSandbox desktop sandbox"
 	@echo "  hindsight         Install hindsight-client + hindsight-litellm memory providers"
-	@echo "  test              Run all agent tests (red-green cycles)"
+	@echo "  test              Run dotfiles tests + engine tests"
 
 install: apt nvm node claude npm-globals claude-plugins docker link
 
@@ -425,50 +426,40 @@ source-code-pro:
 caveman:
 	curl -fsSL https://raw.githubusercontent.com/JuliusBrussee/caveman/main/install.sh | bash -s -- --all
 
-# ── Living Code / Agent targets ──────────────────────────────────────────────
+# ── Living Code / Agent targets (delegated to bicameral-mind submodule) ───────
 debate:
-	@python3 "$(CURDIR)/scripts/run_debate.py"
+	@HOST_DIR="$(CURDIR)" $(MAKE) -C bicameral-mind debate
 
-digital-twin:
-	docker build -f "$(CURDIR)/docker/Dockerfile.digital-twin" "$(CURDIR)/docker" -t digital-twin:latest
-
-ralph:
-	@ISSUE_URL="$(ISSUE_URL)" bash "$(CURDIR)/scripts/ralph_loop.sh"
-
-escalate:
-	@ISSUE_URL="$(ISSUE_URL)" bash "$(CURDIR)/scripts/escalate.sh"
-
-training-pr:
-	@bash "$(CURDIR)/scripts/create_training_pr.sh"
+maintainer:
+	@HOST_DIR="$(CURDIR)" $(MAKE) -C bicameral-mind maintainer
 
 observer:
-	docker compose -f "$(CURDIR)/docker/docker-compose.yml" up openclaw
+	@HOST_DIR="$(CURDIR)" $(MAKE) -C bicameral-mind maintainer
+
+ralph:
+	@HOST_DIR="$(CURDIR)" $(MAKE) -C bicameral-mind ralph ISSUE_URL="$(ISSUE_URL)"
+
+escalate:
+	@$(MAKE) -C bicameral-mind escalate ISSUE_URL="$(ISSUE_URL)"
+
+training-pr:
+	@HOST_DIR="$(CURDIR)" $(MAKE) -C bicameral-mind training-pr
+
+digital-twin:
+	@$(MAKE) -C bicameral-mind digital-twin
 
 agent-start:
-	docker compose -f "$(CURDIR)/docker/docker-compose.yml" up desktop
+	@HOST_DIR="$(CURDIR)" $(MAKE) -C bicameral-mind agent-start
 
 hindsight:
-	@if ! command -v uv &>/dev/null; then \
-		curl -fsSL https://astral.sh/uv/install.sh | bash; \
-	fi
-	uv pip install --system "hindsight-client>=0.4.22"
-	hermes memory setup
+	@$(MAKE) -C bicameral-mind hindsight
 
 test:
 	@chmod +x tests/*.sh
-	@bash tests/test_debate_record.sh
 	@bash tests/test_nullclaw_config.sh
-	@bash tests/test_hermes_config.sh
-	@bash tests/test_debate_loop.sh
 	@bash tests/test_make_targets.sh
-	@bash tests/test_git_hook.sh
-	@bash tests/test_openclaw_gateway.sh
-	@bash tests/test_escalation.sh
-	@SKIP_DOCKER_BUILD=1 bash tests/test_digital_twin_build.sh
-	@bash tests/test_debate_cli_invocation.sh
-	@bash tests/test_escalate.sh
-	@bash tests/test_ralph_loop.sh
-	@bash tests/test_training_pr.sh
+	@bash tests/test_submodule.sh
+	@SKIP_DOCKER_BUILD=1 $(MAKE) -C bicameral-mind test
 	@echo "All tests passed"
 
 # ── Symlink dotfiles via stow ─────────────────────────────────────────────────

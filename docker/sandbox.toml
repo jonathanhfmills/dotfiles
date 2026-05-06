@@ -1,6 +1,0 @@
-[storage]
-allowed_host_paths = [
-  "/home/jon/dotfiles/debates",
-  "/home/jon/dotfiles/agents/nullclaw/memory",
-  "/home/jon/dotfiles/agents/hermes/memory"
-]

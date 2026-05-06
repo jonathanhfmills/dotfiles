@@ -1,4 +1,4 @@
-<!-- Generated: 2026-04-28 | Updated: 2026-05-05 (living code agents added) -->
+<!-- Generated: 2026-04-28 | Updated: 2026-05-06 (bicameral-mind submodule extraction) -->
 
 # dotfiles
 
@@ -25,12 +25,12 @@ Also serves as the **Universal Observer** — a singleton living code repository
 | `.gemini/` | Gemini CLI global config stow package (target: `~/.gemini`, see `.gemini/AGENTS.md`) |
 | `.qwen/` | Qwen global config stow package (target: `~/.qwen`, see `.qwen/AGENTS.md`) |
 | `proxy/` | Caddy reverse proxy Docker stack (see `proxy/AGENTS.md`) |
-| `agents/` | Living code agents — openclaw orchestrator + nullclaw (feelings) + hermes (logic) sub-agents |
-| `agents/nullclaw/` | Feelings-first Google ADK debater. Gemma 4 via llama.cpp. Lucid memory. |
-| `agents/hermes/` | Logic-first Google ADK debater (NousResearch Hermes). Qwen 3.5 via llama.cpp. Hindsight memory. |
+| `agents/` | Living code agents — openclaw orchestrator + nullclaw (feelings) sub-agent |
+| `agents/nullclaw/` | Feelings-first debater. Gemma 4 via llama.cpp. Lucid memory. |
+| `bicameral-mind/` | Debate engine submodule — LogicAgent, docker stack, debate/ralph/escalation scripts. |
 | `debates/` | Committed debate transcripts (YYYY-MM-DD-slug.md). Git history = agent learning. |
-| `docker/` | `docker-compose.yml` + `Dockerfile.digital-twin` + `sandbox.toml` |
-| `scripts/` | `run_debate.py` (debate orchestrator), `escalate.sh`, `ralph_loop.sh`, `create_training_pr.sh`, `on_issue.sh` |
+| `docker/` | Removed — docker stack moved to `bicameral-mind/docker/` |
+| `scripts/` | Engine scripts moved to `bicameral-mind/scripts/` — dotfiles `scripts/` is now empty |
 | `tests/` | TDD test scripts — one per red-green cycle (run with `make test`) |
 | `docs/adr/` | Architecture Decision Records (0001–0004) |
 | `CONTEXT.md` | Domain glossary — canonical terms for this living code architecture |
@@ -73,15 +73,16 @@ Also serves as the **Universal Observer** — a singleton living code repository
 | `help` | Print all targets grouped by category (default target — runs on bare `make`) |
 | `source-code-pro` | Download + install Adobe Source Code Pro OTF fonts to `~/.fonts`, refresh font cache |
 | `caveman` | Install caveman token-compression skill across 30+ AI editors (`--all` variant) |
-| `debate` | Run feelings↔logic debate via `run_debate.py`: `make debate TOPIC="..."` |
-| `digital-twin` | Build digital twin container (Ubuntu 24.04, full dev stack) |
-| `ralph` | Ralph loop: local agents attempt implementation, exit at confidence ≥0.75×2: `make ralph ISSUE_URL=...` |
-| `escalate` | Escalate GitHub issue to Claude Code (human-triggered): `make escalate ISSUE_URL=...` |
-| `training-pr` | Create training signal PR with debate transcript + Hindsight patterns + confidence scores + diff |
-| `observer` | Start Universal Observer openclaw container (`docker compose up openclaw`) |
-| `agent-start` | Start OpenSandbox desktop sandbox (`docker compose up desktop`) |
-| `hindsight` | Install `hindsight-client` + `hindsight-litellm` (Hermes + Nullclaw memory providers) via uv |
-| `test` | Run all agent TDD tests (Cycles 1–13) |
+| `debate` | Delegate to `make -C bicameral-mind debate TOPIC="..."` |
+| `maintainer` | Delegate to `make -C bicameral-mind maintainer` — starts openclaw observer container |
+| `observer` | Alias for `maintainer` |
+| `ralph` | Delegate to `make -C bicameral-mind ralph ISSUE_URL=...` |
+| `escalate` | Delegate to `make -C bicameral-mind escalate ISSUE_URL=...` |
+| `training-pr` | Delegate to `make -C bicameral-mind training-pr` |
+| `digital-twin` | Delegate to `make -C bicameral-mind digital-twin` |
+| `agent-start` | Delegate to `make -C bicameral-mind agent-start` |
+| `hindsight` | Delegate to `make -C bicameral-mind hindsight` |
+| `test` | Run dotfiles tests (nullclaw, make targets, submodule) + engine tests via submodule |
 
 ## For AI Agents
 

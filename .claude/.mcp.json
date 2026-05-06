@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "hindsight": {
+      "command": "hindsight",
+      "args": ["mcp", "serve"],
+      "env": {
+        "HINDSIGHT_API_URL": "http://localhost:8888"
+      }
+    }
+  }
+}
