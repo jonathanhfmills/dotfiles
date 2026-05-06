@@ -1,4 +1,4 @@
-.PHONY: help install update apt apt-repos github php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins caveman source-code-pro debate maintainer observer agent-start hindsight digital-twin ralph escalate training-pr test
+.PHONY: help install update apt apt-repos github php composer pwsh nvm node bun claude npm-globals omc sandbox-runtime codex gemini qwen claude-plugins docker lucid link proxy ssh go rust csharp java python lua lsp-servers claude-lsp-plugins caveman source-code-pro debate maintainer observer agent-start hindsight llama-install llama-download llama-serve digital-twin ralph escalate training-pr test
 
 SHELL := /bin/bash
 NVM_DIR := $(HOME)/.nvm
@@ -453,6 +453,15 @@ agent-start:
 
 hindsight:
 	@$(MAKE) -C bicameral-mind hindsight
+
+llama-install: ## Build llama.cpp with CUDA
+	@$(MAKE) -C bicameral-mind llama-install
+
+llama-download: ## Download Qwen3.5-4B model
+	@$(MAKE) -C bicameral-mind llama-download
+
+llama-serve: ## Start llama-server on port 8080
+	@$(MAKE) -C bicameral-mind llama-serve
 
 test:
 	@chmod +x tests/*.sh
