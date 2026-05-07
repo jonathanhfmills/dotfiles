@@ -2,7 +2,7 @@
 
 ## Language
 
-- **Universal Observer**: The singleton openclaw instance running in the dotfiles repo — root maintainer agent, #1 info source, has access rights to manage all other repo containers. Only one containerized instance.
+- **Universal Observer**: The singleton openclaw instance running in the dotfiles repo — root maintainer agent, #1 info source, has access rights to manage all other repo containers. Only one containerized instance. Runs via OpenSandbox (`alibaba/OpenSandbox`) — sandboxed Node.js process, NOT bare-metal. Network egress restricted to Discord/GitHub. Auth via `OPENCLAW_GATEWAY_TOKEN` env var. Gateway exposed at `localhost:18789`.
 - **Digital Twin**: Ubuntu 24.04 LTS container (`docker/Dockerfile.digital-twin`). Mirrors developer machine: `~/dotfiles` seeded, full `make install` stack (apt, nvm, node, claude, claude-plugins, hindsight, qwen, gemini). Runs automated pipeline (debate → implement → PR) without human interaction. Scoped to project directory; no bare-metal OMC.
 - **Two-Layer Architecture**: Layer 1 = human + OMC on bare metal (plans/issues in GitHub, frontier models OK). Layer 2 = digital twin automated pipeline (reads issue → debate → implement → PR, no OMC, local models only).
 - **Living Code Repository**: A git repo that evolves autonomously through agent-generated commits, memory updates, and debate transcripts.
@@ -23,7 +23,12 @@
 - **Bicameral Mind**: Git submodule at `bicameral-mind/` containing the debate engine, LogicAgent, docker stack, and ralph/escalation scripts. Host repos provide their own agent (e.g. nullclaw); bicameral-mind provides LogicAgent + orchestration. Makefile targets delegate via `make -C bicameral-mind`.
 - **Issue Agent**: Per-issue digital twin instance scoped to project dir. Spawns freely. Distinct from Universal Observer.
 - **OMC Path**: Human + Claude Code + OMC on bare metal. Drives Layer 1 (planning, issue creation, escalation review). Not present in digital twin automated pipeline.
-- **Discord Forum Thread**: Live activity log for a debate posted to forum channel `1501631748880990310`. One thread per issue, created by `ralph_loop.sh` at debate start. Each agent turn posted verbatim. @mention `<@140186601912270849>` only on confident exit (≥0.75×2) or max attempts exhausted. Replaces flat channel message.
+- **Discord Forum Thread**: Live activity log for a debate posted to forum channel `1501647240727367711`. One thread per issue, created by `ralph_loop.sh` at debate start. Bidirectional — user replies within the thread are injected as feedback into the active debate session via OpenClaw thread binding (`/focus`).
+- **Discord Interaction Channel**: Guild text channel `1501720991347249383` where the user sends messages to the OpenClaw agent directly. No `@mention` required (private server). OpenClaw reply target for outbound proactive messages.
+- **Discord Privacy Mode**: DM-based conversation with the OpenClaw agent for sensitive/private interactions. Allowlisted to user `140186601912270849` only.
+- **Discord Voice Channel**: `1501741347013660885`. Bot auto-joins on gateway start. STT via faster-whisper (large-v3), TTS via Kokoro (CPU). Real-time voice conversation.
+- **Discord General Channel**: Guild text channel `1403055310305759386` (#general). `@mention` required. Future venue for multi-bot discussions — bots @mention each other to route turns.
+- **Bot Presence**: Discord status signal for the OpenClaw agent. Default: Online. During active debate: DND + activity text "Debating: `<issue-slug>`". On debate exit: Online, activity cleared. Updated by `ralph_loop.sh` via OpenClaw presence API. One thread per issue, created by `ralph_loop.sh` at debate start. Each agent turn posted verbatim. @mention `<@140186601912270849>` only on confident exit (≥0.75×2) or max attempts exhausted. Replaces flat channel message.
 - **Dotfiles Template**: `jonathanhfmills/dotfiles` GitHub template repo. Upstream source for all Host Repos. Contains shared scripts, Makefile, and bicameral-mind submodule. Changes propagate to host repos via `make sync-upstream`.
 - **Host Repo**: Per-device git repo derived from Dotfiles Template (e.g. `dotfiles-laptop`). Carries device-specific `.env` (model, GPU, VRAM, model server URL). `git remote upstream` tracks template for sync.
 - **Host Fleet**: The four derived Host Repos: `dotfiles-laptop`, `dotfiles-laptop-work`, `dotfiles-desktop`, `dotfiles-desktop-work`. Each host has its own Device Model Profile and llama.cpp config.
