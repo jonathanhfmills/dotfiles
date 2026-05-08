@@ -7,7 +7,7 @@ Accepted
 ralph_loop.sh previously sent a single flat message to a Discord text channel after debate completion. This produced noise in #general and gave no visibility into agent turn output during a debate. The user observes debates and wants @mention-notify only on actionable outcomes (confident result, or stuck).
 
 ## Decision
-Use a Discord forum channel (`1501631748880990310`) with one thread per issue. ralph_loop.sh creates the thread at debate start and exports `DISCORD_THREAD_ID`. run_debate.py reads that env var and POSTs each agent turn verbatim to the thread. @mention `<@140186601912270849>` only on: confident exit (≥0.75×2 consecutive) or max attempts exhausted.
+Use a Discord forum channel (`1501647240727367711`) with one thread per issue. ralph_loop.sh creates the thread at debate start and exports `DISCORD_THREAD_ID`. run_debate.py reads that env var and POSTs each agent turn verbatim to the thread. @mention `<@140186601912270849>` only on: confident exit (≥0.75×2 consecutive) or max attempts exhausted.
 
 ## Alternatives Considered
 - **Flat channel messages**: No context isolation. Multiple simultaneous debates create noise in #general.

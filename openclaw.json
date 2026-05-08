@@ -1,0 +1,87 @@
+{
+  "gateway": {
+    "auth": {
+      "mode": "token",
+      "token": { "source": "env", "provider": "default", "id": "OPENCLAW_GATEWAY_TOKEN" }
+    },
+    "controlUi": {
+      "allowedOrigins": [
+        "http://localhost:18789",
+        "http://127.0.0.1:18789"
+      ]
+    }
+  },
+  "meta": {
+    "lastTouchedVersion": "2026.5.5",
+    "lastTouchedAt": "2026-05-06T16:48:34.087Z"
+  },
+  "models": {
+    "providers": {
+      "llamacpp": {
+        "baseUrl": "http://host.docker.internal:8080/v1",
+        "apiKey": "local",
+        "models": [
+          {
+            "id": "Qwen3.5-4B-UD-Q4_K_XL.gguf",
+            "name": "Qwen3.5-4B (local)",
+            "api": "openai-completions"
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": "llamacpp/Qwen3.5-4B-UD-Q4_K_XL.gguf"
+    }
+  },
+  "channels": {
+    "discord": {
+      "enabled": true,
+      "token": {
+        "source": "env",
+        "provider": "default",
+        "id": "DISCORD_BOT_TOKEN"
+      },
+      "streaming": {
+        "mode": "partial"
+      },
+      "groupPolicy": "allowlist",
+      "dmPolicy": "allowlist",
+      "allowFrom": ["140186601912270849"],
+      "guilds": {
+        "1403055309597052949": {
+          "requireMention": false,
+          "channels": {
+            "1501720991347249383": {},
+            "1403055310305759386": {
+              "requireMention": true
+            }
+          }
+        }
+      },
+      "voice": {
+        "autoJoin": [
+          {
+            "guildId": "1403055309597052949",
+            "channelId": "1501741347013660885"
+          }
+        ],
+        "tts": {
+          "enabled": true,
+          "auto": "inbound",
+          "mode": "final",
+          "provider": "kokoro",
+          "providers": {
+            "kokoro": {
+              "baseUrl": "http://kokoro-tts:8880/v1"
+            }
+          }
+        }
+      },
+      "thread": {
+        "inheritParent": false
+      }
+    }
+  }
+}
