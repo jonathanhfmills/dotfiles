@@ -1,6 +1,10 @@
+{
+    auto_https off
+}
+
 # Global reverse proxy
 # Add one block per local site
 
-https://envisionus.local {
+http://envisionus.local {
     reverse_proxy envisionus-wp:80
 }
