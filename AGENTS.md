@@ -1,4 +1,5 @@
-<!-- Generated: 2026-04-28 | Updated: 2026-05-06 (bicameral-mind submodule extraction) -->
+<lang>English</lang>
+<!-- Generated: 2026-04-28 | Updated: 2026-05-12 -->
 
 # dotfiles
 
@@ -34,6 +35,7 @@ Also serves as the **Universal Observer** — a singleton living code repository
 | `tests/` | TDD test scripts — one per red-green cycle (run with `make test`) |
 | `docs/adr/` | Architecture Decision Records (0001–0004) |
 | `CONTEXT.md` | Domain glossary — canonical terms for this living code architecture |
+| `.omc/` | OMC runtime state: project memory, session data, agent state (see `.omc/AGENTS.md`) |
 
 ## Makefile Targets
 
@@ -114,5 +116,20 @@ Also serves as the **Universal Observer** — a singleton living code repository
 - `stow` — symlink management
 - `apt-get` — package installation
 - `curl` — downloading installers/GPG keys
+
+
+### Domain Language Maintenance
+
+When modifying AGENTS.md files in this repo, use these canonical terms:
+
+| Term | Meaning |
+|------|---------|
+| stow package | A subdirectory whose layout mirrors a target dir, managed by GNU Stow |
+| stow target | The destination directory where symlinks are created (e.g. `$HOME`, `~/.claude`) |
+| idempotent | A Makefile target that checks before acting and skips if already done |
+| opt-in target | A Makefile target not in the default `install:` chain — must be run explicitly |
+| AI symlink | `CLAUDE.md` or `GEMINI.md` symlink pointing to sibling `AGENTS.md` |
+
+Avoid: "configuration package", "dotfile bundle", "bootstrapper". Use "stow package" and "idempotent installer" instead.
 
 <!-- MANUAL: -->
